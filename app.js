@@ -1970,12 +1970,16 @@ function downloadPDF(mId) {
     disc = Math.max(0, Math.min(10, disc));
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     let evCt = 0, evSp = 0, inCt = 0;
+    let prjRows = '';
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
         if (prj.type === 'event') { if (pt.role === 'SP') evSp++; else evCt++; }
         else if (prj.type === 'internal') inCt++;
+        
+        const avg = ((pt.c1||0)+(pt.c2||0)+(pt.c3||0)+(pt.c4||0)+(pt.c5||0)+(pt.c6||0)+(pt.c7||0))/7;
+        prjRows += `<tr><td>${prj.name}</td><td>${pt.role}</td><td>${pt.evalCount||0}</td><td>${pt.c1||0}</td><td>${pt.c2||0}</td><td>${pt.c3||0}</td><td>${pt.c4||0}</td><td>${pt.c5||0}</td><td>${pt.c6||0}</td><td>${pt.c7||0}</td><td class="text-bold">${avg.toFixed(2)}</td></tr>`;
     });
     const mapE2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 6;
     const mapI2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 7;
@@ -1984,22 +1988,25 @@ function downloadPDF(mId) {
     const brand = ce ? ce.brandScore : 7;
     const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons.join('<br>') : 'Không có nhận xét bổ sung.';
 
-    const deptCri = de && de.criteria ? de.criteria : null;
-
-    const container = document.getElementById('pdf-export-container');
+    const container = document.getElementById('pdf-report-template');
+    if (!container) {
+        showToast('Lỗi: Không tìm thấy mẫu xuất báo cáo!', 'error');
+        return;
+    }
+    
     container.innerHTML = `
-        <div id="pdf-content" style="padding: 24px; font-family: 'Arial', sans-serif; color: #000; background: #fff; line-height: 1.4;">
+        <div id="pdf-content" style="padding: 24px; font-family: 'Times New Roman', serif; color: #000; background: #fff; line-height: 1.4;">
             <style>
-                .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
-                .pdf-table th, .pdf-table td { border: 2px solid #000; padding: 6px 10px; text-align: left; }
-                .pdf-table th { background-color: #dca306; color: #fff; text-align: center; text-transform: uppercase; font-weight: bold; }
-                .pdf-table .subheading td { background-color: #fef0c7; font-weight: bold; text-align: center; color: #000; text-transform: uppercase; }
+                .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; font-family: 'Times New Roman', serif; }
+                .pdf-table th, .pdf-table td { border: 1.5px solid #000; padding: 6px 10px; text-align: left; }
+                .pdf-table th { background-color: #0ea5e9; color: #fff; text-align: center; text-transform: uppercase; font-weight: bold; }
+                .pdf-table .subheading td { background-color: #f1f5f9; font-weight: bold; text-align: center; color: #000; text-transform: uppercase; }
                 .text-center { text-align: center !important; }
                 .text-bold { font-weight: bold; }
                 .text-red { color: #dc2626; font-weight: bold; }
-                .row-avg { background-color: #fef0c7; }
-                .pdf-header { text-align: center; margin-bottom: 20px; }
-                .pdf-header h2 { margin: 0 0 10px 0; color: #dca306; text-transform: uppercase; font-size: 24px; }
+                .row-avg { background-color: #f8fafc; }
+                .pdf-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; }
+                .pdf-header h2 { margin: 0 0 5px 0; color: #0ea5e9; text-transform: uppercase; font-size: 24px; font-weight: bold; }
             </style>
             
             <div class="pdf-header">
@@ -2162,22 +2169,189 @@ function saveDeptEval() {
 // EXPORT EXCEL
 // ==========================================
 function exportToExcel() {
-    let csv = 'data:text/csv;charset=utf-8,\uFEFF';
-    csv += 'Họ & Tên,Ban,Lớp,Điểm Project,Điểm CLB,Điểm Ban,Tổng Điểm,Xếp Loại\n';
-    state.members.forEach(m => {
+    showToast('Đang chuẩn bị dữ liệu báo cáo...', 'info');
+    
+    // 1. Lấy trạng thái bộ lọc hiện tại để khớp với UI
+    const searchTxt = (document.getElementById('search-score') ? document.getElementById('search-score').value : '').toLowerCase();
+    const dFilter = state.scoreDeptFilter || 'ALL';
+    
+    // 2. Lọc danh sách thành viên giống như bảng đang hiển thị
+    const filtered = state.members.filter(m =>
+        m.name.toLowerCase().includes(searchTxt) && (dFilter === 'ALL' || m.dept === dFilter)
+    );
+
+    if (filtered.length === 0) {
+        showToast('Không có dữ liệu để xuất!', 'error');
+        return;
+    }
+
+    // 3. Tạo nội dung CSV
+    const header = ['Họ & Tên', 'Ban', 'Lớp', 'Điểm Project', 'Điểm CLB', 'Điểm Ban', 'Tổng Điểm', 'Xếp Loại'];
+    let csvContent = '\uFEFF'; // Thêm BOM để Excel hỗ trợ tiếng Việt (UTF-8)
+    csvContent += header.join(',') + '\n';
+
+    filtered.forEach(m => {
         const p = calculateMemberProjectScore(m.id).toFixed(2);
         const c = calculateMemberClubScore(m.id).toFixed(2);
         const de = state.deptScores.find(x => x.memberId === m.id && x.term === state.currentTerm);
         const d = de ? de.totalScore.toFixed(2) : '0.00';
         const t = ((parseFloat(p) + parseFloat(c) + parseFloat(d)) / 3).toFixed(2);
-        let g = 'Can co gang';
-        if (t >= 8.5) g = 'Xuat Sac'; else if (t >= 7) g = 'Kha'; else if (t >= 5) g = 'Dat';
-        csv += '"' + m.name + '","' + m.dept + '","' + m.class + '","' + p + '","' + c + '","' + d + '","' + t + '","' + g + '"\n';
+        
+        let gradeVi = 'Cần Cố Gắng';
+        if (t >= 8.5) gradeVi = 'Xuất Sắc';
+        else if (t >= 7.0) gradeVi = 'Khá';
+        else if (t >= 5.0) gradeVi = 'Đạt';
+
+        const row = [
+            `"${m.name}"`,
+            `"${m.dept}"`,
+            `"${m.class || ''}"`,
+            p,
+            c,
+            d,
+            t,
+            `"${gradeVi}"`
+        ];
+        csvContent += row.join(',') + '\n';
     });
-    const link = document.createElement('a');
-    link.href = encodeURI(csv);
-    link.download = 'HuReA_BangDiem_' + state.currentTerm + '.csv';
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+    // 4. Download an toàn bằng Blob và createObjectURL
+    try {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const filename = `HuReA_BangDiem_${state.currentTerm}_${timestamp}.csv`;
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Dọn dẹp
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
+        
+        showToast('Tải xuống báo cáo Excel thành công!', 'success');
+    } catch (err) {
+        console.error('Export Error:', err);
+        showToast('Lỗi khi tải xuống, vui lòng thử lại.', 'error');
+    }
+}
+
+/**
+ * EXPORT SCOREBOARD PDF
+ */
+async function exportScoreboardToPDF() {
+    showToast('Đang chuẩn bị báo cáo PDF...', 'info');
+    
+    // 1. Get filtered data (same as UI)
+    const searchTxt = (document.getElementById('search-score') ? document.getElementById('search-score').value : '').toLowerCase();
+    const dFilter = state.scoreDeptFilter || 'ALL';
+    
+    const filtered = state.members.filter(m =>
+        m.name.toLowerCase().includes(searchTxt) && (dFilter === 'ALL' || m.dept === dFilter)
+    );
+
+    if (filtered.length === 0) {
+        showToast('Không có dữ liệu để xuất!', 'error');
+        return;
+    }
+
+    const template = document.getElementById('pdf-report-template');
+    if (!template) return;
+    
+    template.style.display = 'block';
+    
+    // 2. Build PDF HTML
+    template.innerHTML = `
+        <div style="text-align:center; padding-bottom: 20px; border-bottom: 2px solid #0ea5e9; margin-bottom: 40px;">
+            <h1 style="font-family:'Times New Roman', serif; font-size: 26px; color: #1e293b; margin: 0; font-weight: bold;">BẢNG ĐIỂM TỔNG HỢP NHÂN SỰ</h1>
+            <p style="font-family:'Times New Roman', serif; font-size: 16px; color: #64748b; margin: 5px 0 0;">Câu lạc bộ HuReA - Nhiệm kỳ ${state.currentTerm}</p>
+            <p style="font-family:'Times New Roman', serif; font-size: 14px; color: #94a3b8; margin-top: 5px;">Ban: ${dFilter === 'ALL' ? 'Toàn CLB' : dFilter} | Tìm kiếm: ${searchTxt || 'Tất cả'}</p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-family:'Times New Roman', serif; font-size: 12px;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Thành viên</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">3. Project</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">2. CLB</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">1. Ban</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">Tổng Điểm</th>
+                    <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">Xếp Loại</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filtered.map(member => {
+                    const mId = member.id;
+                    const prjScore = calculateMemberProjectScore(mId).toFixed(2);
+                    const clubScore = calculateMemberClubScore(mId).toFixed(2);
+                    const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+                    const deptScore = de ? de.totalScore.toFixed(2) : '0.00';
+                    const total = ((parseFloat(prjScore) + parseFloat(clubScore) + parseFloat(deptScore)) / 3).toFixed(2);
+                    
+                    let gradeVi = 'Cần Cố Gắng';
+                    if (total >= 8.5) gradeVi = 'Xuất Sắc';
+                    else if (total >= 7.0) gradeVi = 'Khá';
+                    else if (total >= 5.0) gradeVi = 'Đạt';
+
+                    return `
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #e2e8f0;">
+                                <strong style="font-size: 13px;">${member.name}</strong><br>
+                                <span style="font-size: 11px; color: #64748b;">Ban ${member.dept} - ${member.class || ''}</span>
+                            </td>
+                            <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0;">${prjScore}</td>
+                            <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0;">${clubScore}</td>
+                            <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0;">${deptScore}</td>
+                            <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0; font-weight: bold; font-size: 14px; color: #0ea5e9;">${total}</td>
+                            <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0; font-weight: bold;">${gradeVi}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+
+        <div style="margin-top: 60px; display: flex; justify-content: space-between; font-family:'Times New Roman', serif;">
+            <div style="text-align: center; width: 45%;">
+                <p style="margin-bottom: 60px;">Người lập biểu</p>
+                <strong>Admin Hệ Thống</strong>
+            </div>
+            <div style="text-align: center; width: 45%;">
+                <p style="margin-bottom: 60px;">Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}</p>
+                <strong>Ban Chủ Nhiệm</strong>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center; font-size: 10px; font-family:'Times New Roman', serif; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+            Hệ thống Quản trị HuReA Hub • Báo cáo tự động được bảo mật
+        </div>
+    `;
+
+    // 3. Trigger PDF generation
+    const opt = {
+        margin: [15, 10],
+        filename: `HuReA_BaoCao_Diem_${state.currentTerm}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+        await html2pdf().set(opt).from(template).save();
+        showToast('Xuất báo cáo PDF thành công!', 'success');
+    } catch (err) {
+        console.error('PDF Export Error:', err);
+        showToast('Lỗi khi xuất PDF, vui lòng thử lại.', 'error');
+    } finally {
+        template.style.display = 'none';
+        template.innerHTML = '';
+    }
 }
 
 // ==========================================
@@ -4048,88 +4222,98 @@ async function saveUserPasswordAdmin() {
 async function generatePDFReport() {
     const fromDate = document.getElementById('export-from-date').value;
     const toDate = document.getElementById('export-to-date').value;
+    const btn = document.querySelector('#export-report-modal .btn-primary');
 
     if (!fromDate || !toDate) {
         showToast('Vui lòng chọn khoảng thời gian!', 'error');
         return;
     }
 
-    showToast('Đang tổng hợp dữ liệu báo cáo...');
-    
-    const start = new Date(fromDate);
-    const end = new Date(toDate);
-    end.setHours(23, 59, 59, 999);
-
-    const filteredEvals = state.evaluations.filter(e => {
-        const d = new Date(e.createdAt);
-        return d >= start && d <= end;
-    });
-
-    const filteredConfessions = state.confessions.filter(c => {
-        const d = new Date(c.createdAt);
-        return d >= start && d <= end;
-    });
-
-    if (filteredEvals.length === 0 && filteredConfessions.length === 0) {
-        showToast('Không có dữ liệu trong khoảng thời gian này!', 'error');
-        return;
-    }
-
-    const template = document.getElementById('pdf-report-template');
-    template.style.display = 'block';
-    
-    // Build Stunning Report HTML
-    template.innerHTML = `
-        <div style="text-align:center; margin-bottom:40px; border-bottom: 2px solid #0ea5e9; padding-bottom: 20px;">
-            <h1 style="color:#0ea5e9; font-size:28px; margin-bottom:8px; font-family: 'Outfit', sans-serif;">BÁO CÁO TỔNG HỢP HUREA HUB</h1>
-        <p style="color:#64748b; font-size:14px;">Khoảng thời gian: ${fromDate} — ${toDate}</p>
-        </div>
-
-        <div style="margin-bottom:40px;">
-            <h2 style="color:#1e293b; border-left:4px solid #0ea5e9; padding-left:12px; margin-bottom:20px; font-family: 'Outfit', sans-serif;">1. Đánh giá dự án chéo (${filteredEvals.length})</h2>
-            <table style="width:100%; border-collapse:collapse; font-size: 13px;">
-                <thead>
-                    <tr style="background:#f8fafc; text-align:left; color: #475569;">
-                        <th style="padding:12px; border:1px solid #e2e8f0;">Dự án</th>
-                        <th style="padding:12px; border:1px solid #e2e8f0;">Người đánh giá</th>
-                        <th style="padding:12px; border:1px solid #e2e8f0;">Người nhận</th>
-                        <th style="padding:12px; border:1px solid #e2e8f0;">Điểm TB</th>
-                        <th style="padding:12px; border:1px solid #e2e8f0;">Nhận xét chi tiết</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filteredEvals.map(e => `
-                        <tr>
-                            <td style="padding:10px; border:1px solid #e2e8f0;">${e.projectName || '-'}</td>
-                            <td style="padding:10px; border:1px solid #e2e8f0;">${e.raterName}</td>
-                            <td style="padding:10px; border:1px solid #e2e8f0;">${e.targetName}</td>
-                            <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold; color:#0ea5e9;">${e.averageScore}</td>
-                            <td style="padding:10px; border:1px solid #e2e8f0; color: #64748b; font-style: italic;">"${e.comments || 'Không có nhận xét'}"</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-
-        <div style="page-break-before: always; margin-top: 40px;">
-            <h2 style="color:#1e293b; border-left:4px solid #f59e0b; padding-left:12px; margin-bottom:20px; font-family: 'Outfit', sans-serif;">2. Confessions & Góp ý (${filteredConfessions.length})</h2>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-                ${filteredConfessions.map(c => `
-                    <div style="background:#fdfcfb; padding:20px; border-radius:12px; border:1px solid #f3f4f6; position: relative;">
-                        <div style="font-size:11px; color:#94a3b8; margin-bottom:8px; text-transform: uppercase; letter-spacing: 0.05em;">Gửi vào: ${c.createdAt || 'N/A'}</div>
-                        <div style="font-size:14px; color:#334155; line-height:1.6;">${c.text}</div>
-                        <div style="margin-top: 12px; font-size: 12px; color: #f59e0b; font-weight: 600;">— Người gửi: An danh</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-
-        <div style="margin-top:80px; text-align:center; font-size:11px; color:#cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-            Hệ thống Quản trị HuReA Hub • Báo cáo tự động • ${new Date().toLocaleString()}
-        </div>
-    `;
-
     try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+        }
+
+        showToast('Đang tổng hợp dữ liệu báo cáo...');
+        
+        const start = new Date(fromDate);
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+
+        const filteredEvals = state.evaluations.filter(e => {
+            const d = new Date(e.createdAt);
+            return d >= start && d <= end;
+        });
+
+        const filteredConfessions = state.confessions.filter(c => {
+            const d = new Date(c.createdAt);
+            return d >= start && d <= end;
+        });
+
+        if (filteredEvals.length === 0 && filteredConfessions.length === 0) {
+            showToast('Không có dữ liệu trong khoảng thời gian này!', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-download"></i> Tạo PDF & Tải xuống';
+            }
+            return;
+        }
+
+        const template = document.getElementById('pdf-report-template');
+        template.style.display = 'block';
+        
+        // Build Stunning Report HTML
+        template.innerHTML = `
+            <div style="text-align:center; margin-bottom:40px; border-bottom: 2px solid #0ea5e9; padding-bottom: 20px;">
+                <h1 style="color:#0ea5e9; font-size:28px; margin-bottom:8px; font-family: 'Times New Roman', serif; font-weight: bold;">BÁO CÁO TỔNG HỢP HUREA HUB</h1>
+                <p style="color:#64748b; font-size:14px; font-family: 'Times New Roman', serif;">Khoảng thời gian: ${fromDate} — ${toDate}</p>
+            </div>
+
+            <div style="margin-bottom:40px;">
+                <h2 style="color:#1e293b; border-left:4px solid #0ea5e9; padding-left:12px; margin-bottom:20px; font-family: 'Times New Roman', serif; font-weight: bold;">1. Đánh giá dự án chéo (${filteredEvals.length})</h2>
+                <table style="width:100%; border-collapse:collapse; font-size: 13px; font-family: 'Times New Roman', serif;">
+                    <thead>
+                        <tr style="background:#f8fafc; text-align:left; color: #475569;">
+                            <th style="padding:12px; border:1px solid #e2e8f0;">Dự án</th>
+                            <th style="padding:12px; border:1px solid #e2e8f0;">Người đánh giá</th>
+                            <th style="padding:12px; border:1px solid #e2e8f0;">Người nhận</th>
+                            <th style="padding:12px; border:1px solid #e2e8f0;">Điểm TB</th>
+                            <th style="padding:12px; border:1px solid #e2e8f0;">Nhận xét chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredEvals.map(e => `
+                            <tr>
+                                <td style="padding:10px; border:1px solid #e2e8f0;">${e.projectName || '-'}</td>
+                                <td style="padding:10px; border:1px solid #e2e8f0;">${e.raterName}</td>
+                                <td style="padding:10px; border:1px solid #e2e8f0;">${e.targetName}</td>
+                                <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold; color:#0ea5e9;">${e.averageScore}</td>
+                                <td style="padding:10px; border:1px solid #e2e8f0; color: #64748b; font-style: italic;">"${e.comments || 'Không có nhận xét'}"</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="page-break-before: always; margin-top: 40px;">
+                <h2 style="color:#1e293b; border-left:4px solid #f59e0b; padding-left:12px; margin-bottom:20px; font-family: 'Times New Roman', serif; font-weight: bold;">2. Confessions & Góp ý (${filteredConfessions.length})</h2>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 16px; font-family: 'Times New Roman', serif;">
+                    ${filteredConfessions.map(c => `
+                        <div style="background:#fdfcfb; padding:20px; border-radius:12px; border:1px solid #f3f4f6; position: relative; margin-bottom: 12px;">
+                            <div style="font-size:11px; color:#94a3b8; margin-bottom:8px; text-transform: uppercase;">Gửi vào: ${c.createdAt || 'N/A'}</div>
+                            <div style="font-size:14px; color:#334155; line-height:1.6;">${c.text}</div>
+                            <div style="margin-top: 12px; font-size: 12px; color: #f59e0b; font-weight: 600;">— Người gửi: Ẩn danh</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="margin-top:80px; text-align:center; font-size:11px; color:#cbd5e1; border-top: 1px solid #f1f5f9; padding-top: 20px; font-family: 'Times New Roman', serif;">
+                Hệ thống Quản trị HuReA Hub • Báo cáo tự động • ${new Date().toLocaleString()}
+            </div>
+        `;
+
         const opt = {
             margin: [15, 15],
             filename: `Hurea_Hub_Report_${fromDate}_${toDate}.pdf`,
@@ -4139,17 +4323,24 @@ async function generatePDFReport() {
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
 
-        const worker = html2pdf().set(opt).from(template);
-        await worker.save();
+        await html2pdf().set(opt).from(template).save();
         
         showToast('Xuất báo cáo PDF thành công!', 'success');
         closeModal('export-report-modal');
+
     } catch (e) {
         console.error('PDF Error:', e);
         showToast('Lỗi khi xuất PDF, vui lòng thử lại.', 'error');
     } finally {
-        template.style.display = 'none';
-        template.innerHTML = '';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-download"></i> Tạo PDF & Tải xuống';
+        }
+        const template = document.getElementById('pdf-report-template');
+        if (template) {
+            template.style.display = 'none';
+            template.innerHTML = '';
+        }
     }
 }
 
