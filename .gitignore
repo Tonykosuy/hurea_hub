@@ -1,0 +1,16 @@
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables (just in case)
+.env
+.env.local
+
+# Logs
+*.log
