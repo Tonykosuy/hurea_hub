@@ -77,6 +77,10 @@
         case 'save_score_dept':
           result = updateOrAppendScore(ss, 'ScoreDept', payload);
           break;
+        case 'save_score_batch':
+          // payload.type is 'ScoreClub' or 'ScoreDept', payload.data is array of records
+          result = updateOrAppendScoreBatch(ss, payload.type, payload.records);
+          break;
         case 'save_confession':
           result = appendRow(ss, 'Confessions', payload);
           break;
@@ -290,29 +294,44 @@
   }
 
   function updateOrAppendScore(ss, sheetName, record) {
-    // Tìm match memberId và term
-    let sheet = ss.getSheetByName(sheetName);
-    if(!sheet) {
-      sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(Object.keys(record));
-      sheet.appendRow(Object.values(record));
+    // Thêm timestamp để theo dõi
+    record.updatedAt = new Date().toISOString();
+    
+    let sheet = findSheet(ss, sheetName) || ss.insertSheet(sheetName);
+    let data = sheet.getDataRange().getValues();
+    
+    // Khởi tạo sheet nếu mới
+    if (data.length === 1 && data[0][0] === '') {
+      const headers = Object.keys(record);
+      sheet.appendRow(headers);
+      sheet.appendRow(headers.map(h => typeof record[h] === 'object' ? JSON.stringify(record[h]) : record[h]));
       return record;
     }
 
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const mIndex = headers.indexOf('memberId');
+    const headers = data[0].map(h => String(h).toLowerCase().trim());
+    const mIndex = headers.indexOf('memberid');
     const tIndex = headers.indexOf('term');
+    
+    if (mIndex === -1 || tIndex === -1) {
+      // Nếu thiếu header bắt buộc, dùng saveRowData như một phương án dự phòng
+      return saveRowData(ss, sheetName, record);
+    }
     
     let rowIndex = -1;
     for(let i=1; i<data.length; i++) {
-      if(data[i][mIndex] === record.memberId && data[i][tIndex] === record.term) {
+      if(String(data[i][mIndex]) === String(record.memberId) && String(data[i][tIndex]) === String(record.term)) {
         rowIndex = i + 1;
         break;
       }
     }
 
-    const recordValues = headers.map(h => record[h] !== undefined ? (typeof record[h] === 'object' ? JSON.stringify(record[h]) : record[h]) : '');
+    // Map dữ liệu vào đúng cột dựa trên header
+    const recordValues = headers.map(h => {
+      // Tìm key trong record (không phân biệt hoa thường)
+      const key = Object.keys(record).find(k => k.toLowerCase().trim() === h);
+      const val = key ? record[key] : '';
+      return typeof val === 'object' ? JSON.stringify(val) : val;
+    });
     
     if (rowIndex > -1) {
       sheet.getRange(rowIndex, 1, 1, recordValues.length).setValues([recordValues]);
@@ -321,6 +340,60 @@
     }
 
     return record;
+  }
+
+  function updateOrAppendScoreBatch(ss, sheetName, records) {
+    if (!Array.isArray(records) || records.length === 0) return { success: true, count: 0 };
+    
+    let sheet = findSheet(ss, sheetName) || ss.insertSheet(sheetName);
+    let range = sheet.getDataRange();
+    let data = range.getValues();
+    
+    // Ensure header/sheet initialized with first record
+    if (data.length === 1 && data[0][0] === '') {
+      const headers = Object.keys(records[0]);
+      headers.push('updatedAt');
+      sheet.appendRow(headers);
+      data = [headers];
+    }
+    
+    const headers = data[0].map(h => String(h).toLowerCase().trim());
+    const mIndex = headers.indexOf('memberid');
+    const tIndex = headers.indexOf('term');
+    
+    if (mIndex === -1 || tIndex === -1) {
+      throw new Error('Mandatory headers (memberId, term) not found in ' + sheetName);
+    }
+
+    const timestamp = new Date().toISOString();
+    
+    records.forEach(record => {
+      record.updatedAt = timestamp;
+      let rowIndex = -1;
+      
+      for(let i=1; i<data.length; i++) {
+        if(String(data[i][mIndex]) === String(record.memberId) && String(data[i][tIndex]) === String(record.term)) {
+          rowIndex = i + 1;
+          break;
+        }
+      }
+      
+      const recordValues = headers.map(h => {
+        const key = Object.keys(record).find(k => k.toLowerCase().trim() === h);
+        const val = key ? record[key] : '';
+        return typeof val === 'object' ? JSON.stringify(val) : val;
+      });
+      
+      if (rowIndex > -1) {
+        sheet.getRange(rowIndex, 1, 1, recordValues.length).setValues([recordValues]);
+      } else {
+        sheet.appendRow(recordValues);
+        // Update local data to prevent duplicate append in same batch if member entries repeated
+        data.push(recordValues);
+      }
+    });
+    
+    return { success: true, count: records.length };
   }
 
   function updateAdminConfig(ss, key, value) {

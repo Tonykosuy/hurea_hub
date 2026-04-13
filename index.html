@@ -547,7 +547,31 @@
                             <div class="pane-header">
                                 <h3>2. Đánh giá Hoạt động CLB</h3>
                             </div>
-                            <div class="form-wrapper">
+
+                            <div id="club-method-selection" class="method-selection-screen">
+                                <div class="method-card" onclick="selectEvalMethod('club', 'form')">
+                                    <div class="method-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+                                    <div class="method-info">
+                                        <h4>Điền form thủ công</h4>
+                                        <p>Chọn từng thành viên và nhập điểm chi tiết</p>
+                                    </div>
+                                </div>
+                                <div class="method-card" onclick="selectEvalMethod('club', 'batch')">
+                                    <div class="method-icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-table-list"></i></div>
+                                    <div class="method-info">
+                                        <h4>Nhập hàng loạt (Excel)</h4>
+                                        <p>Dán dữ liệu từ Excel cho cùng lúc nhiều người</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="club-form-container" style="display:none;">
+                                <div class="selection-breadcrumb">
+                                    <button class="btn-sm btn-secondary" onclick="backToMethodSelection('club')">
+                                        <i class="fa-solid fa-arrow-left"></i> Quay lại chọn phương thức
+                                    </button>
+                                </div>
+                                
                                 <div class="input-group searchable-dropdown-container">
                                     <label>Chọn Thành viên</label>
                                     <div class="searchable-btn" onclick="toggleDropdown('club-member-dropdown')"
@@ -556,8 +580,23 @@
                                         <input type="text" class="searchable-input" placeholder="Tìm kiếm...">
                                         <ul class="searchable-list" id="list-club-member"></ul>
                                     </div>
-                                    <input type="hidden" id="eval-club-member">
+                                    <input type="hidden" id="eval-club-member" onchange="checkExistingScore('club', this.value)">
                                 </div>
+
+                            <!-- History Summary (Hidden by default) -->
+                            <div id="club-eval-history" class="eval-history-preview" style="display:none;">
+                                <div class="history-card">
+                                    <div class="history-header">
+                                        <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
+                                        <button class="btn-sm btn-secondary" onclick="editEval('club')"><i class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                    </div>
+                                    <div class="history-body" id="club-history-content">
+                                        <!-- Filled by JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-wrapper" id="club-eval-form">
                                 <div class="input-group">
                                     <label>2.1. Kỷ luật (Điểm CỘNG/TRỪ thủ công)</label>
                                     <input type="number" id="club-discipline-score" placeholder="VD: 2 hoặc -1">
@@ -571,9 +610,13 @@
                                     <label>2.4 Tuyên truyền, PT Hình ảnh CLB (Thang 10)</label>
                                     <input type="number" id="club-brand-score" placeholder="0–10" min="0" max="10">
                                 </div>
-                                <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
-                            </div>
-                        </div>
+                                <div style="display:flex; gap:12px; margin-top:20px;">
+                                    <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
+                                    <button id="btn-cancel-club-edit" class="btn-secondary" style="display:none" onclick="cancelEvalEdit('club')">Hủy bỏ</button>
+                                </div>
+                            </div> <!-- End club-eval-form -->
+                        </div> <!-- End club-form-container -->
+                    </div> <!-- End eval-club -->
 
                         <!-- Dept Eval -->
                         <div id="eval-dept" class="eval-pane">
@@ -581,7 +624,31 @@
                                 <h3>1. Trưởng/Phó Ban đánh giá</h3>
                                 <p>Nhập điểm cho từng tiêu chí, hệ thống tự động nhân trọng số tối đa 10đ.</p>
                             </div>
-                            <div class="form-wrapper">
+
+                            <div id="dept-method-selection" class="method-selection-screen">
+                                <div class="method-card" onclick="selectEvalMethod('dept', 'form')">
+                                    <div class="method-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+                                    <div class="method-info">
+                                        <h4>Điền form lẻ</h4>
+                                        <p>Nhập nhận xét & điểm chi tiết theo từng người</p>
+                                    </div>
+                                </div>
+                                <div class="method-card" onclick="selectEvalMethod('dept', 'batch')">
+                                    <div class="method-icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-table-list"></i></div>
+                                    <div class="method-info">
+                                        <h4>Nhập hàng loạt (Excel)</h4>
+                                        <p>Dán dữ liệu đánh giá của toàn Ban từ Excel</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="dept-form-container" style="display:none;">
+                                <div class="selection-breadcrumb">
+                                    <button class="btn-sm btn-secondary" onclick="backToMethodSelection('dept')">
+                                        <i class="fa-solid fa-arrow-left"></i> Quay lại chọn phương thức
+                                    </button>
+                                </div>
+
                                 <div class="input-group searchable-dropdown-container">
                                     <label>Chọn Thành viên</label>
                                     <div class="searchable-btn" onclick="toggleDropdown('dept-member-dropdown')"
@@ -590,8 +657,23 @@
                                         <input type="text" class="searchable-input" placeholder="Tìm kiếm...">
                                         <ul class="searchable-list" id="list-dept-member"></ul>
                                     </div>
-                                    <input type="hidden" id="eval-dept-member">
+                                    <input type="hidden" id="eval-dept-member" onchange="checkExistingScore('dept', this.value)">
                                 </div>
+
+                            <!-- History Summary (Hidden by default) -->
+                            <div id="dept-eval-history" class="eval-history-preview" style="display:none;">
+                                <div class="history-card">
+                                    <div class="history-header">
+                                        <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
+                                        <button class="btn-sm btn-secondary" onclick="editEval('dept')"><i class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                    </div>
+                                    <div class="history-body" id="dept-history-content">
+                                        <!-- Filled by JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-wrapper" id="dept-eval-form">
                                 <div class="input-group"><label>Tinh thần trách nhiệm, kỷ luật (×0.1)</label><input
                                         type="number" id="dept-rule-score" min="0" max="10" placeholder="Thang 10">
                                 </div>
@@ -601,19 +683,23 @@
                                         type="number" id="dept-mem-rel" min="0" max="10" placeholder="Thang 10"></div>
                                 <div class="input-group"><label>Hỗ trợ công việc team khác (×0.2)</label><input
                                         type="number" id="dept-support" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV - Teambuilding (×0.1)</label><input
+                                <div class="input-group"><label>Chất lượng CV 1 (×0.1)</label><input
                                         type="number" id="dept-q1" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV - Trung thu (×0.2)</label><input
+                                <div class="input-group"><label>Chất lượng CV 2 (×0.2)</label><input
                                         type="number" id="dept-q2" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV - Tuyển CTV (×0.2)</label><input
+                                <div class="input-group"><label>Chất lượng CV 3 (×0.2)</label><input
                                         type="number" id="dept-q3" min="0" max="10" placeholder="Thang 10"></div>
                                 <div class="input-group full-width">
-                                    <label>Nhận xét của Trưởng/Phó Ban</label>
-                                    <textarea id="dept-comment" rows="3" placeholder="Nhập nhận xét chi tiết về thành viên..."></textarea>
+                                    <label>Nhận xét của Trưởng/Phó Ban (Hiển thị trong Báo cáo PDF)</label>
+                                    <textarea id="dept-comment" rows="3" placeholder="Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên..."></textarea>
                                 </div>
-                                <button class="btn-primary" onclick="saveDeptEval()">Lưu Đánh Giá Ban</button>
-                            </div>
-                        </div>
+                                <div style="display:flex; gap:12px; margin-top:20px;">
+                                    <button class="btn-primary" onclick="saveDeptEval()">Lưu Đánh Giá Ban</button>
+                                    <button id="btn-cancel-dept-edit" class="btn-secondary" style="display:none" onclick="cancelEvalEdit('dept')">Hủy bỏ</button>
+                                </div>
+                            </div> <!-- End dept-eval-form -->
+                        </div> <!-- End dept-form-container -->
+                    </div> <!-- End eval-dept -->
 
                         <!-- 360 Form -->
                         <div id="eval-project" class="eval-pane">
@@ -967,18 +1053,39 @@
     <div class="modal" id="score-detail-modal">
         <div class="modal-wrapper modal-lg">
             <div class="modal-header">
-                <h3 id="score-detail-title">Chi tiết điểm</h3>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px;height:40px;background:var(--lux-gradient);border-radius:12px;display:flex;justify-content:center;align-items:center;color:white;font-size:1.2rem;box-shadow:var(--lux-glow);">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <div>
+                        <h3 id="score-detail-title" style="margin:0;">Chi tiết điểm</h3>
+                        <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Bao gồm điểm dự án, CLB và Ban chuyên môn</p>
+                    </div>
+                </div>
                 <button class="close-btn" onclick="closeModal('score-detail-modal')"><i
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" id="score-detail-body">
                 <!-- Rendered by JS -->
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('score-detail-modal')">Đóng</button>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button class="btn-lux-secondary" onclick="exportIndividualPDFFromModal()" id="btn-export-individual-pdf">
+                    <i class="fa-solid fa-file-pdf"></i> Xuất PDF Premium
+                </button>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn-secondary" onclick="closeModal('score-detail-modal')">Đóng</button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Hidden Individual Report Template Wrapper -->
+    <div id="individual-report-wrapper" style="display:none;">
+        <div id="individual-report-template" class="report-luxury-container">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
 
     <!-- Modal: Member Detail -->
     <div class="modal" id="member-detail-modal">
@@ -1684,7 +1791,64 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('batch-team-paste-modal')">Hủy</button>
-                <button class="btn-primary" onclick="processTeamBatchPaste()">Áp dụng ngay</button>
+                <button class="btn-primary" onclick="confirmBatchTeamPaste()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Batch Evaluation (Excel-like Grid) -->
+    <div class="modal" id="batch-eval-modal">
+        <div class="modal-wrapper" style="max-width:1100px; width:95vw;">
+            <div class="modal-header">
+                <div class="header-main">
+                    <span class="icon-orb orb-primary"><i class="fa-solid fa-table"></i></span>
+                    <div class="header-text">
+                        <h3 id="batch-eval-title">Nhập Đánh giá hàng loạt (Excel)</h3>
+                        <p id="batch-eval-subtitle">Chế độ nhập nhanh dữ liệu cho nhiều thành viên</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeModal('batch-eval-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <div class="batch-eval-container">
+                    <div class="batch-paste-zone">
+                        <div class="paste-header">
+                            <label><i class="fa-solid fa-clipboard"></i> Vùng dán dữ liệu (Ctrl+V từ Excel/Sheets)</label>
+                            <span class="help-text">Dán xong dữ liệu sẽ tự động điền vào bảng bên dưới</span>
+                        </div>
+                        <textarea id="batch-paste-area" placeholder="Dán dữ liệu Excel vào đây (Ví dụ: Tên - Điểm - Nhận xét)..." onpaste="handleBatchPaste(event)"></textarea>
+                        <div id="batch-paste-errors" class="paste-error-log" style="display:none;">
+                            <div class="error-log-header">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span>Không tìm thấy các thành viên sau:</span>
+                                <button class="btn-close-log" onclick="this.parentElement.parentElement.style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <ul id="batch-error-list"></ul>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-grid-wrapper">
+                        <div id="batch-grid-loading" class="grid-loading" style="display:none;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...
+                        </div>
+                        <div class="table-container score-grid-table">
+                            <table class="data-table" id="batch-eval-table">
+                                <!-- Generated by JS -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="footer-stats" id="batch-footer-info">
+                    Đang hiển thị <span id="batch-row-count">0</span> thành viên
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn-secondary" onclick="closeModal('batch-eval-modal')">Hủy</button>
+                    <button class="btn-primary" id="btn-save-batch-eval" onclick="saveBatchEval()">
+                        <i class="fa-solid fa-floppy-disk"></i> Lưu tất cả dữ liệu
+                    </button>
+                </div>
             </div>
         </div>
     </div>
