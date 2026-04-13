@@ -1922,20 +1922,8 @@ function showScoreDetail(mId) {
                     }
                 },
                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        titleColor: '#0f172a',
-                        bodyColor: '#38bdf8',
-                        borderColor: '#e2e8f0',
-                        borderWidth: 1,
-                        padding: 12,
-                        boxPadding: 4,
-                        displayColors: false,
-                        bodyFont: { weight: 'bold', size: 14 }
                     }
                 }
-            }
         });
     }, 50);
 }
@@ -1943,7 +1931,7 @@ function showScoreDetail(mId) {
 // ==========================================
 // THÊM XUẤT BÁO CÁO PDF
 // ==========================================
-function downloadPDF(mId) {
+async function downloadPDF(mId) {
     const member = state.members.find(m => m.id === mId);
     if (!member) return;
 
@@ -1970,16 +1958,12 @@ function downloadPDF(mId) {
     disc = Math.max(0, Math.min(10, disc));
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     let evCt = 0, evSp = 0, inCt = 0;
-    let prjRows = '';
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
         if (prj.type === 'event') { if (pt.role === 'SP') evSp++; else evCt++; }
         else if (prj.type === 'internal') inCt++;
-        
-        const avg = ((pt.c1||0)+(pt.c2||0)+(pt.c3||0)+(pt.c4||0)+(pt.c5||0)+(pt.c6||0)+(pt.c7||0))/7;
-        prjRows += `<tr><td>${prj.name}</td><td>${pt.role}</td><td>${pt.evalCount||0}</td><td>${pt.c1||0}</td><td>${pt.c2||0}</td><td>${pt.c3||0}</td><td>${pt.c4||0}</td><td>${pt.c5||0}</td><td>${pt.c6||0}</td><td>${pt.c7||0}</td><td class="text-bold">${avg.toFixed(2)}</td></tr>`;
     });
     const mapE2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 6;
     const mapI2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 7;
@@ -1987,139 +1971,321 @@ function downloadPDF(mId) {
     const inScore = mapI2(inCt);
     const brand = ce ? ce.brandScore : 7;
     const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons.join('<br>') : 'Không có nhận xét bổ sung.';
+    const deptCri = de && de.criteria ? de.criteria : null;
 
     const container = document.getElementById('pdf-report-template');
-    if (!container) {
-        showToast('Lỗi: Không tìm thấy mẫu xuất báo cáo!', 'error');
-        return;
-    }
-    
+    if (!container) return;
+
+    const btn = document.getElementById('btn-download-pdf');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang chuẩn bị...';
+
+    // Generate Radar Chart Image for PDF
+    const generateChart = () => {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 400;
+            canvas.style.display = 'none';
+            document.body.appendChild(canvas);
+
+            const ruleScore = (disc + (deptCri ? deptCri.rule : 10)) / 2;
+            const workScore = deptCri ? (deptCri.q1 + deptCri.q2 + deptCri.q3) / 3 : 0;
+            const clubActScore = (evScore + inScore) / 2;
+            const relScore = (brand + (deptCri ? (deptCri.hRel + deptCri.mRel + deptCri.sup) / 3 : 10)) / 2;
+
+            new Chart(canvas, {
+                type: 'radar',
+                data: {
+                    labels: ['Dự án', 'Kỷ luật', 'Chuyên môn', 'HĐ CLB', 'Quan hệ'],
+                    datasets: [{
+                        data: [prjScore, ruleScore, workScore, clubActScore, relScore],
+                        backgroundColor: 'rgba(212, 163, 6, 0.4)',
+                        borderColor: '#dca306',
+                        borderWidth: 2,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: false,
+                    scales: {
+                        r: {
+                            min: 0, max: 10, stepSize: 2,
+                            ticks: { display: false },
+                            pointLabels: { font: { size: 14, weight: 'bold' }, color: '#333' }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                },
+                plugins: [{
+                    beforeDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        ctx.fillStyle = "white";
+                        ctx.fillRect(0, 0, chart.width, chart.height);
+                    }
+                }]
+            });
+
+            setTimeout(() => {
+                const img = canvas.toDataURL('image/png');
+                document.body.removeChild(canvas);
+                resolve(img);
+            }, 300);
+        });
+    };
+
+    const chartDataUrl = await generateChart();
+
     container.innerHTML = `
-        <div id="pdf-content" style="padding: 24px; font-family: 'Times New Roman', serif; color: #000; background: #fff; line-height: 1.4;">
+        <div id="pdf-content" style="padding: 40px; font-family: 'Times New Roman', serif; background: #fff; line-height: 1.5; color: #000;">
             <style>
-                .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; font-family: 'Times New Roman', serif; }
-                .pdf-table th, .pdf-table td { border: 1.5px solid #000; padding: 6px 10px; text-align: left; }
-                .pdf-table th { background-color: #0ea5e9; color: #fff; text-align: center; text-transform: uppercase; font-weight: bold; }
-                .pdf-table .subheading td { background-color: #f1f5f9; font-weight: bold; text-align: center; color: #000; text-transform: uppercase; }
+                .pdf-header { text-align: center; margin-bottom: 30px; }
+                .pdf-header h1 { color: #dca306; font-size: 28px; text-transform: uppercase; margin: 0; font-weight: bold; }
+                .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; table-layout: fixed; }
+                .pdf-table th, .pdf-table td { border: 1.5px solid #000; padding: 6px 10px; vertical-align: middle; font-size: 13px; }
+                .bg-gold { background-color: #dca306 !important; color: #fff !important; font-weight: bold; text-align: center; }
+                .bg-yellow { background-color: #fef9c3 !important; font-weight: bold; text-align: center; }
                 .text-center { text-align: center !important; }
                 .text-bold { font-weight: bold; }
                 .text-red { color: #dc2626; font-weight: bold; }
-                .row-avg { background-color: #f8fafc; }
-                .pdf-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; }
-                .pdf-header h2 { margin: 0 0 5px 0; color: #0ea5e9; text-transform: uppercase; font-size: 24px; font-weight: bold; }
+                .full-width { width: 100%; }
+                .half-width { width: 50%; }
             </style>
-            
+
             <div class="pdf-header">
-                <h2>Báo Cáo Đánh Giá Nhân Sự</h2>
+                <h1>BÁO CÁO ĐÁNH GIÁ NHÂN SỰ</h1>
             </div>
-            
-            <table style="width: 100%; border: none; margin-bottom: 20px;">
-              <tr>
-                <td style="width: 50%; vertical-align: top; border: none; padding-right: 12px; padding-left: 0; padding-top: 0; padding-bottom: 0;">
-                   <table class="pdf-table" style="margin-bottom:0;">
-                      <tr><th colspan="2">THÔNG TIN CÁ NHÂN</th></tr>
-                      <tr><td class="text-bold" style="width:40%">Họ & Tên</td><td>${member.name}</td></tr>
-                      <tr><td class="text-bold">Lớp - Khóa</td><td>${member.class || '-'} - Khóa ${member.cohort || '-'}</td></tr>
-                      <tr><td class="text-bold">Chức danh</td><td>Thành viên</td></tr>
-                      <tr><td class="text-bold">Ban hoạt động</td><td>${member.dept || '-'}</td></tr>
-                   </table>
-                </td>
-                <td style="width: 50%; vertical-align: top; border: none; padding-left: 12px; padding-right: 0; padding-top: 0; padding-bottom: 0;">
-                   <table class="pdf-table" style="margin-bottom:0;">
-                      <tr><th>QUY ƯỚC ĐÁNH GIÁ</th></tr>
-                      <tr><td class="text-center">Điểm được đánh giá trên thang điểm 10</td></tr>
-                      <tr><td class="text-center">Điểm được làm tròn đến số thập phân thứ 2</td></tr>
-                      <tr><td class="text-center">Mỗi chỉ tiêu đánh giá có trọng số tương ứng</td></tr>
-                      <tr><td class="text-center">Công tác đánh giá dựa trên nguyên tắc công bằng và khách quan</td></tr>
-                   </table>
-                </td>
-              </tr>
-            </table>
+
+            <div style="display: flex; gap: 20px; margin-bottom: 25px;">
+                <table class="pdf-table" style="margin-bottom: 0;">
+                    <tr><th colspan="2" class="bg-gold">THÔNG TIN CÁ NHÂN</th></tr>
+                    <tr><td class="text-bold" style="width: 35%;">Họ & Tên</td><td>${member.name}</td></tr>
+                    <tr><td class="text-bold">Lớp - Khóa</td><td>${member.class || '-'} - Khóa ${member.cohort || '-'}</td></tr>
+                    <tr><td class="text-bold">Chức danh</td><td>Thành viên</td></tr>
+                    <tr><td class="text-bold">Ban hoạt động</td><td>${member.dept || '-'}</td></tr>
+                </table>
+                <table class="pdf-table" style="margin-bottom: 0;">
+                    <tr><th class="bg-gold">QUY ƯỚC ĐÁNH GIÁ</th></tr>
+                    <tr><td class="text-center">Điểm được đánh giá trên thang điểm 10</td></tr>
+                    <tr><td class="text-center">Điểm được làm tròn đến số thập phân thứ 2</td></tr>
+                    <tr><td class="text-center">Mỗi chỉ tiêu đánh giá có trọng số tương ứng</td></tr>
+                    <tr><td class="text-center">Công tác đánh giá dựa trên nguyên tắc công bằng và khách quan</td></tr>
+                </table>
+            </div>
 
             <table class="pdf-table">
-                <tr><th colspan="4">THAM GIA TỔ CHỨC PROJECT</th></tr>
-                <tr class="subheading"><td style="width:25%">TIÊU CHÍ</td><td style="width:50%">CHỈ TIÊU</td><td style="width:12%">TRỌNG SỐ</td><td style="width:13%">KẾT QUẢ ĐÁNH GIÁ</td></tr>
-                <tr><td rowspan="3" class="text-center text-bold">THÁI ĐỘ</td><td>Nhiệt tình, chủ động trong công việc</td><td class="text-center">0,15</td><td class="text-center">${c1.toFixed(2)}</td></tr>
-                <tr><td>Trách nhiệm, kịp tiến độ, đúng deadline</td><td class="text-center">0,20</td><td class="text-center">${c2.toFixed(2)}</td></tr>
-                <tr><td>Tư duy tích cực, đề xuất và tiếp thu ý kiến</td><td class="text-center">0,10</td><td class="text-center">${c3.toFixed(2)}</td></tr>
-                <tr><td class="text-center text-bold">KỸ NĂNG LÀM VIỆC</td><td>Trình độ, chuyên môn phục vụ cho công việc</td><td class="text-center">0,10</td><td class="text-center">${c4.toFixed(2)}</td></tr>
-                <tr><td rowspan="2" class="text-center text-bold">CHẤT LƯỢNG CÔNG VIỆC</td><td>Đầu tư nghiên cứu, học hỏi</td><td class="text-center">0,10</td><td class="text-center">${c5.toFixed(2)}</td></tr>
-                <tr><td>Mức độ hoàn thành công việc</td><td class="text-center">0,20</td><td class="text-center">${c6.toFixed(2)}</td></tr>
-                <tr><td class="text-center text-bold">MỐI QUAN HỆ TRONG PROJECT</td><td>Với Care/Leader, thành viên trong coreteam</td><td class="text-center">0,15</td><td class="text-center">${c7.toFixed(2)}</td></tr>
-                <tr class="row-avg text-bold"><td colspan="3" class="text-center">ĐIỂM TRUNG BÌNH</td><td class="text-center text-red">${prjScore.toFixed(2)}</td></tr>
-            </table>
-
-            <table class="pdf-table">
-                <tr><th colspan="4">HOẠT ĐỘNG TRONG CLB</th></tr>
-                <tr class="subheading"><td style="width:25%">TIÊU CHÍ</td><td style="width:50%">CHỈ TIÊU</td><td style="width:12%">TRỌNG SỐ</td><td style="width:13%">BỘ PHẬN ĐÁNH GIÁ</td></tr>
-                <tr><td class="text-center text-bold">TINH THẦN TRÁCH NHIỆM</td><td>Chấp hành kỷ luật, nội quy, văn hóa CLB</td><td class="text-center">0,3</td><td class="text-center">${disc.toFixed(2)}</td></tr>
-                <tr><td rowspan="2" class="text-center text-bold">THAM GIA & HỖ TRỢ</t><td>Tổ chức, hỗ trợ các chương trình của CLB</td><td class="text-center">0,3</td><td class="text-center">${evScore.toFixed(2)}</td></tr>
-                <tr><td>Tích cực tham gia chương trình nội bộ</td><td class="text-center">0,2</td><td class="text-center">${inScore.toFixed(2)}</td></tr>
-                <tr><td class="text-center text-bold">PHÁT TRIỂN HÌNH ẢNH</td><td>Tuyên truyền, phát triển hình ảnh CLB</td><td class="text-center">0,2</td><td class="text-center">${brand.toFixed(2)}</td></tr>
-                <tr><td class="text-center text-bold">MẶT KHÁC</td><td>Điều chỉnh điểm bổ sung</td><td class="text-center">Điểm cộng</td><td class="text-center">${ce && ce.disciplinePoints ? ce.disciplinePoints : 0}</td></tr>
-                <tr class="row-avg text-bold"><td colspan="3" class="text-center">ĐIỂM TRUNG BÌNH</td><td class="text-center text-red">${clubScore.toFixed(2)}</td></tr>
-            </table>
-
-            <div style="page-break-before: always;"></div>
-
-            <table class="pdf-table">
-                <tr><th colspan="4">HOẠT ĐỘNG TRONG BAN</th></tr>
-                <tr class="subheading"><td style="width:25%">TIÊU CHÍ</td><td style="width:50%">CHỈ TIÊU</td><td style="width:12%">TRỌNG SỐ</td><td style="width:13%">PHÓ/TRƯỞNG BAN ĐÁNH GIÁ</td></tr>
-                <tr><td class="text-center text-bold">TINH THẦN KỶ LUẬT</td><td>Thực hiện nội quy bộ phận</td><td class="text-center">0,1</td><td class="text-center">${deptCri ? deptCri.rule : '-'}/10</td></tr>
-                <tr><td rowspan="2" class="text-center text-bold">MỐI QUAN HỆ</td><td>Với trưởng/phó ban</td><td class="text-center">0,1</td><td class="text-center">${deptCri ? deptCri.hRel : '-'}/10</td></tr>
-                <tr><td>Với thành viên/CTV ban</td><td class="text-center">0,1</td><td class="text-center">${deptCri ? deptCri.mRel : '-'}/10</td></tr>
-                <tr><td class="text-center text-bold">HỖ TRỢ BAN</td><td>Tham gia đóng góp, hỗ trợ các hoạt động</td><td class="text-center">0,2</td><td class="text-center">${deptCri ? deptCri.sup : '-'}/10</td></tr>
-                <tr><td rowspan="3" class="text-center text-bold">CHẤT LƯỢNG CÔNG VIỆC</td><td>Công việc chuyên môn 1 (Teambuilding)</td><td class="text-center">0,1</td><td class="text-center">${deptCri ? deptCri.q1 : '-'}/10</td></tr>
-                <tr><td>Công việc chuyên môn 2</td><td class="text-center">0,2</td><td class="text-center">${deptCri ? deptCri.q2 : '-'}/10</td></tr>
-                <tr><td>Công việc chuyên môn 3</td><td class="text-center">0,2</td><td class="text-center">${deptCri ? deptCri.q3 : '-'}/10</td></tr>
-                <tr><td class="text-center text-bold">ĐÓNG GÓP PHÁT TRIỂN</td><td>Đóng góp ý kiến bổ ích cho sự phát triển</td><td class="text-center">Điểm cộng</td><td class="text-center">${deptCri ? deptCri.bonus : '-'}</td></tr>
-                <tr class="row-avg text-bold"><td colspan="3" class="text-center">ĐIỂM TRUNG BÌNH</td><td class="text-center text-red">${deptScore.toFixed(2)}</td></tr>
-            </table>
-
-            <table class="pdf-table">
-                <tr><th colspan="2">BẢNG ĐIỂM TỔNG HỢP</th></tr>
-                <tr><td style="text-align:center; width: 87%;">Đánh giá Tham gia tổ chức Project</td><td style="width:13%" class="text-center">${prjScore.toFixed(2)}</td></tr>
-                <tr><td style="text-align:center">Đánh giá Hoạt động trong CLB</td><td class="text-center">${clubScore.toFixed(2)}</td></tr>
-                <tr><td style="text-align:center">Đánh giá Hoạt động trong Ban</td><td class="text-center">${deptScore.toFixed(2)}</td></tr>
-                <tr class="row-avg text-bold"><td style="text-align:center">ĐIỂM TRUNG BÌNH (TỔNG KẾT)</td><td class="text-center text-red">${total}</td></tr>
-            </table>
-
-            <table class="pdf-table">
-                <tr><th colspan="2">NHẬN XÉT MỘT SỐ VẤN ĐỀ TỪ CLB</th></tr>
+                <tr><th colspan="4" class="bg-gold">THAM GIA TỔ CHỨC PROJECT</th></tr>
+                <tr class="bg-yellow">
+                    <td style="width: 25%;">TIÊU CHÍ</td>
+                    <td style="width: 45%;">CHỈ TIÊU</td>
+                    <td style="width: 15%;">TRỌNG SỐ</td>
+                    <td style="width: 15%;">KẾT QUẢ ĐÁNH GIÁ</td>
+                </tr>
                 <tr>
-                    <td style="width:25%; font-weight:bold; text-align:center; background-color: #fef0c7;">Ghi chú & Đánh giá Tóm tắt</td>
-                    <td style="width:75%; min-height: 80px; padding: 10px; background-color: #fff9e6; line-height: 1.6;">
-                       ${reasons}
-                    </td>
+                    <td rowspan="3" class="text-center text-bold">THÁI ĐỘ</td>
+                    <td>Nhiệt tình, chủ động trong công việc</td>
+                    <td class="text-center">0,15</td>
+                    <td class="text-center">${c1.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Trách nhiệm, kịp tiến độ, đúng deadline</td>
+                    <td class="text-center">0,20</td>
+                    <td class="text-center">${c2.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Tư duy tích cực, đề xuất và tiếp thu ý kiến</td>
+                    <td class="text-center">0,10</td>
+                    <td class="text-center">${c3.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="text-center text-bold">KỸ NĂNG LÀM VIỆC</td>
+                    <td>Trình độ, chuyên môn phục vụ cho công việc</td>
+                    <td class="text-center">0,10</td>
+                    <td class="text-center">${c4.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td rowspan="2" class="text-center text-bold">CHẤT LƯỢNG CÔNG VIỆC</td>
+                    <td>Đầu tư nghiên cứu, học hỏi</td>
+                    <td class="text-center">0,10</td>
+                    <td class="text-center">${c5.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Mức độ hoàn thành công việc</td>
+                    <td class="text-center">0,20</td>
+                    <td class="text-center">${c6.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="text-center text-bold">MỐI QUAN HỆ TRONG PROJECT</td>
+                    <td>Với Care/Leader, thành viên trong coreteam</td>
+                    <td class="text-center">0,15</td>
+                    <td class="text-center">${c7.toFixed(2)}</td>
+                </tr>
+                <tr class="text-bold">
+                    <td colspan="3" class="text-center bg-yellow">ĐIỂM TRUNG BÌNH</td>
+                    <td class="text-center text-red" style="background: #fef9c3;">${prjScore.toFixed(2)}</td>
                 </tr>
             </table>
+
+            <table class="pdf-table">
+                <tr><th colspan="4" class="bg-gold">HOẠT ĐỘNG TRONG CLB</th></tr>
+                <tr class="bg-yellow">
+                    <td style="width: 25%;">TIÊU CHÍ</td>
+                    <td style="width: 45%;">CHỈ TIÊU</td>
+                    <td style="width: 15%;">TRỌNG SỐ</td>
+                    <td style="width: 15%;">BỘ PHẬN ĐÁNH GIÁ</td>
+                </tr>
+                <tr>
+                    <td class="text-center text-bold">TINH THẦN TRÁCH NHIỆM</td>
+                    <td>Chấp hành kỷ luật, nội quy, văn hóa CLB</td>
+                    <td class="text-center">0,3</td>
+                    <td class="text-center">${disc.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td rowspan="2" class="text-center text-bold">THAM GIA & HỖ TRỢ</td>
+                    <td>Tổ chức, hỗ trợ các chương trình của CLB</td>
+                    <td class="text-center">0,3</td>
+                    <td class="text-center">${evScore.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Tích cực tham gia chương trình nội bộ</td>
+                    <td class="text-center">0,2</td>
+                    <td class="text-center">${inScore.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="text-center text-bold">PHÁT TRIỂN HÌNH ẢNH</td>
+                    <td>Tuyên truyền, phát triển hình ảnh CLB</td>
+                    <td class="text-center">0,2</td>
+                    <td class="text-center">${brand.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="text-center text-bold">MẶT KHÁC</td>
+                    <td>Điều chỉnh điểm bổ sung</td>
+                    <td class="text-center">Điểm cộng</td>
+                    <td class="text-center">${ce && ce.disciplinePoints ? ce.disciplinePoints : 0}</td>
+                </tr>
+                <tr class="text-bold">
+                    <td colspan="3" class="text-center bg-yellow">ĐIỂM TRUNG BÌNH</td>
+                    <td class="text-center text-red" style="background: #fef9c3;">${clubScore.toFixed(2)}</td>
+                </tr>
+            </table>
+
+            <div style="page-break-before: always; padding-top: 20px;">
+                <div style="width: 100%; text-align: center; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; color: #dca306;">BIỂU ĐỒ NĂNG LỰC CÁ NHÂN</h3>
+                    <img src="${chartDataUrl}" style="max-width: 320px; display: block; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+                </div>
+
+                <table class="pdf-table">
+                    <tr><th colspan="4" class="bg-gold">HOẠT ĐỘNG TRONG BAN</th></tr>
+                    <tr class="bg-yellow">
+                        <td style="width: 25%;">TIÊU CHÍ</td>
+                        <td style="width: 45%;">CHỈ TIÊU</td>
+                        <td style="width: 15%;">TRỌNG SỐ</td>
+                        <td style="width: 15%;">PHÓ/TRƯỞNG BAN ĐÁNH GIÁ</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center text-bold">TINH THẦN KỶ LUẬT</td>
+                        <td>Thực hiện nội quy bộ phận</td>
+                        <td class="text-center">0,1</td>
+                        <td class="text-center">${deptCri ? (deptCri.rule || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="2" class="text-center text-bold">MỐI QUAN HỆ</td>
+                        <td>Với trưởng/phó ban</td>
+                        <td class="text-center">0,1</td>
+                        <td class="text-center">${deptCri ? (deptCri.hRel || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td>Với thành viên/CTV ban</td>
+                        <td class="text-center">0,1</td>
+                        <td class="text-center">${deptCri ? (deptCri.mRel || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center text-bold">HỖ TRỢ BAN</td>
+                        <td>Tham gia đóng góp, hỗ trợ các hoạt động</td>
+                        <td class="text-center">0,2</td>
+                        <td class="text-center">${deptCri ? (deptCri.sup || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="3" class="text-center text-bold">CHẤT LƯỢNG CÔNG VIỆC</td>
+                        <td>Công việc chuyên môn 1</td>
+                        <td class="text-center">0,1</td>
+                        <td class="text-center">${deptCri ? (deptCri.q1 || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td>Công việc chuyên môn 2</td>
+                        <td class="text-center">0,2</td>
+                        <td class="text-center">${deptCri ? (deptCri.q2 || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td>Công việc chuyên môn 3</td>
+                        <td class="text-center">0,2</td>
+                        <td class="text-center">${deptCri ? (deptCri.q3 || 0).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center text-bold">ĐÓNG GÓP PHÁT TRIỂN</td>
+                        <td>Đóng góp ý kiến bổ ích cho sự phát triển</td>
+                        <td class="text-center">Điểm cộng</td>
+                        <td class="text-center">${deptCri && deptCri.bonus ? deptCri.bonus : 0}</td>
+                    </tr>
+                    <tr class="text-bold">
+                        <td colspan="3" class="text-center bg-yellow">ĐIỂM TRUNG BÌNH</td>
+                        <td class="text-center text-red" style="background: #fef9c3;">${deptScore.toFixed(2)}</td>
+                    </tr>
+                </table>
+
+                <table class="pdf-table">
+                    <tr><th colspan="2" class="bg-gold">BẢNG ĐIỂM TỔNG HỢP</th></tr>
+                    <tr><td class="text-center" style="width: 80%;">Đánh giá Tham gia tổ chức Project</td><td class="text-center">${prjScore.toFixed(2)}</td></tr>
+                    <tr><td class="text-center">Đánh giá Hoạt động trong CLB</td><td class="text-center">${clubScore.toFixed(2)}</td></tr>
+                    <tr><td class="text-center">Đánh giá Hoạt động trong Ban</td><td class="text-center">${deptScore.toFixed(2)}</td></tr>
+                    <tr class="text-bold">
+                        <td class="text-center bg-yellow">ĐIỂM TRUNG BÌNH (TỔNG KẾT)</td>
+                        <td class="text-center text-red" style="background: #fef9c3; font-size: 16px;">${total}</td>
+                    </tr>
+                </table>
+
+                <table class="pdf-table">
+                    <tr><th class="bg-gold">NHẬN XÉT MỘT SỐ VẤN ĐỀ TỪ CLB</th></tr>
+                    <tr class="bg-yellow"><td class="text-bold">Ghi chú & Đánh giá Tóm tắt</td></tr>
+                    <tr>
+                        <td style="min-height: 100px; background: #fffdfa; line-height: 1.6; padding: 15px;">
+                            ${reasons || 'Không có nhận xét bổ sung.'}
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="margin-top: 50px; text-align: right; font-size: 14px; padding-right: 40px;">
+                    <p><i>Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}</i></p>
+                    <p style="margin-top: 10px; font-weight: bold;">BAN CHỦ NHIỆM CLB HUREA</p>
+                    <p style="margin-top: 60px;">(Đã ký điện tử)</p>
+                </div>
+            </div>
         </div>
     `;
 
-    const btn = document.getElementById('btn-download-pdf');
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Khởi tạo PDF...';
-
     const opt = {
-        margin: 10,
-        filename: `Bao_Cao_${member.name.replace(/ /g, '_')}.pdf`,
+        margin: [10, 10],
+        filename: `Bao_Cao_${member.name.replace(/ /g, '_')}_${state.currentTerm}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     container.style.display = 'block';
 
-    html2pdf().set(opt).from(document.getElementById('pdf-content')).save().then(() => {
+    try {
+        await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
+        showToast('Tải báo cáo PDF thành công!', 'success');
+    } catch (err) {
+        console.error('PDF generation error:', err);
+        showToast('Lỗi khi tạo PDF: ' + err.message, 'error');
+    } finally {
         container.style.display = 'none';
         container.innerHTML = '';
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Tải báo cáo PDF';
-    }).catch(err => {
-        alert('Lỗi tạo PDF: ' + err);
-        container.style.display = 'none';
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Tải báo cáo PDF';
-    });
+    }
 }
-
 
 // ==========================================
 // CLUB & DEPT EVAL
