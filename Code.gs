@@ -47,6 +47,15 @@
         case 'save_member':
           result = saveRowData(ss, 'Members', payload);
           break;
+        case 'save_batch':
+          // payload: { sheetName: string, records: Array }
+          if (Array.isArray(payload.records)) {
+            payload.records.forEach(r => saveRowData(ss, payload.sheetName, r));
+            result = { count: payload.records.length };
+          } else {
+            throw new Error('Payload format error: Expected array in records');
+          }
+          break;
         case 'save_project':
           // Restore legacy *Str fields for users expecting them in the spreadsheet
           if (payload.participants) payload.participantsStr = JSON.stringify(payload.participants);

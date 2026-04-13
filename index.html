@@ -412,9 +412,14 @@
                             <h2>Quản lý Chương trình</h2>
                             <p>Theo dõi, lập kế hoạch và quản lý nhân sự cho các dự án.</p>
                         </div>
-                        <button class="btn-lux-primary" onclick="openCreateProjectModal()">
-                            <i class="fa-solid fa-plus-circle"></i> Tạo Dự án mới
-                        </button>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn-lux-secondary" onclick="openModal('batch-project-modal')">
+                                <i class="fa-solid fa-layer-group"></i> Nhập nhanh dự án
+                            </button>
+                            <button class="btn-lux-primary" onclick="openCreateProjectModal()">
+                                <i class="fa-solid fa-plus-circle"></i> Tạo Dự án mới
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Stats Quick View -->
@@ -985,6 +990,13 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="column-body" id="bug-list">
+                                <!-- Bug reports will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- VIEW: PASSWORD MANAGEMENT (Admin Only) -->
                 <section id="password-management-view" class="view-section">
                     <div class="module-header" style="margin-bottom:32px;">
@@ -1258,16 +1270,12 @@
                                 </div>
                                 
                                 <div id="p-pl-selection" class="pl-selection-display" style="display:none;">
-                                    <div class="pl-display-capsule">
-                                        <div class="pl-avatar-mini" id="p-pl-avatar">?</div>
-                                        <div class="pl-info-mini">
-                                            <div class="pl-name-mini" id="p-pl-display">Chưa chọn nhân sự</div>
-                                            <div class="pl-role-mini">Project Leader</div>
-                                        </div>
-                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')" title="Chọn nhân sự">
-                                            <i class="fa-solid fa-user-plus"></i> Chọn PL
-                                        </button>
+                                    <div id="p-pl-list" class="pl-list-container">
+                                        <!-- Multi PLs rendered here -->
                                     </div>
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')" title="Thêm/Chọn PL">
+                                        <i class="fa-solid fa-user-plus"></i> Thêm PL
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1293,8 +1301,8 @@
             </div>
             <div class="modal-footer" id="project-modal-footer">
                 <button class="btn-secondary" onclick="closeModal('project-modal')">Hủy bỏ</button>
-                <button class="btn-lux-primary" onclick="saveProjectV2()" style="margin-top:0; min-width: 180px;">
-                    <i class="fa-solid fa-save"></i> <span>Lưu Dự Án</span>
+                <button class="btn-lux-primary" id="btn-save-project-v2" onclick="saveProjectV2()" style="margin-top:0; min-width: 180px;">
+                    <i class="fa-solid fa-save"></i> <span id="btn-save-project-text">Lưu Dự Án</span>
                 </button>
             </div>
         </div>
@@ -1324,8 +1332,13 @@
                         <button class="btn-icon-v2 grid-v" id="btn-picker-grid" onclick="togglePickerView('grid')" title="Dạng lưới">
                             <i class="fa-solid fa-grip"></i>
                         </button>
-                        <button class="btn-icon-v2 list-v" id="btn-picker-list" onclick="togglePickerView('list')" title="Dạng danh sách">
-                            <i class="fa-solid fa-list-ul"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-primary-xs" onclick="openModal('batch-team-member-modal')" style="padding: 10px 16px;">
+                            <i class="fa-solid fa-paste"></i> Nhập nhanh từ Excel
                         </button>
                     </div>
                 </div>
@@ -1393,6 +1406,56 @@
                         <i class="fa-solid fa-check-circle"></i> Lưu &amp; Thêm vào Team
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Batch Project Creation -->
+    <div class="modal" id="batch-project-modal">
+        <div class="modal-wrapper modal-lg">
+            <div class="modal-header">
+                <h3>Nhập Dự án hàng loạt</h3>
+                <button class="close-btn" onclick="closeModal('batch-project-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
+                    Dán danh sách tên dự án (phân tách bởi dòng mới hoặc Tab). Ví dụ: ORIENTATION [Tab] YEAR-END AWARDS
+                </p>
+                <textarea id="bp-data" rows="12" placeholder="Tên dự án 1&#10;Tên dự án 2..." 
+                    style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:'Inter', sans-serif; resize:y; font-size:1.1rem; font-weight:600;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('batch-project-modal')">Hủy</button>
+                <button class="btn-lux-primary" onclick="processBatchProjects()">Tạo Danh Sách Dự Án</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Batch Team Members Picker -->
+    <div class="modal" id="batch-team-member-modal">
+        <div class="modal-wrapper modal-lg">
+            <div class="modal-header">
+                <h3>Nhập Nhân sự vào Team hàng loạt</h3>
+                <button class="close-btn" onclick="closeModal('batch-team-member-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
+                    Dán danh sách gồm 2 cột: <strong>Họ tên [Tab] Ban</strong>. Yêu cầu khớp 100% dữ liệu hiện có.
+                </p>
+                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#9;L&D&#10;Trần Thị B&#9;R&R" 
+                    style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:monospace; resize:y;"></textarea>
+                
+                <div id="btm-error-log" class="paste-error-log" style="display:none; margin-top:16px;">
+                    <div class="error-log-header">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Không tìm thấy các nhân sự này (Vui lòng kiểm tra lại Họ tên & Ban):</span>
+                    </div>
+                    <ul id="btm-error-list" style="margin:10px 0 0 20px; color:var(--accent-red); font-size:0.85rem;"></ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('batch-team-member-modal')">Quay lại</button>
+                <button class="btn-lux-primary" onclick="processBatchTeamMembers()">Khớp & Chọn Nhân sự</button>
             </div>
         </div>
     </div>

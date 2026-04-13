@@ -148,6 +148,7 @@ function renderAllViews() {
         { name: 'LoginSelector', fn: renderLoginMemberSelector },
         { name: 'EvalTasks', fn: renderEvaluationTasks },
         { name: 'Feedbacks', fn: renderFeedbacks },
+        { name: 'BugReports', fn: renderBugReports },
         { name: 'Confessions', fn: renderConfessions }
     ];
 
@@ -611,7 +612,8 @@ function processBatchMembers() {
     const defaultCohort = document.getElementById('bm-cohort').value.trim();
     const defaultClass = document.getElementById('bm-class').value.trim();
     const lines = raw.split('\n');
-    let added = 0, dupes = [];
+    let added = [], dupes = [];
+
     lines.forEach((line, idx) => {
         if (!line.trim()) return;
         const cols = line.split('\t');
@@ -623,23 +625,45 @@ function processBatchMembers() {
         else if (up.includes('ER')) dept = 'ER';
         else if (up.includes('EB')) dept = 'EB';
         if (!name) return;
+
         // Duplicate check
         const isDupe = state.members.some(m => m.name.toLowerCase().trim() === name.toLowerCase().trim());
-        if (isDupe) { dupes.push(name); return; }
-        const m = { id: 'm_' + Date.now() + '_' + idx, name, class: defaultClass, cohort: defaultCohort, major: defaultClass, dept };
-        state.members.push(m);
-        syncToBackend('save_member', m);
-        added++;
+        if (isDupe) { 
+            dupes.push(name); 
+            return; 
+        }
+
+        const m = { 
+            id: 'm_' + Date.now() + '_' + idx, 
+            name, 
+            class: defaultClass, 
+            cohort: defaultCohort, 
+            major: defaultClass, 
+            dept 
+        };
+        added.push(m);
     });
-    let msg = '';
-    if (added > 0) msg += `✅ Đã thêm ${added} thành viên.\n`;
-    if (dupes.length > 0) msg += `⚠️ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`;
-    if (added === 0 && dupes.length === 0) return alert('Không phân tích được dữ liệu hợp lệ.');
-    alert(msg);
-    if (added > 0) {
-        document.getElementById('bm-data').value = '';
-        closeModal('batch-member-modal');
-        renderMembers(); populateSelectDropdowns(); renderEvidenceFolders();
+
+    if (added.length === 0 && dupes.length === 0) return alert('Không phân tích được dữ liệu hợp lệ.');
+
+    if (added.length > 0) {
+        showToast(`Đang gửi ${added.length} thành viên lên hệ thống...`, 'info');
+        syncToBackend('save_batch', { sheetName: 'Members', records: added }, (res) => {
+            if (res && res.status === 'success') {
+                state.members.push(...added);
+                document.getElementById('bm-data').value = '';
+                closeModal('batch-member-modal');
+                renderMembers(); populateSelectDropdowns(); renderEvidenceFolders();
+                
+                let msg = `✅ Đã lưu thành công ${added.length} thành viên lên Google Sheets.`;
+                if (dupes.length > 0) msg += `\n⚠️ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`;
+                alert(msg);
+            } else {
+                showToast('Lỗi khi lưu danh sách thành viên hàng loạt!', 'error');
+            }
+        });
+    } else if (dupes.length > 0) {
+        alert(`⚠️ Toàn bộ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`);
     }
 }
 
@@ -759,8 +783,22 @@ function renderProjects() {
         let totalPersonnel = 0;
         teams.forEach(t => totalPersonnel += ensureArray(t.members).length);
 
-        const pl = p.plId ? state.members.find(m => m.id === p.plId) : null;
-        const plName = pl ? pl.name : (p.hasPL ? 'Chưa phân công' : 'Không có PL');
+        const plIds = ensureArray(p.plIds || (p.plId ? [p.plId] : []));
+        let plDisplayText = 'Chưa phân công';
+        
+        if (plIds.length > 0) {
+            const plNames = plIds.map(id => {
+               const m = state.members.find(x => x.id === id);
+               return m ? m.name : 'Unknown';
+            });
+            if (plNames.length <= 2) {
+                plDisplayText = plNames.join(', ');
+            } else {
+                plDisplayText = `${plNames[0]}, ${plNames[1]} +${plNames.length - 2}`;
+            }
+        } else if (!p.hasPL) {
+            plDisplayText = 'Không có PL';
+        }
 
         const div = document.createElement('div');
         div.className = 'project-card-v2';
@@ -781,7 +819,7 @@ function renderProjects() {
                 <h3 class="p-name">${p.name}</h3>
                 <div class="p-pl-info">
                     <i class="fa-solid fa-user-tie"></i>
-                    <span>PL: <strong>${plName}</strong></span>
+                    <span title="${plDisplayText}">PL: <strong>${plDisplayText}</strong></span>
                 </div>
             </div>
             <div class="p-card-footer">
@@ -821,7 +859,7 @@ function updateProjectDashboardStats(termProjects) {
 function openCreateProjectModal() {
     state.activeProjectData = {
         id: '', name: '', term: state.currentTerm, type: 'internal', status: 'setup',
-        hasPL: true, plId: '', teams: []
+        hasPL: true, plIds: [], teams: []
     };
     showProjectModal();
 }
@@ -832,6 +870,12 @@ function editProjectV2(id) {
 
     // Deep clone to avoid direct state mutation during edit
     state.activeProjectData = JSON.parse(JSON.stringify(p));
+
+    // Support legacy plId conversion to plIds
+    if (state.activeProjectData.plId && (!state.activeProjectData.plIds || state.activeProjectData.plIds.length === 0)) {
+        state.activeProjectData.plIds = [state.activeProjectData.plId];
+    }
+    if (!state.activeProjectData.plIds) state.activeProjectData.plIds = [];
 
     // Ensure nested data is safe
     state.activeProjectData.teams = ensureArray(state.activeProjectData.teams);
@@ -851,6 +895,12 @@ function showProjectModal() {
 
     const isAdmin = state.userRole === 'admin';
     document.getElementById('project-modal-title').innerText = isAdmin ? (p.id ? 'Cập nhật Chương trình' : 'Khởi tạo Dự án mới') : 'Thông tin Chương trình';
+
+    // Update Save button text to emphasize overwrite
+    const saveBtnText = document.getElementById('btn-save-project-text');
+    if (saveBtnText) {
+        saveBtnText.innerText = p.id ? 'Cập nhật & Ghi đè' : 'Lưu Dự Án';
+    }
 
     togglePLSection();
     renderTeamsV2();
@@ -875,14 +925,47 @@ function togglePLSection() {
     const hasPL = document.getElementById('p-has-pl').checked;
     state.activeProjectData.hasPL = hasPL;
     const section = document.getElementById('p-pl-selection');
-    section.style.display = hasPL ? 'flex' : 'none';
+    if (section) section.style.display = hasPL ? 'flex' : 'none';
 
     if (hasPL) {
-        const pl = state.members.find(m => m.id === state.activeProjectData.plId);
-        const display = document.getElementById('p-pl-display');
-        display.innerText = pl ? pl.name : 'Chưa chọn';
-        display.classList.toggle('empty', !pl);
+        renderPLList();
     }
+}
+
+function renderPLList() {
+    const listContainer = document.getElementById('p-pl-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    const plIds = state.activeProjectData.plIds || [];
+    
+    if (plIds.length === 0) {
+        listContainer.innerHTML = '<div class="pl-empty-hint">Chưa chọn PL</div>';
+        return;
+    }
+
+    plIds.forEach(id => {
+        const m = state.members.find(member => member.id === id);
+        if (!m) return;
+
+        const capsule = document.createElement('div');
+        capsule.className = 'pl-display-capsule';
+        capsule.innerHTML = `
+            <div class="pl-avatar-mini">${getInitials(m.name)}</div>
+            <div class="pl-info-mini">
+                <div class="pl-name-mini">${m.name}</div>
+                <div class="pl-role-mini">PROJECT LEADER</div>
+            </div>
+            ${state.userRole === 'admin' ? `<button type="button" class="btn-remove-pl" onclick="removePL('${id}')" title="Gỡ bỏ"><i class="fa-solid fa-times"></i></button>` : ''}
+        `;
+        listContainer.appendChild(capsule);
+    });
+}
+
+function removePL(id) {
+    if (state.userRole !== 'admin') return;
+    state.activeProjectData.plIds = (state.activeProjectData.plIds || []).filter(plId => plId !== id);
+    renderPLList();
 }
 
 // Team Management V2
@@ -998,18 +1081,10 @@ function togglePLSection() {
     const hasPL = document.getElementById('p-has-pl').checked;
     state.activeProjectData.hasPL = hasPL;
     const section = document.getElementById('p-pl-selection');
-    section.style.display = hasPL ? 'block' : 'none';
+    if (section) section.style.display = hasPL ? 'block' : 'none';
 
     if (hasPL) {
-        const pl = state.members.find(m => m.id === state.activeProjectData.plId);
-        const avatarEl = document.getElementById('p-pl-avatar');
-        const displayEl = document.getElementById('p-pl-display');
-
-        if (avatarEl) avatarEl.innerHTML = pl ? getInitials(pl.name) : '<i class="fa-solid fa-user-secret"></i>';
-        if (displayEl) {
-            displayEl.innerText = pl ? pl.name : 'Chưa phân công';
-            displayEl.style.color = pl ? 'var(--text-main)' : 'var(--text-muted)';
-        }
+        renderPLList();
     }
 }
 
@@ -1087,7 +1162,7 @@ function renderMemberPicker() {
         const item = document.createElement('div');
         const initials = getInitials(m.name);
         const mDept = getMemberDept(m);
-        const isSelected = state.selectedPickerIds.includes(m.id);
+        const isSelected = state.selectedPickerIds.includes(m.id) || (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id));
 
         if (state.pickerViewMode === 'grid') {
             item.className = `picker-member-card ${isSelected ? 'selected' : ''}`;
@@ -1121,9 +1196,19 @@ function confirmMemberSelection(memberId) {
     if (!m) return;
 
     if (type === 'PL') {
-        state.activeProjectData.plId = memberId;
-        togglePLSection();
-        closeModal('member-picker-modal');
+        if (!state.activeProjectData.plIds) state.activeProjectData.plIds = [];
+        
+        // Multi-select toggle for PLs
+        const idx = state.activeProjectData.plIds.indexOf(memberId);
+        if (idx > -1) {
+            state.activeProjectData.plIds.splice(idx, 1);
+        } else {
+            state.activeProjectData.plIds.push(memberId);
+        }
+        
+        renderPLList();
+        renderMemberPicker(); // Keep picker open for multi-select, user can close manually or it closes automatically if single-select logic was there
+        // closeModal('member-picker-modal'); // Don't close immediately to allow picking multiple
     } else {
         // Multi-select for Teams
         const index = state.selectedPickerIds.indexOf(memberId);
@@ -1241,6 +1326,14 @@ async function saveProjectV2() {
 
     if (!p.name) return showToast('Vui lòng nhập tên chương trình!', 'error');
 
+    // Ensure we send plIds (multi-PL support)
+    // We can also keep plId (first one) for very old logic compatibility if needed
+    if (p.plIds && p.plIds.length > 0) {
+        p.plId = p.plIds[0];
+    } else {
+        p.plId = '';
+    }
+
     // Legacy support: We still keep p.participants as a flat list for scoring logic
     const allParticipants = [];
     p.teams.forEach(t => {
@@ -1252,9 +1345,17 @@ async function saveProjectV2() {
             });
         });
     });
+    // Add PLs to participants if not already there (optional, but good for tracking)
+    (p.plIds || []).forEach(id => {
+        if (!allParticipants.some(x => x.memberId === id)) {
+            allParticipants.push({ memberId: id, role: 'PL', teamName: 'Leadership' });
+        }
+    });
+
     p.participants = allParticipants;
 
-    showToast('Đang lưu chương trình...');
+    const isUpdate = !!p.id;
+    showToast(isUpdate ? 'Đang cập nhật chương trình...' : 'Đang lưu chương trình...');
     try {
         if (!p.id) p.id = 'p_' + Date.now();
         await syncToBackend('save_project', p);
@@ -1264,7 +1365,7 @@ async function saveProjectV2() {
         if (idx > -1) state.projects[idx] = p;
         else state.projects.push(p);
 
-        showToast('Đã lưu thành công!', 'success');
+        showToast(isUpdate ? 'Đã cập nhật & ghi đè thành công!' : 'Đã lưu thành công!', 'success');
         closeModal('project-modal');
         renderProjects();
         updateDashboardStats();
@@ -1350,6 +1451,119 @@ function saveTerm() {
     else state.terms.push(t);
     syncToBackend('save_term', t);
     closeModal('term-modal'); renderTerms();
+}
+
+// BATCH PROJECT LOGIC
+function processBatchProjects() {
+    const data = document.getElementById('bp-data').value.trim();
+    if (!data) {
+        showToast('Vui lòng nhập danh sách dự án!', 'error');
+        return;
+    }
+
+    // Split by newline or tab
+    const names = data.split(/[\n\t]+/).map(n => n.trim()).filter(n => n !== '');
+    if (names.length === 0) {
+        showToast('Không tìm thấy tên dự án hợp lệ!', 'error');
+        return;
+    }
+
+    showToast(`Đang tạo ${names.length} dự án...`, 'info');
+    
+    const newProjects = names.map((name, index) => ({
+        id: 'p_' + Date.now() + '_' + index,
+        name: name,
+        term: state.currentTerm,
+        type: 'internal',
+        status: 'setup',
+        hasPL: false,
+        plIds: [],
+        teams: []
+    }));
+
+    syncToBackend('save_batch', { sheetName: 'Projects', records: newProjects }, (res) => {
+        if (res && res.status === 'success') {
+            state.projects.push(...newProjects);
+            showToast(`Đã tạo thành công ${newProjects.length} dự án!`, 'success');
+            closeModal('batch-project-modal');
+            document.getElementById('bp-data').value = '';
+            fetchData();
+        } else {
+            showToast('Lỗi khi tạo dự án hàng loạt!', 'error');
+        }
+    });
+}
+
+// BATCH TEAM MEMBER LOGIC
+function processBatchTeamMembers() {
+    const data = document.getElementById('btm-data').value.trim();
+    if (!data) {
+        showToast('Vui lòng nhập danh sách nhân sự!', 'error');
+        return;
+    }
+
+    const lines = data.split('\n').map(l => l.trim()).filter(l => l !== '');
+    const errors = [];
+    let addedCount = 0;
+
+    lines.forEach(line => {
+        let parts = line.split('\t');
+        if (parts.length < 2) {
+            const depts = ['L&D', 'R&R', 'ER', 'EB', 'BCN', 'Cố vấn'];
+            let found = false;
+            depts.forEach(d => {
+                if (line.toUpperCase().endsWith(d.toUpperCase())) {
+                    const name = line.substring(0, line.length - d.length).trim();
+                    parts = [name, d];
+                    found = true;
+                }
+            });
+            if (!found) {
+                const lastSpace = line.lastIndexOf(' ');
+                if (lastSpace > 0) {
+                    parts = [line.substring(0, lastSpace).trim(), line.substring(lastSpace).trim()];
+                }
+            }
+        }
+
+        if (parts.length >= 2) {
+            const name = parts[0].trim();
+            const dept = parts[1].trim();
+
+            const match = state.members.find(m => 
+                m.name.toLowerCase() === name.toLowerCase() && 
+                getMemberDept(m).toLowerCase() === dept.toLowerCase()
+            );
+
+            if (match) {
+                if (!state.selectedPickerIds.includes(match.id)) {
+                    state.selectedPickerIds.push(match.id);
+                    addedCount++;
+                }
+            } else {
+                errors.push(`${name} (${dept})`);
+            }
+        } else {
+            errors.push(line + " (Định dạng sai)");
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorLog = document.getElementById('btm-error-log');
+        const errorList = document.getElementById('btm-error-list');
+        errorList.innerHTML = errors.map(e => `<li>${e}</li>`).join('');
+        errorLog.style.display = 'block';
+        showToast(`Tìm thấy ${addedCount} người, nhưng có ${errors.length} lỗi.`, 'warning');
+    } else {
+        showToast(`Đã khớp và chọn thành công ${addedCount} nhân sự!`, 'success');
+        closeModal('batch-team-member-modal');
+        document.getElementById('btm-data').value = '';
+        if (document.getElementById('btm-error-log')) {
+            document.getElementById('btm-error-log').style.display = 'none';
+        }
+    }
+
+    renderMemberPicker();
 }
 
 // ==========================================
