@@ -95,7 +95,10 @@
                 <!-- Forgot Password -->
                 <div class="login-forgot-password">
                     <i class="fa-solid fa-circle-info"></i>
-                    Quên mật khẩu? Liên hệ Zalo: <strong>0342381843</strong>
+                    Quên mật khẩu? Liên hệ: 
+                    <a href="https://www.facebook.com/nguyen.phuc.524150" target="_blank" style="color:var(--primary); margin-left:5px;">
+                        <i class="fa-brands fa-facebook"></i> Facebook Admin
+                    </a>
                 </div>
             </div>
 
@@ -175,8 +178,8 @@
                 <a href="#" class="nav-item" data-target="evidence-view">
                     <i class="fa-solid fa-folder-open"></i><span>Nộp Minh Chứng</span>
                 </a>
-                <a href="#" class="nav-item" data-target="photobooth-view">
-                    <i class="fa-solid fa-camera"></i><span>Photobooth</span>
+                <a href="#" class="nav-item" data-target="meeting-scheduler-view">
+                    <i class="fa-solid fa-calendar-days"></i><span>Xếp lịch họp</span>
                 </a>
                 <a href="#" class="nav-item" data-target="bug-report-view">
                     <i class="fa-solid fa-bug"></i><span>Báo cáo lỗi</span>
@@ -709,9 +712,21 @@
 
                         <!-- 360 Form -->
                         <div id="eval-project" class="eval-pane">
-                            <div class="pane-header">
-                                <h3>3. Phiếu Đánh giá Dự án chéo </h3>
-                                <p>Danh sách các dự án bạn tham gia cần được đánh giá chéo.</p>
+                            <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3 style="margin:0;">3. Phiếu Đánh giá Dự án chéo </h3>
+                                    <p style="margin:0; opacity:0.8;">Danh sách các dự án bạn tham gia cần được đánh giá chéo.</p>
+                                </div>
+                                <button class="btn-lux-primary" id="btn-export-incomplete-evals" onclick="exportIncompleteEvaluationsPDF()" style="display:none; font-size:0.85rem; padding:10px 16px;">
+                                    <i class="fa-solid fa-file-export"></i> DS chưa hoàn thành
+                                </button>
+                            </div>
+
+                            <!-- Hidden Report Template for Incomplete Evals -->
+                            <div id="incomplete-eval-wrapper" style="display:none;">
+                                <div id="incomplete-eval-template" style="padding:40px; background:#fff; color:#333; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                    <!-- Populated by JS -->
+                                </div>
                             </div>
                             <div id="eval-project-setup-view" class="form-wrapper" style="width:100%; max-width:1000px; margin:24px auto;">
                                 <!-- Section 1: Active Tasks -->
@@ -756,6 +771,18 @@
                                         <h1 class="cine-title" style="font-size:2.5rem;">Club Peer Review</h1>
                                         <p class="cine-subtitle" id="cine-project-name">Đánh giá chéo dự án</p>
                                     </header>
+
+                                    <div class="cine-scoring-guide">
+                                        <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM KHẢO</div>
+                                        <div class="guide-grid">
+                                            <div class="guide-cell"><strong>5:</strong> Xuất sắc (Lan tỏa, vượt mong đợi)</div>
+                                            <div class="guide-cell"><strong>4:</strong> Khá / Tốt (Chủ động, đúng tiến độ)</div>
+                                            <div class="guide-cell"><strong>3:</strong> Đạt (Làm tròn vai, cơ bản)</div>
+                                            <div class="guide-cell"><strong>2:</strong> Kém (Trễ hạn, cần nhắc nhở)</div>
+                                            <div class="guide-cell"><strong>1:</strong> Rất kém (Thiếu trách nhiệm / Vi phạm)</div>
+                                        </div>
+                                    </div>
+
                                     <form id="multiStepForm">
                                         <div id="cine-form-steps-container"></div>
                                     </form>
@@ -844,64 +871,128 @@
                     <div id="evidence-empty" class="empty-state" style="display:none">Chưa có thành viên nào</div>
                 </section>
 
-                <!-- VIEW: PHOTOBOOTH -->
-                <section id="photobooth-view" class="view-section">
-                    <div class="section-actions">
-                        <div>
-                            <h3 style="font-size:1.5rem;"><i class="fa-solid fa-camera"></i> HuReA Photobooth</h3>
-                            <p style="color:var(--text-muted);font-size:0.9rem;">Chụp ảnh kỷ niệm — lưu local, không
-                                upload.</p>
+                <!-- VIEW: MEETING SCHEDULER -->
+                <section id="meeting-scheduler-view" class="view-section">
+                    <div class="module-header" style="margin-bottom:24px;">
+                        <div class="module-title">
+                            <h2 style="font-size:1.8rem; display:flex; align-items:center; gap:12px;">
+                                <i class="fa-solid fa-calendar-days" style="color:var(--primary);"></i> Xếp Lịch Họp
+                            </h2>
+                            <p style="color:var(--text-muted);">Tạo vote lịch họp, chọn khung giờ rảnh — hệ thống tự tìm thời gian tối ưu cho nhóm.</p>
                         </div>
-                        <button class="btn-primary" id="ptb-download-btn" onclick="downloadStrip()"
-                            style="display:none;">
-                            <i class="fa-solid fa-download"></i> Lưu Strip
+                        <button class="btn-lux-primary" onclick="openCreatePollModal()">
+                            <i class="fa-solid fa-plus-circle"></i> Tạo Vote Lịch Họp
                         </button>
                     </div>
-                    <div class="photobooth-layout">
-                        <!-- Camera -->
-                        <div class="photobooth-camera-card">
-                            <video id="ptb-video" autoplay muted playsinline></video>
-                            <canvas id="ptb-canvas" style="display:none;"></canvas>
-                            <div class="ptb-countdown-overlay" id="ptb-countdown"></div>
-                            <div class="ptb-flash" id="ptb-flash"></div>
-                            <div class="ptb-controls" style="width:100%;justify-content:center;flex-wrap:wrap;">
-                                <div class="ptb-filter-list">
-                                    <button class="ptb-filter-btn active"
-                                        onclick="setPtbFilter(this,'')">Normal</button>
-                                    <button class="ptb-filter-btn"
-                                        onclick="setPtbFilter(this,'filter-bw')">B&amp;W</button>
-                                    <button class="ptb-filter-btn"
-                                        onclick="setPtbFilter(this,'filter-vintage')">Vintage</button>
-                                    <button class="ptb-filter-btn"
-                                        onclick="setPtbFilter(this,'filter-warm')">Warm</button>
-                                </div>
-                                <button class="ptb-shoot-btn" id="ptb-shoot-btn" onclick="startPtbCountdown()"
-                                    title="Chụp ảnh">
-                                    <i class="fa-solid fa-circle"></i>
+
+                    <!-- Poll List View -->
+                    <div id="meeting-polls-list-view">
+                        <div class="ms-filter-bar">
+                            <div class="ms-tabs-row">
+                                <button class="ms-tab active" onclick="setMeetingFilter(this,'all')">
+                                    <i class="fa-solid fa-list"></i> Tất cả
+                                </button>
+                                <button class="ms-tab" onclick="setMeetingFilter(this,'active')">
+                                    <i class="fa-solid fa-clock"></i> Đang diễn ra
+                                </button>
+                                <button class="ms-tab" onclick="setMeetingFilter(this,'expired')">
+                                    <i class="fa-solid fa-check-circle"></i> Đã kết thúc
                                 </button>
                             </div>
                         </div>
-                        <!-- Strip Panel -->
-                        <div class="photobooth-panel">
-                            <div class="ptb-strip-card">
-                                <h4><i class="fa-solid fa-film"></i> Photo Strip</h4>
-                                <div class="ptb-strip" id="ptb-strip">
-                                    <div style="color:#999;font-size:0.85rem;text-align:center;padding:20px;">Chụp 3 ảnh
-                                        để tạo strip</div>
-                                </div>
-                                <div class="ptb-shot-row" id="ptb-shot-row">
-                                    <canvas class="ptb-shot-thumb" id="ptb-thumb-0" width="90" height="68"></canvas>
-                                    <canvas class="ptb-shot-thumb" id="ptb-thumb-1" width="90" height="68"></canvas>
-                                    <canvas class="ptb-shot-thumb" id="ptb-thumb-2" width="90" height="68"></canvas>
-                                </div>
-                                <p style="font-size:0.75rem;color:var(--text-muted);text-align:center;">Ảnh <span
-                                        id="ptb-count">0</span>/3</p>
+                        <div class="meeting-polls-grid" id="meeting-polls-grid"></div>
+                        <div id="meeting-polls-empty" class="empty-state" style="display:none">
+                            <i class="fa-solid fa-calendar-xmark" style="font-size:3rem;margin-bottom:16px;color:var(--text-muted);"></i>
+                            <p>Chưa có vote lịch họp nào. Hãy tạo vote đầu tiên!</p>
+                        </div>
+                    </div>
+
+                    <!-- Poll Detail View (hidden by default) -->
+                    <div id="meeting-poll-detail-view" style="display:none;">
+                        <div class="poll-detail-header">
+                            <button class="btn-secondary btn-sm" onclick="closePollDetail()">
+                                <i class="fa-solid fa-arrow-left"></i> Quay lại danh sách
+                            </button>
+                            <div class="poll-detail-actions">
+                                <button class="btn-secondary btn-sm" onclick="copyPollShareLink()" id="btn-copy-poll-link">
+                                    <i class="fa-solid fa-link"></i> Sao chép Link
+                                </button>
                             </div>
-                            <button class="btn-secondary" onclick="resetPhotobooth()"><i
-                                    class="fa-solid fa-rotate-left"></i> Chụp lại</button>
+                        </div>
+
+                        <div class="poll-detail-info glass-panel" id="poll-detail-info">
+                            <!-- Filled by JS -->
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="poll-instructions glass-panel">
+                            <div class="instruction-title"><i class="fa-solid fa-circle-info"></i> Hướng dẫn Vote</div>
+                            <div class="instruction-grid">
+                                <div class="instruction-step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-text"><strong>Nhấn giữ & kéo</strong> để chọn khung giờ bạn rảnh trên bảng dưới đây</div>
+                                </div>
+                                <div class="instruction-step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-text"><strong>Nhấn lại</strong> vào ô đã chọn để bỏ chọn</div>
+                                </div>
+                                <div class="instruction-step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-text">Bấm <strong>"Gửi Vote"</strong> sau khi chọn xong. Bạn có thể vote lại bất cứ lúc nào.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- My Availability Grid -->
+                        <div class="poll-section-card glass-panel">
+                            <div class="poll-section-header">
+                                <h3><i class="fa-solid fa-hand-pointer"></i> Chọn khung giờ bạn rảnh</h3>
+                                <div class="poll-legend-inline">
+                                    <span class="legend-item"><span class="legend-dot dot-available"></span> Bạn rảnh</span>
+                                    <span class="legend-item"><span class="legend-dot dot-empty"></span> Chưa chọn</span>
+                                </div>
+                            </div>
+                            <div class="time-grid-scroll-wrapper">
+                                <div class="time-grid-container" id="my-time-grid">
+                                    <!-- Generated by JS -->
+                                </div>
+                            </div>
+                            <div class="poll-submit-bar">
+                                <span class="vote-status-text" id="vote-status-text"></span>
+                                <button class="btn-secondary" onclick="clearAllTimeSelections()" id="btn-clear-vote" style="display:inline-flex; align-items:center; gap:8px;">
+                                    <i class="fa-solid fa-eraser"></i> Xóa tất cả
+                                </button>
+                                <button class="btn-lux-primary" onclick="submitMeetingVote()" id="btn-submit-vote">
+                                    <i class="fa-solid fa-paper-plane"></i> Gửi Vote
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Heatmap Results -->
+                        <div class="poll-section-card glass-panel" style="margin-top:24px;">
+                            <div class="poll-section-header">
+                                <h3><i class="fa-solid fa-fire"></i> Kết quả tổng hợp</h3>
+                                <div class="poll-legend-inline heatmap-legend" id="heatmap-legend">
+                                    <span class="legend-item"><span class="legend-dot dot-heat-0"></span> 0 người</span>
+                                    <span class="legend-item"><span class="legend-dot dot-heat-low"></span> Ít</span>
+                                    <span class="legend-item"><span class="legend-dot dot-heat-mid"></span> TB</span>
+                                    <span class="legend-item"><span class="legend-dot dot-heat-high"></span> Nhiều</span>
+                                </div>
+                            </div>
+                            <div class="heatmap-voters-summary" id="heatmap-voters-summary"></div>
+                            <div class="time-grid-scroll-wrapper">
+                                <div class="time-grid-container heatmap-grid" id="heatmap-time-grid">
+                                    <!-- Generated by JS -->
+                                </div>
+                            </div>
+                            <div class="optimal-times-card" id="optimal-times-card" style="display:none;">
+                                <h4><i class="fa-solid fa-trophy" style="color:#f59e0b;"></i> Top khung giờ tối ưu</h4>
+                                <div class="optimal-times-list" id="optimal-times-list"></div>
+                            </div>
                         </div>
                     </div>
                 </section>
+
 
                 <section id="bug-report-view" class="view-section">
                     <div class="section-actions">
@@ -910,6 +1001,32 @@
                             </h3>
                             <p style="color:var(--text-muted);font-size:0.9rem;">Hãy giúp chúng tôi hoàn thiện hệ thống
                                 bằng cách báo cáo các lỗi bạn gặp phải.</p>
+                        </div>
+                    </div>
+
+                    <!-- Developer Credit Section -->
+                    <div class="bug-credit-card glass-panel" style="margin-bottom: 32px; padding: 32px; text-align: center; border: 1px solid var(--primary); background: rgba(14, 165, 233, 0.03);">
+                        <div class="credit-header" style="margin-bottom: 20px;">
+                            <img src="admin_profile_avatar.png" alt="Admin Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary); margin: 0 auto 16px; object-fit: cover; box-shadow: var(--lux-glow); display: block;">
+                            <h2 style="font-size: 1.6rem; color: var(--text-main);">Project Credits & Developer</h2>
+                        </div>
+                        <p style="color: var(--text-muted); max-width: 700px; margin: 0 auto 24px; line-height: 1.7; font-size: 1.05rem; font-style: italic;">
+                            "Sản phẩm được xây dựng bởi tâm huyết của chủ web, nhằm số hóa quy trình quản trị và nâng cao hiệu quả hoạt động CLB. 
+                            Hệ thống không ngừng được cải tiến để mang lại trải nghiệm chuyên nghiệp và hiện đại nhất."
+                        </p>
+                        <div class="credit-info-grid" style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
+                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                                <i class="fa-solid fa-envelope" style="color: var(--primary);"></i>
+                                <span style="font-weight: 700;">pn852007@gmail.com</span>
+                            </div>
+                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                                <i class="fa-solid fa-phone" style="color: var(--primary);"></i>
+                                <span style="font-weight: 700;">0342381843</span>
+                            </div>
+                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                                <i class="fa-solid fa-graduation-cap" style="color: var(--primary);"></i>
+                                <span style="font-weight: 700;">K51-Thị trường chứng khoán</span>
+                            </div>
                         </div>
                     </div>
 
@@ -996,6 +1113,8 @@
                             </div>
                         </div>
                     </div>
+
+
                 </section>
 
                 <!-- VIEW: PASSWORD MANAGEMENT (Admin Only) -->
@@ -1012,30 +1131,33 @@
                         </div>
                     </div>
 
-                    <div class="pw-mgmt-top-bar">
-                        <div class="stat-mini-card compact" style="margin:0; width: auto; flex-shrink: 0; min-width: 250px;">
-                            <div class="stat-mini-icon ico-all"><i class="fa-solid fa-users"></i></div>
-                            <div class="stat-mini-info">
-                                <span class="stat-mini-val" id="stat-total-auth-members">0</span>
-                                <span class="stat-mini-label">THÀNH VIÊN CÓ MẬT KHẨU</span>
+                    <div class="pw-mgmt-stats-container">
+                        <div class="stat-card glass-panel" style="padding: 24px; display: flex; align-items: center; gap: 24px; margin-bottom: 16px;">
+                            <div class="stat-icon" style="flex-shrink: 0; width: 64px; height: 64px; font-size: 1.8rem; background: var(--lux-gradient); box-shadow: var(--lux-glow);">
+                                <i class="fa-solid fa-users-gear"></i>
+                            </div>
+                            <div class="stat-info">
+                                <p id="stat-total-auth-members" style="font-size: 2.2rem; margin: 0; font-family: 'Outfit', sans-serif;">0</p>
+                                <h3 style="font-size: 0.85rem; margin-top: 4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Thành viên đã kích hoạt mật khẩu</h3>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="lux-control-bar glass-panel" style="margin-bottom: 24px; padding: 12px 24px; display: flex; align-items: center; gap: 24px;">
+                        <div class="lux-search-wrapper" style="flex: 1; min-width: 250px;">
+                            <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
+                            <input type="text" id="search-password-mgmt" placeholder="Tìm kiếm tên thành viên hoặc MST..." onkeyup="renderPasswordManagement()" style="font-size: 0.95rem;">
+                        </div>
                         
-                        <div class="lux-control-bar" style="margin:0; flex:1;">
-                            <div class="lux-search-wrapper">
-                                <i class="fa-solid fa-magnifying-glass"></i>
-                                <input type="text" id="search-password-mgmt" placeholder="Tìm thành viên..." onkeyup="renderPasswordManagement()">
-                            </div>
-                            <div class="lux-filter-group">
-                                <span class="lux-filter-label">Bộ lọc:</span>
-                                <div class="dept-pills-v2" id="password-dept-pills" style="margin:0;">
-                                    <button class="pill active" onclick="setPasswordDeptFilter(this, 'ALL')">Tất cả</button>
-                                    <button class="pill" onclick="setPasswordDeptFilter(this, 'L&D')">L&D</button>
-                                    <button class="pill" onclick="setPasswordDeptFilter(this, 'R&R')">R&R</button>
-                                    <button class="pill" onclick="setPasswordDeptFilter(this, 'ER')">ER</button>
-                                    <button class="pill" onclick="setPasswordDeptFilter(this, 'EB')">EB</button>
-                                    <button class="pill" onclick="setPasswordDeptFilter(this, 'BCN')">BCN/Khác</button>
-                                </div>
+                        <div class="lux-filter-group" style="display: flex; align-items: center; gap: 16px;">
+                            <span class="lux-filter-label" style="font-weight: 800; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); opacity: 0.8;">Bộ lọc Ban:</span>
+                            <div class="dept-pills-v2" id="password-dept-pills" style="margin:0;">
+                                <button class="pill active" onclick="setPasswordDeptFilter(this, 'ALL')">Tất cả</button>
+                                <button class="pill" onclick="setPasswordDeptFilter(this, 'L&D')">L&D</button>
+                                <button class="pill" onclick="setPasswordDeptFilter(this, 'R&R')">R&R</button>
+                                <button class="pill" onclick="setPasswordDeptFilter(this, 'ER')">ER</button>
+                                <button class="pill" onclick="setPasswordDeptFilter(this, 'EB')">EB</button>
+                                <button class="pill" onclick="setPasswordDeptFilter(this, 'BCN')">BCN/Khác</button>
                             </div>
                         </div>
                     </div>
@@ -1113,14 +1235,37 @@
                     <div class="member-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
                     <div class="member-info-text">
                         <h2 id="md-name">Trần Văn A</h2>
-                        <span class="version-badge" id="md-dept">Ban L&D</span>
-                        <div class="md-sub">
-                            <p><strong>Khóa:</strong> <span id="md-cohort"></span></p>
-                            <p><strong>Lớp:</strong> <span id="md-class"></span></p>
-                            <p><strong>Chuyên ngành:</strong> <span id="md-major"></span></p>
+                        <span class="version-badge" id="md-title">Thành viên</span>
+                        <div class="md-sub" style="margin-top:10px;">
+                            <p><strong>Ban:</strong> <span id="md-dept"></span></p>
+                            <p><strong>Khóa - Lớp:</strong> <span id="md-class-cohort"></span></p>
+                            <p><strong>Khoa:</strong> <span id="md-faculty"></span></p>
+                            <p><strong>MSSV:</strong> <span id="md-student-id"></span></p>
                         </div>
                     </div>
                 </div>
+                
+                <div class="member-detail-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;">
+                    <div class="glass-panel" style="padding:16px;">
+                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-address-card"></i> Thông tin cá nhân</h4>
+                        <div class="md-info-list">
+                            <p><strong>Giới tính:</strong> <span id="md-gender"></span></p>
+                            <p><strong>Ngày sinh:</strong> <span id="md-dob"></span></p>
+                            <p><strong>Dân tộc:</strong> <span id="md-ethnicity"></span></p>
+                            <p><strong>Tôn giáo:</strong> <span id="md-religion"></span></p>
+                            <p><strong>Quê quán:</strong> <span id="md-hometown"></span></p>
+                        </div>
+                    </div>
+                    <div class="glass-panel" style="padding:16px;">
+                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-envelope"></i> Liên hệ</h4>
+                        <div class="md-info-list">
+                            <p><strong>SĐT:</strong> <span id="md-phone"></span></p>
+                            <p><strong>Mail cá nhân:</strong> <span id="md-personal-email"></span></p>
+                            <p><strong>Mail CLB:</strong> <span id="md-club-email"></span></p>
+                        </div>
+                    </div>
+                </div>
+
                 <h4 style="margin-top:24px;margin-bottom:12px;">Chương trình đã tham gia (Nhiệm kỳ hiện tại)</h4>
                 <div class="table-container">
                     <table class="data-table">
@@ -1140,7 +1285,7 @@
 
     <!-- Modal: Member Edit -->
     <div class="modal" id="member-modal">
-        <div class="modal-wrapper">
+        <div class="modal-wrapper modal-lg">
             <div class="modal-header">
                 <h3 id="member-modal-title">Thêm / Sửa Thành Viên</h3>
                 <button class="close-btn" onclick="closeModal('member-modal')"><i
@@ -1149,17 +1294,50 @@
             <div class="modal-body">
                 <form id="member-form">
                     <input type="hidden" id="member-id">
-                    <div class="input-group"><label>Họ và Tên</label><input type="text" id="m-name" required></div>
-                    <div class="input-group"><label>Lớp</label><input type="text" id="m-class" required></div>
-                    <div class="input-group"><label>Khóa</label><input type="text" id="m-cohort" required></div>
-                    <div class="input-group"><label>Chuyên ngành</label><input type="text" id="m-major" required></div>
-                    <div class="input-group"><label>Ban</label>
-                        <select id="m-dept" required>
-                            <option value="L&D">L&D</option>
-                            <option value="R&R">R&R</option>
-                            <option value="ER">ER</option>
-                            <option value="EB">EB</option>
-                        </select>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div class="input-group"><label>Họ và Tên đệm</label><input type="text" id="m-lastName" required></div>
+                        <div class="input-group"><label>Tên</label><input type="text" id="m-firstName" required></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
+                        <div class="input-group"><label>Chức danh</label><input type="text" id="m-title" placeholder="VD: Cộng tác viên"></div>
+                        <div class="input-group"><label>Giới tính</label>
+                            <select id="m-gender">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:12px;">
+                        <div class="input-group"><label>Khóa - Lớp</label><input type="text" id="m-class-cohort" placeholder="VD: K60 - HR1"></div>
+                        <div class="input-group"><label>Khoa</label><input type="text" id="m-faculty" placeholder="VD: Quản trị NNL"></div>
+                        <div class="input-group"><label>MSSV</label><input type="text" id="m-studentId"></div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:12px;">
+                        <div class="input-group"><label>Ban</label>
+                            <select id="m-dept" required>
+                                <option value="L&D">L&D</option>
+                                <option value="R&R">R&R</option>
+                                <option value="ER">ER</option>
+                                <option value="EB">EB</option>
+                                <option value="BCN">BCN</option>
+                            </select>
+                        </div>
+                        <div class="input-group"><label>SĐT</label><input type="text" id="m-phone"></div>
+                        <div class="input-group"><label>Ngày sinh</label><input type="text" id="m-dob" placeholder="DD/MM/YYYY"></div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
+                        <div class="input-group"><label>Mail cá nhân</label><input type="email" id="m-personalEmail"></div>
+                        <div class="input-group"><label>Mail CLB</label><input type="email" id="m-clubEmail"></div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:12px;">
+                        <div class="input-group"><label>Dân tộc</label><input type="text" id="m-ethnicity"></div>
+                        <div class="input-group"><label>Tôn giáo</label><input type="text" id="m-religion"></div>
+                        <div class="input-group"><label>Quê quán</label><input type="text" id="m-hometown"></div>
                     </div>
                 </form>
             </div>
@@ -1180,20 +1358,14 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:16px;font-size:0.95rem;color:var(--text-muted);">
-                    Copy dữ liệu từ Excel gồm 2 cột (<strong>Họ Tên</strong> và <strong>Ban</strong>) rồi Paste vào bên
-                    dưới.
-                    <span style="color:var(--accent-red);font-weight:700;">Tên trùng với dữ liệu hiện có sẽ được báo và
-                        bỏ qua.</span>
+                    Copy dữ liệu từ Excel theo đúng thứ tự các cột sau rồi Paste vào bên dưới:<br>
+                    <code style="color:var(--primary); font-weight:bold; background:rgba(var(--primary-rgb), 0.1); padding:4px 8px; border-radius:4px; display:block; margin-top:8px;">
+                        HỌ VÀ TÊN ĐỆM	TÊN	CHỨC DANH	GIỚI TÍNH	KHÓA - LỚP	KHOA	MSSV	MAIL CÁ NHÂN	MAIL CLB	SĐT	NGÀY SINH	DÂN TỘC	TÔN GIÁO	QUÊ QUÁN
+                    </code>
                 </p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-                    <div class="input-group"><label>Khóa mặc định</label><input type="text" id="bm-cohort"
-                            placeholder="VD: 12" value="12"></div>
-                    <div class="input-group"><label>Lớp mặc định</label><input type="text" id="bm-class"
-                            placeholder="VD: Chưa phân bổ" value="Chưa phân bổ"></div>
-                </div>
                 <div class="input-group full-width">
-                    <label>Paste Dữ liệu (Họ Tên [Tab] Ban)</label>
-                    <textarea id="bm-data" rows="12" placeholder="Nguyễn Văn A&#9;L&D&#10;Trần Thị B&#9;R&R"
+                    <label>Paste Dữ liệu (14 cột - Tab separated)</label>
+                    <textarea id="bm-data" rows="12" placeholder="Nguyễn Văn	A	Thành viên	Nam	K12 - HR	Quản trị NNL	2024001	a@mail.com	a.clb@mail.com	0123456789	01/01/2005	Kinh	Không	Hà Nội"
                         style="width:100%;border:1px solid #334155;border-radius:12px;background:var(--bg-sub);color:#e2e8f0;padding:16px;font-family:monospace;resize:y;"></textarea>
                 </div>
             </div>
@@ -1441,9 +1613,9 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
-                    Dán danh sách gồm 2 cột: <strong>Họ tên [Tab] Ban</strong>. Yêu cầu khớp 100% dữ liệu hiện có.
+                    Dán danh sách <strong>Họ tên</strong> (hoặc MSSV), mỗi dòng một người.
                 </p>
-                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#9;L&D&#10;Trần Thị B&#9;R&R" 
+                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#10;Trần Thị B" 
                     style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:monospace; resize:y;"></textarea>
                 
                 <div id="btm-error-log" class="paste-error-log" style="display:none; margin-top:16px;">
@@ -1913,6 +2085,67 @@
                         <i class="fa-solid fa-floppy-disk"></i> Lưu tất cả dữ liệu
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create Meeting Poll -->
+    <div class="modal" id="create-poll-modal">
+        <div class="modal-wrapper" style="max-width:560px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-plus"></i> Tạo Vote Lịch Họp</h3>
+                <button class="close-btn" onclick="closeModal('create-poll-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-heading"></i> Tên cuộc họp <span class="required">*</span></label>
+                    <input type="text" id="poll-title" placeholder="VD: Họp Ban L&D tuần 4/2026" class="lux-input">
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-align-left"></i> Nội dung cuộc họp</label>
+                    <textarea id="poll-content" rows="3" placeholder="Mô tả ngắn gọn nội dung / mục đích cuộc họp..." class="lux-input"></textarea>
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-hourglass-end"></i> Deadline vote <span class="required">*</span></label>
+                    <input type="datetime-local" id="poll-deadline" class="lux-input">
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-calendar-day"></i> Khoảng thời gian từ <span class="required">*</span></label>
+                        <input type="date" id="poll-start-date" class="lux-input">
+                    </div>
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-calendar-week"></i> Đến <span class="required">*</span></label>
+                        <input type="date" id="poll-end-date" class="lux-input">
+                    </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-clock"></i> Giờ bắt đầu trong ngày</label>
+                        <select id="poll-start-hour" class="lux-select">
+                            <option value="7">07:00</option>
+                            <option value="8" selected>08:00</option>
+                            <option value="9">09:00</option>
+                            <option value="10">10:00</option>
+                        </select>
+                    </div>
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-clock"></i> Giờ kết thúc trong ngày</label>
+                        <select id="poll-end-hour" class="lux-select">
+                            <option value="18">18:00</option>
+                            <option value="19">19:00</option>
+                            <option value="20">20:00</option>
+                            <option value="21">21:00</option>
+                            <option value="22" selected>22:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('create-poll-modal')">Hủy</button>
+                <button class="btn-lux-primary" onclick="saveMeetingPoll()">
+                    <i class="fa-solid fa-check"></i> Tạo Vote
+                </button>
             </div>
         </div>
     </div>

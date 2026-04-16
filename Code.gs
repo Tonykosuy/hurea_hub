@@ -24,6 +24,8 @@
         evidenceImages: getSheetData(ss, 'EvidenceImages'),
         userPasswords: getSheetData(ss, 'UserAuth'),
         commonFolders: getSheetData(ss, 'CommonFolders'),
+        meetingPolls: getSheetData(ss, 'MeetingPolls'),
+        meetingVotes: getSheetData(ss, 'MeetingVotes'),
         config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' }
       };
       
@@ -128,6 +130,15 @@
           break;
         case 'delete_confession':
           result = deleteRowData(ss, 'Confessions', payload.id);
+          break;
+        case 'save_meeting_poll':
+          result = saveRowData(ss, 'MeetingPolls', payload);
+          break;
+        case 'save_meeting_vote':
+          result = saveRowData(ss, 'MeetingVotes', payload);
+          break;
+        case 'delete_meeting_poll':
+          result = deleteRowData(ss, 'MeetingPolls', payload.id);
           break;
         default:
           throw new Error('Unknown Action');
