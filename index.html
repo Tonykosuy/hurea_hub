@@ -698,17 +698,20 @@
 
                                 <div class="form-wrapper" id="club-eval-form">
                                     <div class="input-group">
-                                        <label>2.1. Kỷ luật (Điểm CỘNG/TRỪ thủ công)</label>
-                                        <input type="number" id="club-discipline-score" placeholder="VD: 2 hoặc -1">
+                                        <label>2.1. Điểm Chấp hành, kỷ luật (Thang 10, x0.3)</label>
+                                        <input type="number" id="club-discipline-score" placeholder="Nhập 0-10" min="0" max="10">
                                     </div>
                                     <div class="input-group full-width">
-                                        <label>Lý do</label>
-                                        <input type="text" id="club-discipline-reason"
-                                            placeholder="Ví dụ: Đi muộn họp ban...">
+                                        <label>Lý do (Nếu có)</label>
+                                        <input type="text" id="club-discipline-reason" placeholder="Ví dụ: Hoàn thành tốt...">
                                     </div>
                                     <div class="input-group">
-                                        <label>2.4 Tuyên truyền, PT Hình ảnh CLB (Thang 10)</label>
-                                        <input type="number" id="club-brand-score" placeholder="0–10" min="0" max="10">
+                                        <label>2.4. Tuyên truyền, PT Hình ảnh CLB (Thang 10, x0.2)</label>
+                                        <input type="number" id="club-brand-score" placeholder="Nhập 0-10" min="0" max="10">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Điểm cộng Hoạt động CLB (Cộng trực tiếp)</label>
+                                        <input type="number" id="club-bonus-score" placeholder="VD: 1.5" step="0.1">
                                     </div>
                                     <div style="display:flex; gap:12px; margin-top:20px;">
                                         <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
@@ -779,25 +782,14 @@
                                 </div>
 
                                 <div class="form-wrapper" id="dept-eval-form">
-                                    <div class="input-group"><label>Tinh thần trách nhiệm, kỷ luật (×0.1)</label><input
-                                            type="number" id="dept-rule-score" min="0" max="10" placeholder="Thang 10">
+                                    <div id="dynamic-dept-criteria">
+                                        <p style="color:var(--text-muted); font-style:italic; padding: 12px 0;">Vui lòng chọn thành viên để hiển thị các tiêu chí đánh giá của Ban tương ứng.</p>
                                     </div>
-                                    <div class="input-group"><label>Mối quan hệ với TB/PB (×0.1)</label><input
-                                            type="number" id="dept-head-rel" min="0" max="10" placeholder="Thang 10">
+                                    <div class="input-group full-width" style="margin-top: 16px;">
+                                        <label>Điểm cộng Đóng góp phát triển Ban (Cộng trực tiếp)</label>
+                                        <input type="number" id="dept-bonus-score" placeholder="VD: 1.5" step="0.1">
                                     </div>
-                                    <div class="input-group"><label>Mối quan hệ với thành viên ban (×0.1)</label><input
-                                            type="number" id="dept-mem-rel" min="0" max="10" placeholder="Thang 10">
-                                    </div>
-                                    <div class="input-group"><label>Hỗ trợ công việc team khác (×0.2)</label><input
-                                            type="number" id="dept-support" min="0" max="10" placeholder="Thang 10">
-                                    </div>
-                                    <div class="input-group"><label>Chất lượng CV 1 (×0.1)</label><input type="number"
-                                            id="dept-q1" min="0" max="10" placeholder="Thang 10"></div>
-                                    <div class="input-group"><label>Chất lượng CV 2 (×0.2)</label><input type="number"
-                                            id="dept-q2" min="0" max="10" placeholder="Thang 10"></div>
-                                    <div class="input-group"><label>Chất lượng CV 3 (×0.2)</label><input type="number"
-                                            id="dept-q3" min="0" max="10" placeholder="Thang 10"></div>
-                                    <div class="input-group full-width">
+                                    <div class="input-group full-width" style="margin-top: 12px;">
                                         <label>Nhận xét của Trưởng/Phó Ban (Hiển thị trong Báo cáo PDF)</label>
                                         <textarea id="dept-comment" rows="3"
                                             placeholder="Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên..."></textarea>
@@ -1648,6 +1640,44 @@
 
                         <div id="p-teams-grid-v2" class="teams-grid-premium">
                             <!-- Premium Teams rendered dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Danh sách hỗ trợ & Checkin -->
+                    <div class="lux-form-section" style="margin-bottom:0; margin-top:20px;">
+                        <div class="lux-section-title" style="margin-bottom:16px;">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                            Danh sách nhân sự điểm danh
+                        </div>
+                        
+                        <!-- Support List -->
+                        <div class="lux-card pl-card-premium" style="margin-bottom:16px;">
+                            <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+                                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
+                                    <strong><i class="fa-solid fa-hands-holding-circle"></i> Nhân sự Hỗ trợ</strong>
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('SUPPORT')" title="Thêm Nhân sự hỗ trợ">
+                                        <i class="fa-solid fa-user-plus"></i> Thêm người
+                                    </button>
+                                </div>
+                                <div id="p-support-list" class="pl-list-container" style="width:100%;">
+                                    <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn nhân sự hỗ trợ</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Checkin List -->
+                        <div class="lux-card pl-card-premium">
+                            <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+                                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
+                                    <strong><i class="fa-solid fa-qrcode"></i> Danh sách Check-in</strong>
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CHECKIN')" title="Thêm Check-in">
+                                        <i class="fa-solid fa-user-plus"></i> Thêm người
+                                    </button>
+                                </div>
+                                <div id="p-checkin-list" class="pl-list-container" style="width:100%;">
+                                    <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn danh sách checkin</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>

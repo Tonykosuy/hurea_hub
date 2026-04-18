@@ -527,9 +527,11 @@ function fillSearchableDropdown(listId, data, valKey, labelKey, fmtCb, hiddenId,
         li.dataset.val = item[valKey];
         li.dataset.label = fmtCb ? item[labelKey] : item[labelKey];
         li.onclick = () => {
-            document.getElementById(hiddenId).value = li.dataset.val;
+            const hiddenInput = document.getElementById(hiddenId);
+            hiddenInput.value = li.dataset.val;
             document.getElementById(btnId).innerHTML = fmtCb ? fmtCb(item) : item[labelKey];
             document.getElementById(btnId).nextElementSibling.classList.remove('active');
+            hiddenInput.dispatchEvent(new Event('change'));
             if (cb) cb(li.dataset.val);
         };
         ul.appendChild(li);
@@ -539,7 +541,7 @@ function fillSearchableDropdown(listId, data, valKey, labelKey, fmtCb, hiddenId,
 function populateSelectDropdowns() {
     fillSearchableDropdown('list-club-member', state.members, 'id', 'name',
         m => `<strong>${m.name}</strong> - ${m.dept}`, 'eval-club-member', 'btn-club-member');
-    fillSearchableDropdown('list-dept-member', state.members, 'id', 'name',
+    fillSearchableDropdown('list-dept-member', state.members.filter(m => m.dept !== 'BCN'), 'id', 'name',
         m => `<strong>${m.name}</strong> - ${m.dept}`, 'eval-dept-member', 'btn-dept-member');
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     fillSearchableDropdown('list-prj', termProjects, 'id', 'name',
@@ -605,8 +607,10 @@ function renderMembers() {
                 </div>
                 <div class="m-card-actions">
                     <button class="btn-icon" onclick="openMemberDetail('${m.id}')" title="Chi tiết"><i class="fa-solid fa-eye"></i></button>
-                    <button class="btn-icon" onclick="editMember('${m.id}')" title="Sửa"><i class="fa-solid fa-pen"></i></button>
-                    <button class="btn-icon delete" onclick="deleteMember('${m.id}')" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                    ${state.userRole === 'admin' ? `
+                        <button class="btn-icon" onclick="editMember('${m.id}')" title="Sửa"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon delete" onclick="deleteMember('${m.id}')" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                    ` : ''}
                 </div>
             `;
         } else {
@@ -621,8 +625,10 @@ function renderMembers() {
                 </div>
                 <div class="m-list-actions">
                     <button class="btn-icon" onclick="openMemberDetail('${m.id}')"><i class="fa-solid fa-eye"></i></button>
-                    <button class="btn-icon" onclick="editMember('${m.id}')"><i class="fa-solid fa-pen"></i></button>
-                    <button class="btn-icon delete" onclick="deleteMember('${m.id}')"><i class="fa-solid fa-trash"></i></button>
+                    ${state.userRole === 'admin' ? `
+                        <button class="btn-icon" onclick="editMember('${m.id}')"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon delete" onclick="deleteMember('${m.id}')"><i class="fa-solid fa-trash"></i></button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -631,6 +637,7 @@ function renderMembers() {
 }
 
 function saveMember() {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const id = document.getElementById('member-id').value;
     const lastName = document.getElementById('m-lastName').value.trim();
     const firstName = document.getElementById('m-firstName').value.trim();
@@ -773,6 +780,7 @@ function editMember(id) {
 }
 
 function deleteMember(id) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     if (confirm('Chắc chắn xoá?')) {
         state.members = state.members.filter(x => x.id !== id);
         renderMembers(); populateSelectDropdowns(); renderEvidenceFolders();
@@ -962,7 +970,7 @@ function updateProjectDashboardStats(termProjects) {
 function openCreateProjectModal() {
     state.activeProjectData = {
         id: '', name: '', term: state.currentTerm, type: 'internal', status: 'setup',
-        hasPL: true, plIds: [], teams: []
+        hasPL: true, plIds: [], teams: [], supportIds: [], checkinIds: []
     };
     showProjectModal();
 }
@@ -984,6 +992,11 @@ function editProjectV2(id) {
     state.activeProjectData.teams = ensureArray(state.activeProjectData.teams);
     state.activeProjectData.teams.forEach(t => t.members = ensureArray(t.members));
 
+    // Extract SUPPORT and CHECKIN from participants
+    const parts = ensureArray(state.activeProjectData.participants);
+    state.activeProjectData.supportIds = parts.filter(x => x.role === 'SUPPORT').map(x => x.memberId);
+    state.activeProjectData.checkinIds = parts.filter(x => x.role === 'CHECKIN').map(x => x.memberId);
+
     showProjectModal();
 }
 
@@ -997,16 +1010,36 @@ function showProjectModal() {
     document.getElementById('p-has-pl').checked = p.hasPL;
 
     const isAdmin = state.userRole === 'admin';
-    document.getElementById('project-modal-title').innerText = isAdmin ? (p.id ? 'Cập nhật Chương trình' : 'Khởi tạo Dự án mới') : 'Thông tin Chương trình';
+    document.getElementById('project-modal-title').innerText = isAdmin ? (p.id ? 'Cập nhật & Ghi đè Chương trình' : 'Khởi tạo Dự án mới') : 'Thông tin Chương trình';
 
     // Update Save button text to emphasize overwrite
     const saveBtnText = document.getElementById('btn-save-project-text');
     if (saveBtnText) {
-        saveBtnText.innerText = p.id ? 'Cập nhật & Ghi đè' : 'Lưu Dự Án';
+        saveBtnText.innerText = p.id ? 'Lưu Ghi đè lên bản cũ' : 'Lưu Dự Án';
+    }
+
+    // Hide/Show personnel addition buttons based on role
+    const personnelActions = document.querySelectorAll('.btn-picker-mini, .btn-add-ns, .btn-lux-primary:not(#project-modal-footer .btn-lux-primary), .btn-batch-select');
+    personnelActions.forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-flex' : 'none';
+    });
+
+    // Hide personnel management tools for non-admins
+    const membersViewActions = document.querySelector('#members-view .section-actions div:last-child');
+    if (membersViewActions) {
+        membersViewActions.style.display = isAdmin ? 'flex' : 'none';
+    }
+
+    // Ensure "Add Team" button is hidden
+    const addTeamBtn = document.querySelector('.lux-form-section .btn-lux-primary[onclick="addNewTeam()"]');
+    if (addTeamBtn) {
+        addTeamBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     }
 
     togglePLSection();
     renderTeamsV2();
+    renderSupportList();
+    renderCheckinList();
     openModal('project-modal');
 
     // Handle read-only for non-admin
@@ -1014,21 +1047,89 @@ function showProjectModal() {
     form.querySelectorAll('input, select, textarea').forEach(el => el.disabled = !isAdmin);
 
     // Specialized disabling for buttons
-    document.querySelectorAll('#project-modal .btn-lux-primary, #project-modal .btn-primary-xs, #project-modal .btn-primary, #project-modal .rename-team-btn').forEach(btn => {
+    document.querySelectorAll('#project-modal .btn-lux-primary, #project-modal .btn-primary-xs, #project-modal .btn-primary, #project-modal .rename-team-btn, #project-modal .btn-picker-mini, #project-modal .btn-remove-pl, #project-modal .btn-icon-xs, #project-modal .btn-premium-xs').forEach(btn => {
         if (!btn.closest('.modal-header') && !btn.closest('#project-modal-footer')) {
             btn.style.display = isAdmin ? 'inline-flex' : 'none';
         }
+    });
+
+    // Also hide delete icons in lists for non-admins
+    document.querySelectorAll('#project-modal .btn-icon.delete, #project-modal .btn-remove-pl').forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-flex' : 'none';
     });
 
     const saveBtn = document.querySelector('#project-modal-footer .btn-primary');
     if (saveBtn) saveBtn.style.display = isAdmin ? 'block' : 'none';
 }
 
+function renderSupportList() {
+    const list = document.getElementById('p-support-list');
+    if (!list) return;
+    const ids = state.activeProjectData.supportIds || [];
+    if (ids.length === 0) {
+        list.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn nhân sự hỗ trợ</div>';
+        return;
+    }
+    list.innerHTML = ids.map(id => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return '';
+        return `
+            <div class="pl-display-capsule">
+                <div class="pl-avatar-mini">${getInitials(m.name)}</div>
+                <div class="pl-info-mini">
+                    <div class="pl-name-mini">${m.name}</div>
+                    <div class="pl-role-mini">${getMemberDept(m)}</div>
+                </div>
+                ${state.userRole === 'admin' ? `<button type="button" class="btn-remove-pl" onclick="removeSupportMember('${id}')" title="Gỡ bỏ"><i class="fa-solid fa-times"></i></button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function removeSupportMember(id) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
+    if (!state.activeProjectData.supportIds) return;
+    state.activeProjectData.supportIds = state.activeProjectData.supportIds.filter(x => x !== id);
+    renderSupportList();
+}
+
+function renderCheckinList() {
+    const list = document.getElementById('p-checkin-list');
+    if (!list) return;
+    const ids = state.activeProjectData.checkinIds || [];
+    if (ids.length === 0) {
+        list.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn danh sách checkin</div>';
+        return;
+    }
+    list.innerHTML = ids.map(id => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return '';
+        return `
+            <div class="pl-display-capsule">
+                <div class="pl-avatar-mini">${getInitials(m.name)}</div>
+                <div class="pl-info-mini">
+                    <div class="pl-name-mini">${m.name}</div>
+                    <div class="pl-role-mini">${getMemberDept(m)}</div>
+                </div>
+                ${state.userRole === 'admin' ? `<button type="button" class="btn-remove-pl" onclick="removeCheckinMember('${id}')" title="Gỡ bỏ"><i class="fa-solid fa-times"></i></button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function removeCheckinMember(id) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
+    if (!state.activeProjectData.checkinIds) return;
+    state.activeProjectData.checkinIds = state.activeProjectData.checkinIds.filter(x => x !== id);
+    renderCheckinList();
+}
+
+
 function togglePLSection() {
     const hasPL = document.getElementById('p-has-pl').checked;
     state.activeProjectData.hasPL = hasPL;
     const section = document.getElementById('p-pl-selection');
-    if (section) section.style.display = hasPL ? 'flex' : 'none';
+    if (section) section.style.display = hasPL ? 'block' : 'none';
 
     if (hasPL) {
         renderPLList();
@@ -1066,13 +1167,14 @@ function renderPLList() {
 }
 
 function removePL(id) {
-    if (state.userRole !== 'admin') return;
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     state.activeProjectData.plIds = (state.activeProjectData.plIds || []).filter(plId => plId !== id);
     renderPLList();
 }
 
 // Team Management V2
 function addNewTeam() {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const name = prompt('Nhập tên Team mới (VD: Team Design, Team Tech...):');
     if (!name) return;
     const cleanName = name.trim();
@@ -1087,6 +1189,7 @@ function addNewTeam() {
 }
 
 function renameTeamV2(teamId) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const team = state.activeProjectData.teams.find(t => t.id === teamId);
     if (!team) return;
     const newName = prompt('Nhập tên mới cho Team:', team.name);
@@ -1190,8 +1293,8 @@ function togglePLSection() {
         renderPLList();
     }
 }
-
 function updateMemberRole(teamId, memberId, newRole) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const team = state.activeProjectData.teams.find(t => t.id === teamId);
     if (!team) return;
     const tm = team.members.find(m => m.memberId === memberId);
@@ -1199,6 +1302,7 @@ function updateMemberRole(teamId, memberId, newRole) {
 }
 
 function removeMemberFromTeam(teamId, memberId) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const team = state.activeProjectData.teams.find(t => t.id === teamId);
     if (!team) return;
     team.members = team.members.filter(m => m.memberId !== memberId);
@@ -1211,6 +1315,12 @@ function openMemberPicker(type, teamId = null) {
     state.mpFilter = 'ALL';
     state.selectedPickerIds = []; // Clear previous selection
     document.getElementById('mp-search').value = '';
+
+    const isAdmin = state.userRole === 'admin';
+    const batchAddBtn = document.querySelector('#member-picker-modal .btn-primary-xs');
+    if (batchAddBtn) {
+        batchAddBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
 
     // Set active pill
     document.querySelectorAll('#member-picker-modal .pill').forEach(p => p.classList.toggle('active', p.innerText === 'All'));
@@ -1265,7 +1375,10 @@ function renderMemberPicker() {
         const item = document.createElement('div');
         const initials = getInitials(m.name);
         const mDept = getMemberDept(m);
-        const isSelected = state.selectedPickerIds.includes(m.id) || (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id));
+        const isSelected = state.selectedPickerIds.includes(m.id) || 
+            (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id)) ||
+            (state.mpTarget.type === 'SUPPORT' && (state.activeProjectData.supportIds || []).includes(m.id)) ||
+            (state.mpTarget.type === 'CHECKIN' && (state.activeProjectData.checkinIds || []).includes(m.id));
 
         if (state.pickerViewMode === 'grid') {
             item.className = `picker-member-card ${isSelected ? 'selected' : ''}`;
@@ -1295,6 +1408,9 @@ function renderMemberPicker() {
 
 function confirmMemberSelection(memberId) {
     const { type, teamId } = state.mpTarget;
+    if (['PL', 'SUPPORT', 'CHECKIN', 'Team'].includes(type) && state.userRole !== 'admin') {
+        return alert('Bạn không có quyền thực hiện thao tác này.');
+    }
     const m = state.members.find(x => x.id === memberId);
     if (!m) return;
 
@@ -1312,6 +1428,20 @@ function confirmMemberSelection(memberId) {
         renderPLList();
         renderMemberPicker(); // Keep picker open for multi-select, user can close manually or it closes automatically if single-select logic was there
         // closeModal('member-picker-modal'); // Don't close immediately to allow picking multiple
+    } else if (type === 'SUPPORT') {
+        if (!state.activeProjectData.supportIds) state.activeProjectData.supportIds = [];
+        const idx = state.activeProjectData.supportIds.indexOf(memberId);
+        if (idx > -1) state.activeProjectData.supportIds.splice(idx, 1);
+        else state.activeProjectData.supportIds.push(memberId);
+        renderSupportList();
+        renderMemberPicker();
+    } else if (type === 'CHECKIN') {
+        if (!state.activeProjectData.checkinIds) state.activeProjectData.checkinIds = [];
+        const idx = state.activeProjectData.checkinIds.indexOf(memberId);
+        if (idx > -1) state.activeProjectData.checkinIds.splice(idx, 1);
+        else state.activeProjectData.checkinIds.push(memberId);
+        renderCheckinList();
+        renderMemberPicker();
     } else {
         // Multi-select for Teams
         const index = state.selectedPickerIds.indexOf(memberId);
@@ -1421,6 +1551,7 @@ function saveSelectedRole() {
 
 
 async function saveProjectV2() {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const p = state.activeProjectData;
     p.name = document.getElementById('p-name').value;
     p.term = document.getElementById('p-term').value;
@@ -1452,6 +1583,20 @@ async function saveProjectV2() {
     (p.plIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id)) {
             allParticipants.push({ memberId: id, role: 'PL', teamName: 'Leadership' });
+        }
+    });
+
+    // Add SUPPORT list
+    (p.supportIds || []).forEach(id => {
+        if (!allParticipants.some(x => x.memberId === id && x.role === 'SUPPORT')) {
+            allParticipants.push({ memberId: id, role: 'SUPPORT', teamName: 'Hỗ trợ' });
+        }
+    });
+
+    // Add CHECKIN list
+    (p.checkinIds || []).forEach(id => {
+        if (!allParticipants.some(x => x.memberId === id && x.role === 'CHECKIN')) {
+            allParticipants.push({ memberId: id, role: 'CHECKIN', teamName: 'Checkin' });
         }
     });
 
@@ -1999,7 +2144,7 @@ function calculateMemberProjectScore(mId) {
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => String(p.memberId) === String(mId));
-        if (!pt || pt.role === 'SP') return;
+        if (!pt || pt.role === 'SP' || pt.role === 'SUPPORT' || pt.role === 'CHECKIN') return;
 
         const role = pt.role || 'Thành viên';
         const team = pt.teamName;
@@ -2089,25 +2234,46 @@ function calculateMemberProjectScore(mId) {
 }
 
 function calculateMemberClubScore(mId) {
-    let disc = 10;
     const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-    if (ce) disc += ce.disciplinePoints;
+    
+    // a. Chấp hành kỷ luật, nội quy, văn hóa CLB (hệ số 0.3)
+    let disc = 10;
+    if (ce && ce.disciplinePoints !== undefined) {
+        disc = parseFloat(ce.disciplinePoints);
+    }
     disc = Math.max(0, Math.min(10, disc));
+
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
-    let evCt = 0, evSp = 0, inCt = 0;
+    let supportCount = 0;
+    let checkinCount = 0;
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
-        const pt = participants.find(p => p.memberId === mId);
-        if (!pt) return;
-        if (prj.type === 'event') { if (pt.role === 'SP') evSp++; else evCt++; }
-        else if (prj.type === 'internal') inCt++;
+        if (participants.some(p => p.memberId === mId && p.role === 'SUPPORT')) supportCount++;
+        if (prj.type === 'internal' && participants.some(p => p.memberId === mId && p.role === 'CHECKIN')) checkinCount++;
     });
-    function mapE(c) { if (c >= 3) return 10; if (c === 2) return 9; if (c === 1) return 8; return 6; }
-    function mapI(c) { if (c >= 3) return 10; if (c === 2) return 9; if (c === 1) return 8; return 7; }
-    const evScore = Math.max(mapE(evCt), mapE(evSp));
-    const inScore = mapI(inCt);
-    const brand = ce ? ce.brandScore : 7;
-    return disc * 0.3 + evScore * 0.3 + inScore * 0.2 + brand * 0.2;
+
+    // b. Tổ chức, hỗ trợ các chương trình của CLB (dựa vào danh sách nhân sự hỗ trợ) (hệ số 0.3)
+    let supportScore = 8;
+    if (supportCount >= 2) supportScore = 10;
+    else if (supportCount === 1) supportScore = 9;
+
+    // c. Tích cực tham gia chương trình nội bộ (dựa vào danh sách checkin) (hệ số 0.2)
+    let inScore = 7;
+    if (checkinCount >= 3) inScore = 10;
+    else if (checkinCount === 2) inScore = 9;
+    else if (checkinCount === 1) inScore = 8;
+
+    // d. Tuyên truyền, phát triển hình ảnh CLB (hệ số 0.2)
+    const brand = ce ? parseFloat(ce.brandScore ?? 0) : 0;
+
+    let total = (disc * 0.3) + (supportScore * 0.3) + (inScore * 0.2) + (brand * 0.2);
+
+    // Điểm cộng không cộng vào hệ số
+    if (ce && ce.bonusScore) {
+        total += parseFloat(ce.bonusScore);
+    }
+
+    return total;
 }
 
 function calculateFinalScores() {
@@ -2188,7 +2354,21 @@ function showScoreDetail(mId) {
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
-        if (!pt || pt.role === 'SP') return;
+        if (!pt) return;
+        
+        const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP';
+        const isCheckin = pt.role === 'CHECKIN';
+        
+        if (isSupport || isCheckin) {
+            const roleLabel = isSupport ? '<span class="badge-internal">Hỗ trợ</span>' : '<span class="badge-running">Check-in</span>';
+            prjRows += `<tr>
+                <td style="white-space:normal;"><strong>${prj.name}</strong></td>
+                <td>${roleLabel}</td>
+                <td colspan="5" style="text-align:center; color:var(--text-muted); font-style:italic;">Tham gia chương trình (Không tính điểm Project)</td>
+            </tr>`;
+            return;
+        }
+
         const evals = state.evaluations.filter(e => e.prjId === prj.id && e.targetId === mId);
         if (evals.length === 0) {
             prjRows += `<tr><td><strong>${prj.name}</strong></td><td>${pt.role}</td><td colspan="5" style="color:var(--text-muted)">Chưa có đánh giá</td></tr>`;
@@ -2208,21 +2388,24 @@ function showScoreDetail(mId) {
     });
 
     const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-    let disc = 10 + (ce ? ce.disciplinePoints : 0);
+    let disc = 10 + parseFloat(ce?.disciplinePoints || 0);
     disc = Math.max(0, Math.min(10, disc));
-    let evCt = 0, evSp = 0, inCt = 0;
+    let supportCount = 0;
+    let internalCheckinCount = 0;
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
-        if (prj.type === 'event') { if (pt.role === 'SP') evSp++; else evCt++; }
-        else if (prj.type === 'internal') inCt++;
+        if (pt.role === 'SUPPORT') supportCount++;
+        if (prj.type === 'internal' && pt.role === 'CHECKIN') internalCheckinCount++;
     });
-    const mapE2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 6;
-    const mapI2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 7;
-    const evScore = Math.max(mapE2(evCt), mapE2(evSp));
-    const inScore = mapI2(inCt);
-    const brand = ce ? ce.brandScore : 7;
+    
+    const mapSupport = c => c >= 2 ? 10 : (c === 1 ? 9 : 8);
+    const mapInternal = c => c >= 3 ? 10 : (c === 2 ? 9 : (c === 1 ? 8 : 7));
+    
+    const evScore = mapSupport(supportCount);
+    const inScore = mapInternal(internalCheckinCount);
+    const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
     const reasons = (ce && ce.reasons && ce.reasons.length > 0)
         ? ce.reasons.map(r => `<span style="display:inline-block;background:var(--secondary);padding:2px 8px;border-radius:6px;font-size:0.78rem;margin:2px">${r}</span>`).join('')
         : '<i style="color:var(--text-muted)">Không có ghi chú kỷ luật</i>';
@@ -2230,18 +2413,23 @@ function showScoreDetail(mId) {
     const deptCri = de && de.criteria ? de.criteria : null;
     const deptRemarks = de && de.remarks ? de.remarks : '<i style="color:var(--text-muted)">Không có nhận xét từ Trưởng/Phó Ban</i>';
     let deptRows = '';
+    
     if (deptCri) {
-        const criArr = [
-            ['Tinh thần trách nhiệm (x0.1)', deptCri.rule, 0.1],
-            ['Quan hệ TB/PB (x0.1)', deptCri.hRel, 0.1],
-            ['Quan hệ TV ban (x0.1)', deptCri.mRel, 0.1],
-            ['Hỗ trợ team khác (x0.2)', deptCri.sup, 0.2],
-            ['CV Chuyên môn 1 (x0.1)', deptCri.q1, 0.1],
-            ['CV Chuyên môn 2 (x0.2)', deptCri.q2, 0.2],
-            ['CV Chuyên môn 3 (x0.2)', deptCri.q3, 0.2]
-        ];
-        deptRows = criArr.map(([lbl, val, w]) => `<tr><td>${lbl}</td><td>${val || 0}/10</td><td>${((val || 0) * w).toFixed(2)}</td></tr>`).join('');
-        if (deptCri.bonus) deptRows += `<tr><td>Điểm cộng đóng góp</td><td>+${deptCri.bonus}</td><td>${deptCri.bonus}</td></tr>`;
+        const criteriaList = DEPT_EVAL_CONFIG[member.dept];
+        if (criteriaList) {
+            deptRows = criteriaList.map(c => {
+                const val = parseFloat(deptCri[c.id] || 0);
+                const weighted = (val * c.weight).toFixed(2);
+                return `<tr><td>${c.label} (x${c.weight})</td><td>${val}/10</td><td>${weighted}</td></tr>`;
+            }).join('');
+            
+            if (de.bonusScore || deptCri.bonus) {
+                const bVal = de.bonusScore || deptCri.bonus || 0;
+                deptRows += `<tr style="background:rgba(16, 185, 129, 0.03);"><td><strong>Điểm cộng đóng góp</strong></td><td>+${bVal}</td><td>${bVal}</td></tr>`;
+            }
+        } else {
+            deptRows = `<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:40px;">Cấu hình Ban ${member.dept} chưa sẵn sàng.</td></tr>`;
+        }
     } else {
         deptRows = `<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa nhập điểm Ban. Tạm tính: ${deptScore.toFixed(2)}</td></tr>`;
     }
@@ -2319,10 +2507,10 @@ function showScoreDetail(mId) {
                 <table class="data-table">
                     <thead><tr><th>Tiêu chí</th><th>Giá trị</th><th>Trọng số</th><th>Thành phần</th></tr></thead>
                     <tbody>
-                        <tr><td>Kỷ luật nội quy</td><td>${disc}/10</td><td>30%</td><td>${(disc * 0.3).toFixed(2)}</td></tr>
-                        <tr><td>Sự kiện Tổ chức</td><td>${evScore}/10</td><td>30%</td><td>${(evScore * 0.3).toFixed(2)}</td></tr>
-                        <tr><td>Chương trình Nội bộ</td><td>${inScore}/10</td><td>20%</td><td>${(inScore * 0.2).toFixed(2)}</td></tr>
-                        <tr><td>Hình ảnh & Thương hiệu</td><td>${brand}/10</td><td>20%</td><td>${(brand * 0.2).toFixed(2)}</td></tr>
+                        <tr><td>Kỷ luật nội quy</td><td>${disc}/10</td><td>30%</td><td>${(parseFloat(disc || 0) * 0.3).toFixed(2)}</td></tr>
+                        <tr><td>Sự kiện Tổ chức</td><td>${evScore}/10</td><td>30%</td><td>${(parseFloat(evScore || 0) * 0.3).toFixed(2)}</td></tr>
+                        <tr><td>Chương trình Nội bộ</td><td>${inScore}/10</td><td>20%</td><td>${(parseFloat(inScore || 0) * 0.2).toFixed(2)}</td></tr>
+                        <tr><td>Hình ảnh & Thương hiệu</td><td>${brand}/10</td><td>20%</td><td>${(parseFloat(brand || 0) * 0.2).toFixed(2)}</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -2410,25 +2598,33 @@ async function downloadPDF(mId) {
     }
 
     const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-    let disc = 10 + (ce ? ce.disciplinePoints : 0);
-    disc = Math.max(0, Math.min(10, disc));
+    const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons.join(', ') : 'Chấp hành tốt các quy định.';
+    const deptCri = de && de.criteria ? de.criteria : null;
+    const deptRemarksText = (de && de.remarks) ? de.remarks : 'Thành viên hoàn thành tốt các nhiệm vụ được giao, có tinh thần trách nhiệm cao trong công việc.';
+
+    // Automated Club Scoring Calculation for PDF
+    let supportCount = 0;
+    let internalCheckinCount = 0;
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
-    let evCt = 0, evSp = 0, inCt = 0;
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
-        if (prj.type === 'event') { if (pt.role === 'SP') evSp++; else evCt++; }
-        else if (prj.type === 'internal') inCt++;
+        if (pt.role === 'SUPPORT') supportCount++;
+        if (prj.type === 'internal' && pt.role === 'CHECKIN') internalCheckinCount++;
     });
-    const mapE2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 6;
-    const mapI2 = c => c >= 3 ? 10 : c === 2 ? 9 : c === 1 ? 8 : 7;
-    const evScore = Math.max(mapE2(evCt), mapE2(evSp));
-    const inScore = mapI2(inCt);
-    const brand = ce ? ce.brandScore : 7;
-    const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons.join(', ') : 'Chấp hành tốt các quy định.';
-    const deptCri = de && de.criteria ? de.criteria : null;
-    const deptRemarksText = (de && de.remarks) ? de.remarks : 'Thành viên hoàn thành tốt các nhiệm vụ được giao, có tinh thần trách nhiệm cao trong công việc.';
+    
+    const mapSupport = c => c >= 2 ? 10 : (c === 1 ? 9 : 8);
+    const mapInternal = c => c >= 3 ? 10 : (c === 2 ? 9 : (c === 1 ? 8 : 7));
+    
+    const evScore = mapSupport(supportCount);
+    const inScore = mapInternal(internalCheckinCount);
+    const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
+    let disc = 10;
+    if (ce && ce.disciplinePoints !== undefined) {
+        disc = parseFloat(ce.disciplinePoints);
+    }
+    disc = Math.max(0, Math.min(10, disc));
 
     // Generate Radar Chart Image for PDF
     const generateChartDataURL = () => {
@@ -2439,10 +2635,26 @@ async function downloadPDF(mId) {
             canvas.style.display = 'none';
             document.body.appendChild(canvas);
 
-            const ruleS = (disc * 0.5 + (deptCri ? deptCri.rule : 10) * 0.5);
-            const workS = deptCri ? (deptCri.q1 + deptCri.q2 + deptCri.q3) / 3 : 8;
-            const clubS = (evScore + inScore) / 2;
-            const relS = (brand + (deptCri ? (deptCri.hRel + deptCri.mRel + deptCri.sup) / 3 : 8)) / 2;
+            let dRule = 10, dWork = 8, dRel = 8;
+            if (deptCri) {
+                let rList = [], wList = [], relList = [];
+                for (let k in deptCri) {
+                    if (k === 'bonus') continue;
+                    let val = parseFloat(deptCri[k]);
+                    if (isNaN(val)) continue;
+                    if (k.endsWith('_rule')) rList.push(val);
+                    else if (k.endsWith('_head') || k.endsWith('_mem') || k.endsWith('_sup')) relList.push(val);
+                    else wList.push(val);
+                }
+                if (rList.length) dRule = rList.reduce((a, b) => a + b) / rList.length;
+                if (wList.length) dWork = wList.reduce((a, b) => a + b) / wList.length;
+                if (relList.length) dRel = relList.reduce((a, b) => a + b) / relList.length;
+            }
+
+            const ruleS = ((ce && ce.disciplinePoints !== undefined ? parseFloat(ce.disciplinePoints) : 10) + dRule) / 2;
+            const workS = dWork;
+            const relS = ((ce && ce.brandScore !== undefined ? parseFloat(ce.brandScore) : 7) + dRel) / 2;
+            const clubS = clubScore;
 
             new Chart(canvas, {
                 type: 'radar',
@@ -2505,7 +2717,8 @@ async function downloadPDF(mId) {
         let roleName = 'Thành viên';
         if (pt.role === 'PL') roleName = 'Project Leader';
         if (pt.role === 'TL') roleName = 'Team Leader';
-        if (pt.role === 'SP') roleName = 'Supporter';
+        if (pt.role === 'SP' || pt.role === 'SUPPORT') roleName = 'Hỗ trợ';
+        if (pt.role === 'CHECKIN') roleName = 'Check-in';
         return { name: prj.name, role: roleName };
     });
 
@@ -2617,14 +2830,15 @@ async function downloadPDF(mId) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td class="row-category">TINH THẦN TRÁCH NHIỆM, KỈ LUẬT</td><td class="text-left">Thực hiện nội quy bộ phận</td><td>0.1</td><td>${(deptCri ? deptCri.rule : 0).toFixed(2)}</td></tr>
-                            <tr><td rowspan="2" class="row-category">MỐI QUAN HỆ VỚI BAN</td><td class="text-left">Với trưởng phó ban</td><td>0.1</td><td>${(deptCri ? deptCri.hRel : 0).toFixed(2)}</td></tr>
-                            <tr><td class="text-left">Với thành viên/CTV ban</td><td>0.1</td><td>${(deptCri ? deptCri.mRel : 0).toFixed(2)}</td></tr>
-                            <tr><td class="row-category">THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN</td><td class="text-left">Tham gia đóng góp, hỗ trợ tích cực các hoạt động, chương trình của team khác trong ban</td><td>0.2</td><td>${(deptCri ? deptCri.sup : 0).toFixed(2)}</td></tr>
-                            <tr><td rowspan="3" class="row-category">CHẤT LƯỢNG CÔNG VIỆC</td><td class="text-left">Teambuilding</td><td>0.1</td><td>${(deptCri ? deptCri.q1 : 0).toFixed(2)}</td></tr>
-                            <tr><td class="text-left">Tình nguyện trung thu HureAMour</td><td>0.2</td><td>${(deptCri ? deptCri.q2 : 0).toFixed(2)}</td></tr>
-                            <tr><td class="text-left">Tìm kiếm CTV Tháng 10/2025</td><td>0.2</td><td>${(deptCri ? deptCri.q3 : 0).toFixed(2)}</td></tr>
-                            <tr><td class="row-category">ĐÓNG GÓP PHÁT TRIỂN BAN</td><td colspan="2">Điểm cộng</td><td>${(deptCri ? deptCri.bonus : 0).toFixed(2)}</td></tr>
+                            ${(() => {
+                                const criteriaList = DEPT_EVAL_CONFIG[member.dept];
+                                if (!criteriaList || !deptCri) return '<tr><td colspan="4">Chưa có đánh giá Ban.</td></tr>';
+                                return criteriaList.map(c => {
+                                    const val = parseFloat(deptCri[c.id] || 0);
+                                    const weighted = (val * c.weight).toFixed(2);
+                                    return `<tr><td colspan="2" class="text-left">${c.label}</td><td>${c.weight}</td><td>${val.toFixed(2)}</td></tr>`;
+                                }).join('') + ( (de.bonusScore || deptCri.bonus) ? `<tr><td colspan="2" class="text-left">Điểm cộng đóng góp</td><td>-</td><td>${(de.bonusScore || deptCri.bonus || 0).toFixed(2)}</td></tr>` : '' );
+                            })()}
                             <tr class="row-total">
                                 <td colspan="2">ĐIỂM TRUNG BÌNH</td>
                                 <td colspan="2" class="score-red">${deptScore.toFixed(2)}</td>
@@ -2750,6 +2964,72 @@ function backToMethodSelection(type) {
 // ==========================================
 let isEditingEval = { club: false, dept: false };
 
+const DEPT_EVAL_CONFIG = {
+    'R&R': [
+        { id: 'rr_rule', label: 'Thực hiện nội quy bộ phận', weight: 0.1 },
+        { id: 'rr_head', label: 'Mối quan hệ với trưởng phó ban', weight: 0.1 },
+        { id: 'rr_mem', label: 'Mối quan hệ với thành viên/CTV ban', weight: 0.1 },
+        { id: 'rr_sup', label: 'Tham gia đóng góp, hỗ trợ các HĐ/CT của team khác', weight: 0.2 },
+        { id: 'rr_tb', label: 'Chất lượng CV: Teambuilding', weight: 0.1 },
+        { id: 'rr_tt', label: 'Chất lượng CV: Tình nguyện trung thu HureAMour', weight: 0.2 },
+        { id: 'rr_ctv', label: 'Chất lượng CV: Tìm kiếm CTV tháng 10/2025', weight: 0.2 }
+    ],
+    'ER': [
+        { id: 'er_rule', label: 'Thực hiện nội quy ban', weight: 0.1 },
+        { id: 'er_head', label: 'Mối quan hệ với trưởng phó ban', weight: 0.1 },
+        { id: 'er_mem', label: 'Mối quan hệ với thành viên/CTV ban', weight: 0.1 },
+        { id: 'er_mail', label: 'Công việc: Viết mail', weight: 0.1 },
+        { id: 'er_tt', label: 'Công việc: Hỗ trợ truyền thông', weight: 0.1 },
+        { id: 'er_dg', label: 'Công việc: Tìm diễn giả', weight: 0.1 },
+        { id: 'er_ds', label: 'Công việc: Design proposal', weight: 0.1 },
+        { id: 'er_tn', label: 'Chất lượng CV: Vận động tài trợ', weight: 0.2 },
+        { id: 'er_img', label: 'Chất lượng CV: Xây dựng hình ảnh ra sinh viên', weight: 0.1 }
+    ],
+    'EB': [
+        { id: 'eb_rule', label: 'Thực hiện nội quy bộ phận', weight: 0.1 },
+        { id: 'eb_head', label: 'Mối quan hệ với trưởng phó ban', weight: 0.1 },
+        { id: 'eb_mem', label: 'Mối quan hệ với thành viên/CTV ban', weight: 0.1 },
+        { id: 'eb_tto', label: 'Truyền thông online', weight: 0.1 },
+        { id: 'eb_ttnb', label: 'Truyền thông nội bộ', weight: 0.05 },
+        { id: 'eb_tt', label: 'Tương tác trong các group UEH, CLB đội nhóm', weight: 0.1 },
+        { id: 'eb_ct1', label: 'Content (Lên ý tưởng)', weight: 0.1 },
+        { id: 'eb_ct2', label: 'Content (Viết content)', weight: 0.1 },
+        { id: 'eb_ds1', label: 'Design (Thiết kế BND)', weight: 0.05 },
+        { id: 'eb_ds2', label: 'Design (Thiết kế hình ảnh)', weight: 0.1 },
+        { id: 'eb_cr', label: 'Creative (Đóng góp ý tưởng, xây dựng fanpage)', weight: 0.1 }
+    ],
+    'L&D': [
+        { id: 'ld_rule', label: 'Thực hiện nội quy ban', weight: 0.1 },
+        { id: 'ld_head', label: 'Mối quan hệ với trưởng phó ban', weight: 0.1 },
+        { id: 'ld_mem', label: 'Mối quan hệ với thành viên/CTV ban', weight: 0.1 },
+        { id: 'ld_idea', label: 'Đóng góp ý kiến, xây dựng ý tưởng project', weight: 0.15 },
+        { id: 'ld_pro', label: 'Chủ động tham gia Project, xung phong đảm nhận', weight: 0.15 },
+        { id: 'ld_sup', label: 'Nhiệt tình, chủ động hỗ trợ các thành viên khác', weight: 0.1 },
+        { id: 'ld_qlct', label: 'Chất lượng chương trình tổ chức', weight: 0.15 },
+        { id: 'ld_thct', label: 'Thực hiện công tác tổ chức, quản lý chương trình', weight: 0.15 }
+    ]
+};
+
+function renderDeptEvalForm(deptName) {
+    const container = document.getElementById('dynamic-dept-criteria');
+    if (!container) return;
+    
+    const criteriaList = DEPT_EVAL_CONFIG[deptName];
+    if (!criteriaList) {
+        container.innerHTML = `<p style="color:var(--text-muted); font-style:italic; padding: 12px 0;">Ban '${deptName}' chưa có cấu hình tiêu chí đánh giá.</p>`;
+        return;
+    }
+
+    const html = criteriaList.map(c => `
+        <div class="input-group">
+            <label>${c.label} (×${c.weight})</label>
+            <input type="number" id="dept_${c.id}" min="0" max="10" step="0.1" placeholder="Thang 10">
+        </div>
+    `).join('');
+
+    container.innerHTML = html;
+}
+
 function checkExistingScore(type, mId) {
     if (!mId) {
         document.getElementById(`${type}-eval-history`).style.display = 'none';
@@ -2758,6 +3038,11 @@ function checkExistingScore(type, mId) {
     }
 
     const member = state.members.find(m => m.id === mId);
+    if (!member) return;
+
+    if (type === 'dept') {
+        renderDeptEvalForm(member.dept);
+    }
     let historyHtml = '';
     let exists = false;
 
@@ -2822,23 +3107,24 @@ function editEval(type) {
     if (type === 'club') {
         const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
         if (ce) {
-            // Club evaluation is incremental in the old logic, 
-            // but for "Edit" we'll treat it as editing the total points or just adding more.
-            // Requirement says "chỉnh sửa được", let's clear inputs but show cancel.
-            document.getElementById('club-discipline-score').value = '';
-            document.getElementById('club-discipline-reason').value = '';
-            document.getElementById('club-brand-score').value = ce.brandScore;
+            // Club evaluation uses absolute fields now
+            document.getElementById('club-discipline-score').value = ce.disciplinePoints ?? '';
+            document.getElementById('club-discipline-reason').value = ce.reasons && ce.reasons.length > 0 ? ce.reasons[ce.reasons.length - 1] : '';
+            document.getElementById('club-brand-score').value = ce.brandScore ?? '';
+            document.getElementById('club-bonus-score').value = ce.bonusScore || '';
         }
     } else {
         const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
         if (de && de.criteria) {
-            document.getElementById('dept-rule-score').value = de.criteria.rule;
-            document.getElementById('dept-head-rel').value = de.criteria.hRel;
-            document.getElementById('dept-mem-rel').value = de.criteria.mRel;
-            document.getElementById('dept-support').value = de.criteria.sup;
-            document.getElementById('dept-q1').value = de.criteria.q1;
-            document.getElementById('dept-q2').value = de.criteria.q2;
-            document.getElementById('dept-q3').value = de.criteria.q3;
+            const member = state.members.find(m => m.id === mId);
+            if (member && DEPT_EVAL_CONFIG[member.dept]) {
+                DEPT_EVAL_CONFIG[member.dept].forEach(criteria => {
+                    if (document.getElementById(`dept_${criteria.id}`)) {
+                        document.getElementById(`dept_${criteria.id}`).value = de.criteria[criteria.id] ?? '';
+                    }
+                });
+            }
+            if (document.getElementById('dept-bonus-score')) document.getElementById('dept-bonus-score').value = de.bonusScore || '';
             document.getElementById('dept-comment').value = de.remarks || '';
         }
     }
@@ -2863,11 +3149,13 @@ async function saveClubEval() {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
-    const dScore = parseFloat(document.getElementById('club-discipline-score').value || 0);
+    const dScore = parseFloat(document.getElementById('club-discipline-score').value);
     const dReason = document.getElementById('club-discipline-reason').value;
     const bScore = parseFloat(document.getElementById('club-brand-score').value);
+    const bonusScore = parseFloat(document.getElementById('club-bonus-score').value || 0);
 
-    // Initial check for brand score
+    // Initial check for required scores
+    if (isNaN(dScore)) return alert('Vui lòng nhập điểm Kỷ luật (2.1)');
     if (isNaN(bScore)) return alert('Vui lòng nhập điểm Hình ảnh (2.4)');
 
     const btn = document.querySelector('#eval-club .btn-primary');
@@ -2882,17 +3170,23 @@ async function saveClubEval() {
                 id: 'cs' + Date.now(), 
                 memberId: mId, 
                 term: state.currentTerm, 
-                disciplinePoints: 0, 
-                brandScore: 7, 
+                disciplinePoints: dScore, 
+                brandScore: bScore, 
+                bonusScore: bonusScore,
                 reasons: [] 
             };
+        } else {
+            entry.disciplinePoints = dScore;
+            entry.brandScore = bScore;
+            entry.bonusScore = bonusScore;
+            entry.reasons = ensureArray(entry.reasons);
         }
 
-        // Apply changes
-        if (dScore !== 0) {
-            entry.disciplinePoints += dScore;
-            const rText = (dScore >= 0 ? '+' : '') + dScore + ': ' + (dReason || 'Điều chỉnh điểm kỷ luật');
-            entry.reasons.push(rText);
+        // Overwrite reasons instead of appending
+        if (dReason.trim()) {
+            entry.reasons = [dScore + ': ' + dReason];
+        } else {
+            entry.reasons = [];
         }
         entry.brandScore = bScore;
 
@@ -2921,21 +3215,35 @@ async function saveClubEval() {
 
 async function saveDeptEval() {
     const mId = document.getElementById('eval-dept-member').value;
-    if (!mId) return alert('Chua chon thanh vien');
+    if (!mId) return alert('Chưa chọn thành viên');
     
-    // Amin or Board Member check
+    // Admin or Board Member check
     if (state.userRole !== 'admin' && !isBoardMember()) {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
-    const rule = parseFloat(document.getElementById('dept-rule-score').value || 0);
-    const hRel = parseFloat(document.getElementById('dept-head-rel').value || 0);
-    const mRel = parseFloat(document.getElementById('dept-mem-rel').value || 0);
-    const sup = parseFloat(document.getElementById('dept-support').value || 0);
-    const q1 = parseFloat(document.getElementById('dept-q1').value || 0);
-    const q2 = parseFloat(document.getElementById('dept-q2').value || 0);
-    const q3 = parseFloat(document.getElementById('dept-q3').value || 0);
-    const bonus = parseFloat(document.getElementById('dept-bonus') ? document.getElementById('dept-bonus').value : 0);
+    const member = state.members.find(m => m.id === mId);
+    if (!member) return;
+
+    const criteriaList = DEPT_EVAL_CONFIG[member.dept];
+    if (!criteriaList) return alert('Ban này chưa có cấu hình tiêu chí đánh giá.');
+
+    let totalScore = 0;
+    const criteriaObj = {};
+
+    for (const c of criteriaList) {
+        const val = parseFloat(document.getElementById(`dept_${c.id}`).value);
+        if (isNaN(val)) return alert(`Vui lòng nhập điểm cho tiêu chí: ${c.label}`);
+        totalScore += val * c.weight;
+        criteriaObj[c.id] = val;
+    }
+
+    const bonus = parseFloat(document.getElementById('dept-bonus-score') ? document.getElementById('dept-bonus-score').value : 0) || 0;
+    totalScore += bonus;
+    
+    // Giới hạn điểm ban ở mức tối đa 10
+    if (totalScore > 10) totalScore = 10;
+
     const remarks = document.getElementById('dept-comment').value;
 
     const btn = document.querySelector('#eval-dept .btn-primary');
@@ -2944,16 +3252,14 @@ async function saveDeptEval() {
     btn.disabled = true;
 
     try {
-        let totalScore = 0.1 * (rule + hRel + mRel + q1) + 0.2 * (sup + q2 + q3) + bonus;
-        if (totalScore > 10) totalScore = 10;
-        
         state.deptScores = state.deptScores.filter(x => !(x.memberId === mId && x.term === state.currentTerm));
         const entry = { 
             memberId: mId, 
             term: state.currentTerm, 
             totalScore, 
             remarks,
-            criteria: { rule, hRel, mRel, sup, q1, q2, q3, bonus } 
+            bonusScore: bonus,
+            criteria: criteriaObj 
         };
         state.deptScores.push(entry);
         
@@ -4139,7 +4445,7 @@ function renderEvaluationTasks() {
         if (isAdmin) return true;
         const parts = ensureArray(p.participants);
         const myId = String(state.currentUser.id).trim();
-        return parts.some(pt => String(pt.memberId).trim() === myId);
+        return parts.some(pt => String(pt.memberId).trim() === myId && !['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role));
     });
 
     if (myProjects.length === 0) {
@@ -4263,6 +4569,10 @@ function startCinematicEvaluation(prjId) {
     const raterTeam = raterPt.teamName;
     const raterRole = raterPt.role || 'Thành viên';
     
+    if (['SP', 'SUPPORT', 'CHECKIN'].includes(raterRole)) {
+        return alert('Nhân sự Hỗ trợ và Check-in không tham gia đánh giá chéo!');
+    }
+    
     const checkPL = (r) => r === 'PL' || r === 'Project Leader';
     const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
     const hasPL = participants.some(pt => checkPL(pt.role));
@@ -4272,6 +4582,7 @@ function startCinematicEvaluation(prjId) {
     if (checkPL(raterRole)) {
         // Project Leader: Self + All Leaders
         targets = participants.filter(pt => {
+            if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isAnyLeader = checkLeader(pt.role);
             return isSelf || isAnyLeader;
@@ -4279,6 +4590,7 @@ function startCinematicEvaluation(prjId) {
     } else if (checkLeader(raterRole)) {
         // Leader: Self + Other Leaders + Teammates (CTs in same team) + PL
         targets = participants.filter(pt => {
+            if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isOtherLeader = checkLeader(pt.role) && pt.memberId !== raterId;
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
@@ -4288,6 +4600,7 @@ function startCinematicEvaluation(prjId) {
     } else {
         // Core Team: Self + Leader of their team + Teammates (CTs in same team)
         targets = participants.filter(pt => {
+            if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isMyLeader = pt.teamName === raterTeam && checkLeader(pt.role);
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && pt.memberId !== raterId;
