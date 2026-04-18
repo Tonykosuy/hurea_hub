@@ -26,6 +26,7 @@
         commonFolders: getSheetData(ss, 'CommonFolders'),
         meetingPolls: getSheetData(ss, 'MeetingPolls'),
         meetingVotes: getSheetData(ss, 'MeetingVotes'),
+        events: getSheetData(ss, 'Events'),
         config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' }
       };
       
@@ -140,8 +141,14 @@
         case 'delete_meeting_poll':
           result = deleteRowData(ss, 'MeetingPolls', payload.id);
           break;
+        case 'save_event':
+          result = saveRowData(ss, 'Events', payload);
+          break;
+        case 'delete_event':
+          result = deleteRowData(ss, 'Events', payload.id);
+          break;
         default:
-          throw new Error('Unknown Action');
+          throw new Error('Action not found: ' + action);
       }
 
       return ContentService.createTextOutput(JSON.stringify({status: 'success', data: result}))

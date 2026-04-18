@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>HuReA | Dashboard Quản Trị Thành Viên</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -51,13 +52,15 @@
                 <div id="login-password-section" class="login-pin-section" style="display:none;">
                     <label><i class="fa-solid fa-lock"></i> Nhập mật khẩu</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="login-password" class="lux-input pw-input" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter')handleLogin()">
+                        <input type="password" id="login-password" class="lux-input pw-input"
+                            placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter')handleLogin()">
                         <button class="btn-toggle-pw" onclick="togglePwVisibility('login-password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
                     <div id="login-error" class="pin-error" style="display:none;">
-                        <i class="fa-solid fa-circle-exclamation"></i> <span id="login-error-text">Sai mật khẩu, vui lòng thử lại</span>
+                        <i class="fa-solid fa-circle-exclamation"></i> <span id="login-error-text">Sai mật khẩu, vui
+                            lòng thử lại</span>
                     </div>
                     <button class="btn-login" id="btn-login" onclick="handleLogin()">
                         <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
@@ -72,14 +75,16 @@
                     </div>
                     <label><i class="fa-solid fa-key"></i> Tạo mật khẩu mới</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="create-password" class="lux-input pw-input" placeholder="Mật khẩu ít nhất 4 ký tự..." autocomplete="new-password">
+                        <input type="password" id="create-password" class="lux-input pw-input"
+                            placeholder="Mật khẩu ít nhất 4 ký tự..." autocomplete="new-password">
                         <button class="btn-toggle-pw" onclick="togglePwVisibility('create-password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
                     <label style="margin-top:12px;"><i class="fa-solid fa-check-double"></i> Nhập lại mật khẩu</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="confirm-password" class="lux-input pw-input" placeholder="Nhập lại mật khẩu..." autocomplete="new-password">
+                        <input type="password" id="confirm-password" class="lux-input pw-input"
+                            placeholder="Nhập lại mật khẩu..." autocomplete="new-password">
                         <button class="btn-toggle-pw" onclick="togglePwVisibility('confirm-password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
@@ -95,8 +100,9 @@
                 <!-- Forgot Password -->
                 <div class="login-forgot-password">
                     <i class="fa-solid fa-circle-info"></i>
-                    Quên mật khẩu? Liên hệ: 
-                    <a href="https://www.facebook.com/nguyen.phuc.524150" target="_blank" style="color:var(--primary); margin-left:5px;">
+                    Quên mật khẩu? Liên hệ:
+                    <a href="https://www.facebook.com/nguyen.phuc.524150" target="_blank"
+                        style="color:var(--primary); margin-left:5px;">
                         <i class="fa-brands fa-facebook"></i> Facebook Admin
                     </a>
                 </div>
@@ -117,7 +123,10 @@
                         <div class="login-input-group">
                             <label><i class="fa-solid fa-key"></i> Mật khẩu Admin</label>
                             <div class="admin-pw-wrapper">
-                                <input type="password" id="admin-password" class="pin-box-admin" style="width:100%; aspect-ratio:unset; height:50px; border-radius:12px; font-size:1rem; padding: 0 16px;" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter')handleAdminLogin()">
+                                <input type="password" id="admin-password" class="pin-box-admin"
+                                    style="width:100%; aspect-ratio:unset; height:50px; border-radius:12px; font-size:1rem; padding: 0 16px;"
+                                    placeholder="Nhập mật khẩu..."
+                                    onkeydown="if(event.key==='Enter')handleAdminLogin()">
                             </div>
                         </div>
                         <div id="admin-error" class="pin-error" style="display:none;">
@@ -157,7 +166,7 @@
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-target="dashboard-view">
-                    <i class="fa-solid fa-house"></i><span>Tổng quan</span>
+                    <i class="fa-solid fa-house"></i><span>Trang chủ</span>
                 </a>
                 <a href="#" class="nav-item" data-target="members-view">
                     <i class="fa-solid fa-users"></i><span>Tài nguyên Nhân sự</span>
@@ -205,13 +214,14 @@
                         <i class="fa-solid fa-bars"></i>
                     </button>
                     <div class="header-title">
-                        <h1 id="page-title">Tổng quan hệ thống</h1>
-                        <p id="page-subtitle">Thống kê chi tiết &amp; tổng hợp dữ liệu</p>
+                        <h1 id="page-title">Trang chủ</h1>
+                        <p id="page-subtitle">Chào mừng bạn đến với HuReA Hub</p>
                     </div>
                 </div>
                 <div class="header-actions">
                     <div class="user-profile" id="header-user-profile">
-                        <img id="header-avatar" src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="Admin">
+                        <img id="header-avatar" src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff"
+                            alt="Admin">
                         <span id="header-username">Admin</span>
                         <span id="header-role-badge" class="header-role-badge">Admin</span>
                     </div>
@@ -238,70 +248,73 @@
                             <div class="welcome-info-item"><span>Data Sync</span><strong>Online</strong></div>
                         </div>
                     </div>
-                    <div class="stats-grid">
-                        <div class="stat-card glass-panel">
-                            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                            <div class="stat-info">
-                                <h3>Tổng Thành Viên</h3>
-                                <p id="stat-total-members">0</p>
+                    <div id="admin-dashboard-stats">
+                        <div class="stats-grid">
+                            <div class="stat-card glass-panel">
+                                <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                                <div class="stat-info">
+                                    <h3>Tổng Thành Viên</h3>
+                                    <p id="stat-total-members">0</p>
+                                </div>
+                            </div>
+
+                            <div class="stat-card glass-panel">
+                                <div class="stat-icon"><i class="fa-solid fa-folder-tree"></i></div>
+                                <div class="stat-info">
+                                    <h3>Dự án / Chương trình</h3>
+                                    <p id="stat-total-projects">0</p>
+                                </div>
+                            </div>
+                            <div class="stat-card glass-panel">
+                                <div class="stat-icon"><i class="fa-solid fa-star-half-stroke"></i></div>
+                                <div class="stat-info">
+                                    <h3>Đã đánh giá</h3>
+                                    <p id="stat-evaluated">0</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="stat-card glass-panel">
-                            <div class="stat-icon"><i class="fa-solid fa-folder-tree"></i></div>
-                            <div class="stat-info">
-                                <h3>Dự án / Chương trình</h3>
-                                <p id="stat-total-projects">0</p>
+                        <!-- Visual Analytics Row -->
+                        <div class="dashboard-charts-row">
+                            <!-- Chart 1: Multi-Dept Radar -->
+                            <div class="chart-card large-chart">
+                                <h4><i class="fa-solid fa-crosshairs"></i> So sánh Năng lực đa Ban (Inter-Dept Radar)
+                                </h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="chart-dept-radar"></canvas>
+                                </div>
                             </div>
-                        </div>
-                        <div class="stat-card glass-panel">
-                            <div class="stat-icon"><i class="fa-solid fa-star-half-stroke"></i></div>
-                            <div class="stat-info">
-                                <h3>Đã đánh giá</h3>
-                                <p id="stat-evaluated">0</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Visual Analytics Row -->
-                    <div class="dashboard-charts-row">
-                        <!-- Chart 1: Multi-Dept Radar -->
-                        <div class="chart-card large-chart">
-                            <h4><i class="fa-solid fa-crosshairs"></i> So sánh Năng lực đa Ban (Inter-Dept Radar)</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-dept-radar"></canvas>
+                            <!-- Chart 2: Average Score Ranking -->
+                            <div class="chart-card">
+                                <h4><i class="fa-solid fa-ranking-star"></i> Xếp hạng Điểm trung bình theo Ban</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="chart-dept-score-rank"></canvas>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Chart 2: Average Score Ranking -->
-                        <div class="chart-card">
-                            <h4><i class="fa-solid fa-ranking-star"></i> Xếp hạng Điểm trung bình theo Ban</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-dept-score-rank"></canvas>
+                            <!-- Chart 3: Score Distribution -->
+                            <div class="chart-card">
+                                <h4><i class="fa-solid fa-chart-line"></i> Phân bổ Điểm số toàn CLB</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="chart-score-dist"></canvas>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Chart 3: Score Distribution -->
-                        <div class="chart-card">
-                            <h4><i class="fa-solid fa-chart-line"></i> Phân bổ Điểm số toàn CLB</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-score-dist"></canvas>
+                            <!-- Chart 4: Member Composition -->
+                            <div class="chart-card">
+                                <h4><i class="fa-solid fa-users-viewfinder"></i> Cơ cấu Nhân sự toàn CLB</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="chart-member-dept"></canvas>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Chart 4: Member Composition -->
-                        <div class="chart-card">
-                            <h4><i class="fa-solid fa-users-viewfinder"></i> Cơ cấu Nhân sự toàn CLB</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-member-dept"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- Chart 5: Project Health -->
-                        <div class="chart-card">
-                            <h4><i class="fa-solid fa-clipboard-check"></i> Tình trạng Dự án / Chương trình</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-project-status"></canvas>
+                            <!-- Chart 5: Project Health -->
+                            <div class="chart-card">
+                                <h4><i class="fa-solid fa-clipboard-check"></i> Tình trạng Dự án / Chương trình</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="chart-project-status"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -357,6 +370,41 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- VIEW SECTION: ACTIVITY CALENDAR -->
+                    <div class="dashboard-calendar-card glass-panel" style="margin-top:24px;">
+                        <div class="column-header">
+                            <div class="header-main">
+                                <span class="icon-orb orb-yellow"><i class="fa-solid fa-calendar-alt"></i></span>
+                                <div class="header-text">
+                                    <h2>Lịch Hoạt Động</h2>
+                                    <p>Các sự kiện, chương trình của CLB trong nhiệm kỳ</p>
+                                </div>
+                            </div>
+                            <div class="calendar-controls" style="display: flex; align-items: center; gap: 12px;">
+                                <div
+                                    style="display: flex; align-items: center; gap: 8px; background: var(--secondary); padding: 4px; border-radius: 14px; border: 1px solid var(--border-color);">
+                                    <button class="cal-nav-btn" onclick="changeCalendarMonth(-1)" title="Tháng trước">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <span id="current-month-label" class="current-month-label"
+                                        style="background: transparent; border: none; padding: 0;">Tháng 04/2026</span>
+                                    <button class="cal-nav-btn" onclick="changeCalendarMonth(1)" title="Tháng sau">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <button class="btn-primary" id="btn-add-event" onclick="openEventModal()"
+                                    style="display:none; margin-left: 8px; margin-right: 15%; padding: 10px 20px; border-radius: 12px; font-size: 0.95rem; font-weight: 700; box-shadow: var(--shadow-sm); white-space: nowrap;">
+                                    <i class="fa-solid fa-plus" style="margin-right: 6px;"></i> Tạo sự kiện
+                                </button>
+                            </div>
+                        </div>
+                        <div id="activity-calendar-container" class="calendar-grid-wrapper">
+                            <div class="calendar-grid" id="calendar-grid-view">
+                                <!-- Grid injected by JS -->
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- VIEW: MEMBERS -->
@@ -375,16 +423,20 @@
                                 <option value="ER">ER</option>
                                 <option value="EB">EB</option>
                             </select>
-                            <div class="members-total-count" style="display:flex; align-items:center; padding:0 12px; border-left:1px solid var(--border-color); color:var(--text-muted); font-size:0.9rem; font-weight:600; white-space:nowrap; gap:6px;">
+                            <div class="members-total-count"
+                                style="display:flex; align-items:center; padding:0 12px; border-left:1px solid var(--border-color); color:var(--text-muted); font-size:0.9rem; font-weight:600; white-space:nowrap; gap:6px;">
                                 <i class="fa-solid fa-user-group" style="color:var(--primary);"></i>
                                 <span id="members-active-count">0</span> thành viên
                             </div>
                         </div>
-                        <div class="view-switcher" style="display:flex; gap:4px; padding:4px; background:var(--secondary); border-radius:12px; margin-right:8px;">
-                            <button class="btn-icon-v2 grid-v" id="btn-member-grid" onclick="toggleMemberView('grid')" title="Dạng lưới">
+                        <div class="view-switcher"
+                            style="display:flex; gap:4px; padding:4px; background:var(--secondary); border-radius:12px; margin-right:8px;">
+                            <button class="btn-icon-v2 grid-v" id="btn-member-grid" onclick="toggleMemberView('grid')"
+                                title="Dạng lưới">
                                 <i class="fa-solid fa-grip"></i>
                             </button>
-                            <button class="btn-icon-v2 list-v" id="btn-member-list" onclick="toggleMemberView('list')" title="Dạng danh sách">
+                            <button class="btn-icon-v2 list-v" id="btn-member-list" onclick="toggleMemberView('list')"
+                                title="Dạng danh sách">
                                 <i class="fa-solid fa-list-ul"></i>
                             </button>
                         </div>
@@ -401,7 +453,8 @@
                         <!-- Cards will be rendered here dynamically -->
                     </div>
                     <div id="members-empty" class="empty-state" style="display:none">
-                        <i class="fa-solid fa-users-slash" style="font-size:3rem;margin-bottom:16px;color:var(--text-muted);"></i>
+                        <i class="fa-solid fa-users-slash"
+                            style="font-size:3rem;margin-bottom:16px;color:var(--text-muted);"></i>
                         <p>Chưa có dữ liệu thành viên</p>
                     </div>
                 </section>
@@ -455,21 +508,27 @@
                     <div class="lux-control-bar">
                         <div class="lux-search-wrapper">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="search-project" placeholder="Tìm kiếm tên chương trình hoặc dự án..." onkeyup="renderProjects()">
+                            <input type="text" id="search-project" placeholder="Tìm kiếm tên chương trình hoặc dự án..."
+                                onkeyup="renderProjects()">
                         </div>
-                        
+
                         <div class="lux-filter-group">
                             <span class="lux-filter-label">Bộ lọc:</span>
                             <div class="dept-pills-v2" id="project-type-pills" style="margin:0;">
-                                <button class="pill active" onclick="setProjectFilter(this, 'type', 'ALL')">Tất cả Loại</button>
-                                <button class="pill" onclick="setProjectFilter(this, 'type', 'internal')">Nội bộ</button>
+                                <button class="pill active" onclick="setProjectFilter(this, 'type', 'ALL')">Tất cả
+                                    Loại</button>
+                                <button class="pill" onclick="setProjectFilter(this, 'type', 'internal')">Nội
+                                    bộ</button>
                                 <button class="pill" onclick="setProjectFilter(this, 'type', 'event')">Sự kiện</button>
                             </div>
                             <div class="dept-pills-v2" id="project-status-pills" style="margin:0;">
-                                <button class="pill active" onclick="setProjectFilter(this, 'status', 'ALL')">Trạng thái</button>
+                                <button class="pill active" onclick="setProjectFilter(this, 'status', 'ALL')">Trạng
+                                    thái</button>
                                 <button class="pill" onclick="setProjectFilter(this, 'status', 'setup')">Setup</button>
-                                <button class="pill" onclick="setProjectFilter(this, 'status', 'running')">Running</button>
-                                <button class="pill" onclick="setProjectFilter(this, 'status', 'finish')">Finish</button>
+                                <button class="pill"
+                                    onclick="setProjectFilter(this, 'status', 'running')">Running</button>
+                                <button class="pill"
+                                    onclick="setProjectFilter(this, 'status', 'finish')">Finish</button>
                             </div>
                         </div>
                     </div>
@@ -510,23 +569,51 @@
                                             class="fa-solid fa-calculator"></i> Tính toán lại</button>
                                     <button class="btn-primary" onclick="exportToExcel()"><i
                                             class="fa-solid fa-file-excel"></i> Xuất Excel</button>
-                                    <button class="btn-lux-primary" onclick="exportScoreboardToPDF()" style="background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; margin-top:0; padding: 10px 20px;">
+                                    <button class="btn-lux-primary" onclick="exportScoreboardToPDF()"
+                                        style="background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; margin-top:0; padding: 10px 20px;">
                                         <i class="fa-solid fa-file-pdf"></i> Xuất PDF
                                     </button>
                                 </div>
                             </div>
                             <!-- Filter bar -->
                             <div class="score-filter-bar">
-                                <button class="filter-quick-btn active" data-score-dept="ALL"
-                                    onclick="setScoreDeptFilter(this,'ALL')">Tất cả</button>
-                                <button class="filter-quick-btn" data-score-dept="L&D"
-                                    onclick="setScoreDeptFilter(this,'L&D')">L&D</button>
-                                <button class="filter-quick-btn" data-score-dept="R&R"
-                                    onclick="setScoreDeptFilter(this,'R&R')">R&R</button>
-                                <button class="filter-quick-btn" data-score-dept="ER"
-                                    onclick="setScoreDeptFilter(this,'ER')">ER</button>
-                                <button class="filter-quick-btn" data-score-dept="EB"
-                                    onclick="setScoreDeptFilter(this,'EB')">EB</button>
+                                <div class="filter-group">
+                                    <span class="filter-label"><i class="fa-solid fa-filter"></i> Ban:</span>
+                                    <button class="filter-quick-btn active" data-score-dept="ALL"
+                                        onclick="setScoreDeptFilter(this,'ALL')">Tất cả</button>
+                                    <button class="filter-quick-btn" data-score-dept="L&D"
+                                        onclick="setScoreDeptFilter(this,'L&D')">L&D</button>
+                                    <button class="filter-quick-btn" data-score-dept="R&R"
+                                        onclick="setScoreDeptFilter(this,'R&R')">R&R</button>
+                                    <button class="filter-quick-btn" data-score-dept="ER"
+                                        onclick="setScoreDeptFilter(this,'ER')">ER</button>
+                                    <button class="filter-quick-btn" data-score-dept="EB"
+                                        onclick="setScoreDeptFilter(this,'EB')">EB</button>
+                                </div>
+
+                                <div class="filter-group">
+                                    <span class="filter-label"><i class="fa-solid fa-star"></i> Điểm:</span>
+                                    <select id="filter-score-range" class="score-select-filter" onchange="calculateFinalScores()">
+                                        <option value="ALL">Tất cả</option>
+                                        <option value="9">> 9.0 (Xuất sắc+)</option>
+                                        <option value="8.5">> 8.5 (Xuất sắc)</option>
+                                        <option value="7">> 7.0 (Khá)</option>
+                                        <option value="5">> 5.0 (Đạt)</option>
+                                        <option value="low">< 5.0 (Yếu)</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-group">
+                                    <span class="filter-label"><i class="fa-solid fa-ranking-star"></i> Loại:</span>
+                                    <select id="filter-score-rank" class="score-select-filter" onchange="calculateFinalScores()">
+                                        <option value="ALL">Tất cả</option>
+                                        <option value="Xuat Sac">Xuất Sắc</option>
+                                        <option value="Kha">Khá</option>
+                                        <option value="Dat">Đạt</option>
+                                        <option value="Can co gang">Cần Cố Gắng</option>
+                                    </select>
+                                </div>
+
                                 <div class="score-search-box">
                                     <i class="fa-solid fa-search"></i>
                                     <input type="text" id="search-score" placeholder="Tìm thành viên..."
@@ -566,7 +653,9 @@
                                     </div>
                                 </div>
                                 <div class="method-card" onclick="selectEvalMethod('club', 'batch')">
-                                    <div class="method-icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-table-list"></i></div>
+                                    <div class="method-icon"
+                                        style="background: var(--primary-light); color: var(--primary);"><i
+                                            class="fa-solid fa-table-list"></i></div>
                                     <div class="method-info">
                                         <h4>Nhập hàng loạt (Excel)</h4>
                                         <p>Dán dữ liệu từ Excel cho cùng lúc nhiều người</p>
@@ -580,7 +669,7 @@
                                         <i class="fa-solid fa-arrow-left"></i> Quay lại chọn phương thức
                                     </button>
                                 </div>
-                                
+
                                 <div class="input-group searchable-dropdown-container">
                                     <label>Chọn Thành viên</label>
                                     <div class="searchable-btn" onclick="toggleDropdown('club-member-dropdown')"
@@ -589,43 +678,46 @@
                                         <input type="text" class="searchable-input" placeholder="Tìm kiếm...">
                                         <ul class="searchable-list" id="list-club-member"></ul>
                                     </div>
-                                    <input type="hidden" id="eval-club-member" onchange="checkExistingScore('club', this.value)">
+                                    <input type="hidden" id="eval-club-member"
+                                        onchange="checkExistingScore('club', this.value)">
                                 </div>
 
-                            <!-- History Summary (Hidden by default) -->
-                            <div id="club-eval-history" class="eval-history-preview" style="display:none;">
-                                <div class="history-card">
-                                    <div class="history-header">
-                                        <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
-                                        <button class="btn-sm btn-secondary" onclick="editEval('club')"><i class="fa-solid fa-pen"></i> Chỉnh sửa</button>
-                                    </div>
-                                    <div class="history-body" id="club-history-content">
-                                        <!-- Filled by JS -->
+                                <!-- History Summary (Hidden by default) -->
+                                <div id="club-eval-history" class="eval-history-preview" style="display:none;">
+                                    <div class="history-card">
+                                        <div class="history-header">
+                                            <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
+                                            <button class="btn-sm btn-secondary" onclick="editEval('club')"><i
+                                                    class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                        </div>
+                                        <div class="history-body" id="club-history-content">
+                                            <!-- Filled by JS -->
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="form-wrapper" id="club-eval-form">
-                                <div class="input-group">
-                                    <label>2.1. Kỷ luật (Điểm CỘNG/TRỪ thủ công)</label>
-                                    <input type="number" id="club-discipline-score" placeholder="VD: 2 hoặc -1">
-                                </div>
-                                <div class="input-group full-width">
-                                    <label>Lý do</label>
-                                    <input type="text" id="club-discipline-reason"
-                                        placeholder="Ví dụ: Đi muộn họp ban...">
-                                </div>
-                                <div class="input-group">
-                                    <label>2.4 Tuyên truyền, PT Hình ảnh CLB (Thang 10)</label>
-                                    <input type="number" id="club-brand-score" placeholder="0–10" min="0" max="10">
-                                </div>
-                                <div style="display:flex; gap:12px; margin-top:20px;">
-                                    <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
-                                    <button id="btn-cancel-club-edit" class="btn-secondary" style="display:none" onclick="cancelEvalEdit('club')">Hủy bỏ</button>
-                                </div>
-                            </div> <!-- End club-eval-form -->
-                        </div> <!-- End club-form-container -->
-                    </div> <!-- End eval-club -->
+                                <div class="form-wrapper" id="club-eval-form">
+                                    <div class="input-group">
+                                        <label>2.1. Kỷ luật (Điểm CỘNG/TRỪ thủ công)</label>
+                                        <input type="number" id="club-discipline-score" placeholder="VD: 2 hoặc -1">
+                                    </div>
+                                    <div class="input-group full-width">
+                                        <label>Lý do</label>
+                                        <input type="text" id="club-discipline-reason"
+                                            placeholder="Ví dụ: Đi muộn họp ban...">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>2.4 Tuyên truyền, PT Hình ảnh CLB (Thang 10)</label>
+                                        <input type="number" id="club-brand-score" placeholder="0–10" min="0" max="10">
+                                    </div>
+                                    <div style="display:flex; gap:12px; margin-top:20px;">
+                                        <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
+                                        <button id="btn-cancel-club-edit" class="btn-secondary" style="display:none"
+                                            onclick="cancelEvalEdit('club')">Hủy bỏ</button>
+                                    </div>
+                                </div> <!-- End club-eval-form -->
+                            </div> <!-- End club-form-container -->
+                        </div> <!-- End eval-club -->
 
                         <!-- Dept Eval -->
                         <div id="eval-dept" class="eval-pane">
@@ -643,7 +735,9 @@
                                     </div>
                                 </div>
                                 <div class="method-card" onclick="selectEvalMethod('dept', 'batch')">
-                                    <div class="method-icon" style="background: var(--primary-light); color: var(--primary);"><i class="fa-solid fa-table-list"></i></div>
+                                    <div class="method-icon"
+                                        style="background: var(--primary-light); color: var(--primary);"><i
+                                            class="fa-solid fa-table-list"></i></div>
                                     <div class="method-info">
                                         <h4>Nhập hàng loạt (Excel)</h4>
                                         <p>Dán dữ liệu đánh giá của toàn Ban từ Excel</p>
@@ -666,73 +760,87 @@
                                         <input type="text" class="searchable-input" placeholder="Tìm kiếm...">
                                         <ul class="searchable-list" id="list-dept-member"></ul>
                                     </div>
-                                    <input type="hidden" id="eval-dept-member" onchange="checkExistingScore('dept', this.value)">
+                                    <input type="hidden" id="eval-dept-member"
+                                        onchange="checkExistingScore('dept', this.value)">
                                 </div>
 
-                            <!-- History Summary (Hidden by default) -->
-                            <div id="dept-eval-history" class="eval-history-preview" style="display:none;">
-                                <div class="history-card">
-                                    <div class="history-header">
-                                        <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
-                                        <button class="btn-sm btn-secondary" onclick="editEval('dept')"><i class="fa-solid fa-pen"></i> Chỉnh sửa</button>
-                                    </div>
-                                    <div class="history-body" id="dept-history-content">
-                                        <!-- Filled by JS -->
+                                <!-- History Summary (Hidden by default) -->
+                                <div id="dept-eval-history" class="eval-history-preview" style="display:none;">
+                                    <div class="history-card">
+                                        <div class="history-header">
+                                            <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
+                                            <button class="btn-sm btn-secondary" onclick="editEval('dept')"><i
+                                                    class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                        </div>
+                                        <div class="history-body" id="dept-history-content">
+                                            <!-- Filled by JS -->
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="form-wrapper" id="dept-eval-form">
-                                <div class="input-group"><label>Tinh thần trách nhiệm, kỷ luật (×0.1)</label><input
-                                        type="number" id="dept-rule-score" min="0" max="10" placeholder="Thang 10">
-                                </div>
-                                <div class="input-group"><label>Mối quan hệ với TB/PB (×0.1)</label><input type="number"
-                                        id="dept-head-rel" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Mối quan hệ với thành viên ban (×0.1)</label><input
-                                        type="number" id="dept-mem-rel" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Hỗ trợ công việc team khác (×0.2)</label><input
-                                        type="number" id="dept-support" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV 1 (×0.1)</label><input
-                                        type="number" id="dept-q1" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV 2 (×0.2)</label><input
-                                        type="number" id="dept-q2" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group"><label>Chất lượng CV 3 (×0.2)</label><input
-                                        type="number" id="dept-q3" min="0" max="10" placeholder="Thang 10"></div>
-                                <div class="input-group full-width">
-                                    <label>Nhận xét của Trưởng/Phó Ban (Hiển thị trong Báo cáo PDF)</label>
-                                    <textarea id="dept-comment" rows="3" placeholder="Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên..."></textarea>
-                                </div>
-                                <div style="display:flex; gap:12px; margin-top:20px;">
-                                    <button class="btn-primary" onclick="saveDeptEval()">Lưu Đánh Giá Ban</button>
-                                    <button id="btn-cancel-dept-edit" class="btn-secondary" style="display:none" onclick="cancelEvalEdit('dept')">Hủy bỏ</button>
-                                </div>
-                            </div> <!-- End dept-eval-form -->
-                        </div> <!-- End dept-form-container -->
-                    </div> <!-- End eval-dept -->
+                                <div class="form-wrapper" id="dept-eval-form">
+                                    <div class="input-group"><label>Tinh thần trách nhiệm, kỷ luật (×0.1)</label><input
+                                            type="number" id="dept-rule-score" min="0" max="10" placeholder="Thang 10">
+                                    </div>
+                                    <div class="input-group"><label>Mối quan hệ với TB/PB (×0.1)</label><input
+                                            type="number" id="dept-head-rel" min="0" max="10" placeholder="Thang 10">
+                                    </div>
+                                    <div class="input-group"><label>Mối quan hệ với thành viên ban (×0.1)</label><input
+                                            type="number" id="dept-mem-rel" min="0" max="10" placeholder="Thang 10">
+                                    </div>
+                                    <div class="input-group"><label>Hỗ trợ công việc team khác (×0.2)</label><input
+                                            type="number" id="dept-support" min="0" max="10" placeholder="Thang 10">
+                                    </div>
+                                    <div class="input-group"><label>Chất lượng CV 1 (×0.1)</label><input type="number"
+                                            id="dept-q1" min="0" max="10" placeholder="Thang 10"></div>
+                                    <div class="input-group"><label>Chất lượng CV 2 (×0.2)</label><input type="number"
+                                            id="dept-q2" min="0" max="10" placeholder="Thang 10"></div>
+                                    <div class="input-group"><label>Chất lượng CV 3 (×0.2)</label><input type="number"
+                                            id="dept-q3" min="0" max="10" placeholder="Thang 10"></div>
+                                    <div class="input-group full-width">
+                                        <label>Nhận xét của Trưởng/Phó Ban (Hiển thị trong Báo cáo PDF)</label>
+                                        <textarea id="dept-comment" rows="3"
+                                            placeholder="Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên..."></textarea>
+                                    </div>
+                                    <div style="display:flex; gap:12px; margin-top:20px;">
+                                        <button class="btn-primary" onclick="saveDeptEval()">Lưu Đánh Giá Ban</button>
+                                        <button id="btn-cancel-dept-edit" class="btn-secondary" style="display:none"
+                                            onclick="cancelEvalEdit('dept')">Hủy bỏ</button>
+                                    </div>
+                                </div> <!-- End dept-eval-form -->
+                            </div> <!-- End dept-form-container -->
+                        </div> <!-- End eval-dept -->
 
                         <!-- 360 Form -->
                         <div id="eval-project" class="eval-pane">
-                            <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="pane-header"
+                                style="display:flex; justify-content:space-between; align-items:center;">
                                 <div>
                                     <h3 style="margin:0;">3. Phiếu Đánh giá Dự án chéo </h3>
-                                    <p style="margin:0; opacity:0.8;">Danh sách các dự án bạn tham gia cần được đánh giá chéo.</p>
+                                    <p style="margin:0; opacity:0.8;">Danh sách các dự án bạn tham gia cần được đánh giá
+                                        chéo.</p>
                                 </div>
-                                <button class="btn-lux-primary" id="btn-export-incomplete-evals" onclick="exportIncompleteEvaluationsPDF()" style="display:none; font-size:0.85rem; padding:10px 16px;">
+                                <button class="btn-lux-primary" id="btn-export-incomplete-evals"
+                                    onclick="exportIncompleteEvaluationsPDF()"
+                                    style="display:none; font-size:0.85rem; padding:10px 16px;">
                                     <i class="fa-solid fa-file-export"></i> DS chưa hoàn thành
                                 </button>
                             </div>
 
                             <!-- Hidden Report Template for Incomplete Evals -->
                             <div id="incomplete-eval-wrapper" style="display:none;">
-                                <div id="incomplete-eval-template" style="padding:40px; background:#fff; color:#333; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                <div id="incomplete-eval-template"
+                                    style="padding:40px; background:#fff; color:#333; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
                                     <!-- Populated by JS -->
                                 </div>
                             </div>
-                            <div id="eval-project-setup-view" class="form-wrapper" style="width:100%; max-width:1000px; margin:24px auto;">
+                            <div id="eval-project-setup-view" class="form-wrapper"
+                                style="width:100%; max-width:1000px; margin:24px auto;">
                                 <!-- Section 1: Active Tasks -->
                                 <div class="task-section-header">
                                     <h4 style="margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-                                        <i class="fa-solid fa-rocket" style="color:var(--primary)"></i> Nhiệm vụ cần thực hiện
+                                        <i class="fa-solid fa-rocket" style="color:var(--primary)"></i> Nhiệm vụ cần
+                                        thực hiện
                                     </h4>
                                 </div>
                                 <div id="eval-pending-tasks" class="eval-task-grid">
@@ -742,7 +850,8 @@
                                 <!-- Section 2: History -->
                                 <div class="task-section-header" style="margin-top:48px;">
                                     <h4 style="margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-                                        <i class="fa-solid fa-clock-rotate-left" style="color:#94a3b8"></i> Lịch sử đã đánh giá
+                                        <i class="fa-solid fa-clock-rotate-left" style="color:#94a3b8"></i> Lịch sử đã
+                                        đánh giá
                                     </h4>
                                 </div>
                                 <div id="eval-completed-history" class="eval-history-list">
@@ -773,13 +882,18 @@
                                     </header>
 
                                     <div class="cine-scoring-guide">
-                                        <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM KHẢO</div>
+                                        <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM
+                                            KHẢO</div>
                                         <div class="guide-grid">
-                                            <div class="guide-cell"><strong>5:</strong> Xuất sắc (Lan tỏa, vượt mong đợi)</div>
-                                            <div class="guide-cell"><strong>4:</strong> Khá / Tốt (Chủ động, đúng tiến độ)</div>
+                                            <div class="guide-cell"><strong>5:</strong> Xuất sắc (Lan tỏa, vượt mong
+                                                đợi)</div>
+                                            <div class="guide-cell"><strong>4:</strong> Khá / Tốt (Chủ động, đúng tiến
+                                                độ)</div>
                                             <div class="guide-cell"><strong>3:</strong> Đạt (Làm tròn vai, cơ bản)</div>
-                                            <div class="guide-cell"><strong>2:</strong> Kém (Trễ hạn, cần nhắc nhở)</div>
-                                            <div class="guide-cell"><strong>1:</strong> Rất kém (Thiếu trách nhiệm / Vi phạm)</div>
+                                            <div class="guide-cell"><strong>2:</strong> Kém (Trễ hạn, cần nhắc nhở)
+                                            </div>
+                                            <div class="guide-cell"><strong>1:</strong> Rất kém (Thiếu trách nhiệm / Vi
+                                                phạm)</div>
                                         </div>
                                     </div>
 
@@ -807,7 +921,8 @@
                     <div class="section-actions">
                         <div>
                             <h3 style="font-size:1.5rem;">Góp Ý &amp; Confession</h3>
-                            <p style="color:var(--text-muted);font-size:0.9rem;">Ẩn danh tuyệt đối — không ghi lại danh tính người gửi.</p>
+                            <p style="color:var(--text-muted);font-size:0.9rem;">Ẩn danh tuyệt đối — không ghi lại danh
+                                tính người gửi.</p>
                         </div>
                         <div style="display:flex; gap:12px; align-items:center;">
                             <div id="feedback-admin-actions" style="display:none;">
@@ -860,9 +975,11 @@
                     <div class="module-header" style="margin-bottom:24px;">
                         <div class="module-title">
                             <h2 style="font-size:1.8rem; color:var(--primary);">Nộp Minh Chứng (Hệ thống mới)</h2>
-                            <p style="color:var(--text-muted);">Admin tạo thư mục chung, thành viên nộp file theo định dạng [Họ tên]_[Ban].</p>
+                            <p style="color:var(--text-muted);">Admin tạo thư mục chung, thành viên nộp file theo định
+                                dạng [Họ tên]_[Ban].</p>
                         </div>
-                        <button class="btn-lux-primary" id="btn-add-common-folder" onclick="openCommonFolderModal()" style="display:none;">
+                        <button class="btn-lux-primary" id="btn-add-common-folder" onclick="openCommonFolderModal()"
+                            style="display:none;">
                             <i class="fa-solid fa-folder-plus"></i> Tạo Thư mục mới
                         </button>
                     </div>
@@ -878,7 +995,8 @@
                             <h2 style="font-size:1.8rem; display:flex; align-items:center; gap:12px;">
                                 <i class="fa-solid fa-calendar-days" style="color:var(--primary);"></i> Xếp Lịch Họp
                             </h2>
-                            <p style="color:var(--text-muted);">Tạo vote lịch họp, chọn khung giờ rảnh — hệ thống tự tìm thời gian tối ưu cho nhóm.</p>
+                            <p style="color:var(--text-muted);">Tạo vote lịch họp, chọn khung giờ rảnh — hệ thống tự tìm
+                                thời gian tối ưu cho nhóm.</p>
                         </div>
                         <button class="btn-lux-primary" onclick="openCreatePollModal()">
                             <i class="fa-solid fa-plus-circle"></i> Tạo Vote Lịch Họp
@@ -902,7 +1020,8 @@
                         </div>
                         <div class="meeting-polls-grid" id="meeting-polls-grid"></div>
                         <div id="meeting-polls-empty" class="empty-state" style="display:none">
-                            <i class="fa-solid fa-calendar-xmark" style="font-size:3rem;margin-bottom:16px;color:var(--text-muted);"></i>
+                            <i class="fa-solid fa-calendar-xmark"
+                                style="font-size:3rem;margin-bottom:16px;color:var(--text-muted);"></i>
                             <p>Chưa có vote lịch họp nào. Hãy tạo vote đầu tiên!</p>
                         </div>
                     </div>
@@ -914,7 +1033,8 @@
                                 <i class="fa-solid fa-arrow-left"></i> Quay lại danh sách
                             </button>
                             <div class="poll-detail-actions">
-                                <button class="btn-secondary btn-sm" onclick="copyPollShareLink()" id="btn-copy-poll-link">
+                                <button class="btn-secondary btn-sm" onclick="copyPollShareLink()"
+                                    id="btn-copy-poll-link">
                                     <i class="fa-solid fa-link"></i> Sao chép Link
                                 </button>
                             </div>
@@ -930,7 +1050,8 @@
                             <div class="instruction-grid">
                                 <div class="instruction-step">
                                     <div class="step-number">1</div>
-                                    <div class="step-text"><strong>Nhấn giữ & kéo</strong> để chọn khung giờ bạn rảnh trên bảng dưới đây</div>
+                                    <div class="step-text"><strong>Nhấn giữ & kéo</strong> để chọn khung giờ bạn rảnh
+                                        trên bảng dưới đây</div>
                                 </div>
                                 <div class="instruction-step">
                                     <div class="step-number">2</div>
@@ -938,7 +1059,8 @@
                                 </div>
                                 <div class="instruction-step">
                                     <div class="step-number">3</div>
-                                    <div class="step-text">Bấm <strong>"Gửi Vote"</strong> sau khi chọn xong. Bạn có thể vote lại bất cứ lúc nào.</div>
+                                    <div class="step-text">Bấm <strong>"Gửi Vote"</strong> sau khi chọn xong. Bạn có thể
+                                        vote lại bất cứ lúc nào.</div>
                                 </div>
                             </div>
                         </div>
@@ -948,8 +1070,10 @@
                             <div class="poll-section-header">
                                 <h3><i class="fa-solid fa-hand-pointer"></i> Chọn khung giờ bạn rảnh</h3>
                                 <div class="poll-legend-inline">
-                                    <span class="legend-item"><span class="legend-dot dot-available"></span> Bạn rảnh</span>
-                                    <span class="legend-item"><span class="legend-dot dot-empty"></span> Chưa chọn</span>
+                                    <span class="legend-item"><span class="legend-dot dot-available"></span> Bạn
+                                        rảnh</span>
+                                    <span class="legend-item"><span class="legend-dot dot-empty"></span> Chưa
+                                        chọn</span>
                                 </div>
                             </div>
                             <div class="time-grid-scroll-wrapper">
@@ -959,7 +1083,8 @@
                             </div>
                             <div class="poll-submit-bar">
                                 <span class="vote-status-text" id="vote-status-text"></span>
-                                <button class="btn-secondary" onclick="clearAllTimeSelections()" id="btn-clear-vote" style="display:inline-flex; align-items:center; gap:8px;">
+                                <button class="btn-secondary" onclick="clearAllTimeSelections()" id="btn-clear-vote"
+                                    style="display:inline-flex; align-items:center; gap:8px;">
                                     <i class="fa-solid fa-eraser"></i> Xóa tất cả
                                 </button>
                                 <button class="btn-lux-primary" onclick="submitMeetingVote()" id="btn-submit-vote">
@@ -976,7 +1101,8 @@
                                     <span class="legend-item"><span class="legend-dot dot-heat-0"></span> 0 người</span>
                                     <span class="legend-item"><span class="legend-dot dot-heat-low"></span> Ít</span>
                                     <span class="legend-item"><span class="legend-dot dot-heat-mid"></span> TB</span>
-                                    <span class="legend-item"><span class="legend-dot dot-heat-high"></span> Nhiều</span>
+                                    <span class="legend-item"><span class="legend-dot dot-heat-high"></span>
+                                        Nhiều</span>
                                 </div>
                             </div>
                             <div class="heatmap-voters-summary" id="heatmap-voters-summary"></div>
@@ -1005,27 +1131,48 @@
                     </div>
 
                     <!-- Developer Credit Section -->
-                    <div class="bug-credit-card glass-panel" style="margin-bottom: 32px; padding: 32px; text-align: center; border: 1px solid var(--primary); background: rgba(14, 165, 233, 0.03);">
-                        <div class="credit-header" style="margin-bottom: 20px;">
-                            <img src="admin_profile_avatar.png" alt="Admin Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary); margin: 0 auto 16px; object-fit: cover; box-shadow: var(--lux-glow); display: block;">
-                            <h2 style="font-size: 1.6rem; color: var(--text-main);">Project Credits & Developer</h2>
-                        </div>
-                        <p style="color: var(--text-muted); max-width: 700px; margin: 0 auto 24px; line-height: 1.7; font-size: 1.05rem; font-style: italic;">
-                            "Sản phẩm được xây dựng bởi tâm huyết của chủ web, nhằm số hóa quy trình quản trị và nâng cao hiệu quả hoạt động CLB. 
-                            Hệ thống không ngừng được cải tiến để mang lại trải nghiệm chuyên nghiệp và hiện đại nhất."
-                        </p>
-                        <div class="credit-info-grid" style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
-                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                                <i class="fa-solid fa-envelope" style="color: var(--primary);"></i>
-                                <span style="font-weight: 700;">pn852007@gmail.com</span>
+                    <div class="developer-showcase-card glass-panel">
+                        <div class="dev-card-inner">
+                            <div class="dev-photo-side">
+                                <div class="dev-photo-frame">
+                                    <img src="image.png" alt="Developer Portrait">
+                                    <div class="dev-badge">Founder & Lead Dev</div>
+                                </div>
                             </div>
-                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                                <i class="fa-solid fa-phone" style="color: var(--primary);"></i>
-                                <span style="font-weight: 700;">0342381843</span>
-                            </div>
-                            <div class="credit-item" style="display: flex; align-items: center; gap: 10px; background: var(--bg-panel); padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                                <i class="fa-solid fa-graduation-cap" style="color: var(--primary);"></i>
-                                <span style="font-weight: 700;">K51-Thị trường chứng khoán</span>
+                            <div class="dev-info-side">
+                                <div class="dev-tag">Developer & Visionary</div>
+                                <h2 class="dev-name">Nguyễn Phúc</h2>
+                                <p class="dev-bio">
+                                    "Sản phẩm được xây dựng bởi tâm huyết, nhằm số hóa quy trình quản trị và nâng cao hiệu quả hoạt động CLB. 
+                                    Hệ thống không ngừng được cải tiến để mang lại trải nghiệm chuyên nghiệp và hiện đại nhất."
+                                </p>
+                                <div class="dev-contact-grid">
+                                    <a href="mailto:pn852007@gmail.com" class="dev-contact-item">
+                                        <i class="fa-solid fa-envelope"></i>
+                                        <div class="item-text">
+                                            <span>Email</span>
+                                            <strong>pn852007@gmail.com</strong>
+                                        </div>
+                                    </a>
+                                    <a href="tel:0342381843" class="dev-contact-item">
+                                        <i class="fa-solid fa-phone"></i>
+                                        <div class="item-text">
+                                            <span>Zalo / Phone</span>
+                                            <strong>0342381843</strong>
+                                        </div>
+                                    </a>
+                                    <div class="dev-contact-item">
+                                        <i class="fa-solid fa-graduation-cap"></i>
+                                        <div class="item-text">
+                                            <span>Background</span>
+                                            <strong>K51-Thị trường chứng khoán</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dev-socials">
+                                    <a href="https://www.facebook.com/nguyen.phuc.524150" target="_blank" title="Facebook Profile"><i class="fa-brands fa-facebook"></i> Control Admin</a>
+                                    <a href="#" title="Portfolio"><i class="fa-solid fa-globe"></i> Visit Website</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1121,8 +1268,10 @@
                 <section id="password-management-view" class="view-section">
                     <div class="module-header" style="margin-bottom:32px;">
                         <div class="module-title">
-                            <h2 style="font-size:1.8rem; color:var(--primary);"><i class="fa-solid fa-user-lock"></i> Quản lý mật khẩu</h2>
-                            <p style="color:var(--text-muted);">Theo dõi, cấp mới và đặt lại mật khẩu cho các thành viên.</p>
+                            <h2 style="font-size:1.8rem; color:var(--primary);"><i class="fa-solid fa-user-lock"></i>
+                                Quản lý mật khẩu</h2>
+                            <p style="color:var(--text-muted);">Theo dõi, cấp mới và đặt lại mật khẩu cho các thành
+                                viên.</p>
                         </div>
                         <div style="display:flex; gap:12px;">
                             <button class="btn-lux-primary" onclick="openAdminSettingsModal()">
@@ -1132,25 +1281,35 @@
                     </div>
 
                     <div class="pw-mgmt-stats-container">
-                        <div class="stat-card glass-panel" style="padding: 24px; display: flex; align-items: center; gap: 24px; margin-bottom: 16px;">
-                            <div class="stat-icon" style="flex-shrink: 0; width: 64px; height: 64px; font-size: 1.8rem; background: var(--lux-gradient); box-shadow: var(--lux-glow);">
+                        <div class="stat-card glass-panel"
+                            style="padding: 24px; display: flex; align-items: center; gap: 24px; margin-bottom: 16px;">
+                            <div class="stat-icon"
+                                style="flex-shrink: 0; width: 64px; height: 64px; font-size: 1.8rem; background: var(--lux-gradient); box-shadow: var(--lux-glow);">
                                 <i class="fa-solid fa-users-gear"></i>
                             </div>
                             <div class="stat-info">
-                                <p id="stat-total-auth-members" style="font-size: 2.2rem; margin: 0; font-family: 'Outfit', sans-serif;">0</p>
-                                <h3 style="font-size: 0.85rem; margin-top: 4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Thành viên đã kích hoạt mật khẩu</h3>
+                                <p id="stat-total-auth-members"
+                                    style="font-size: 2.2rem; margin: 0; font-family: 'Outfit', sans-serif;">0</p>
+                                <h3
+                                    style="font-size: 0.85rem; margin-top: 4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Thành viên đã kích hoạt mật khẩu</h3>
                             </div>
                         </div>
                     </div>
 
-                    <div class="lux-control-bar glass-panel" style="margin-bottom: 24px; padding: 12px 24px; display: flex; align-items: center; gap: 24px;">
+                    <div class="lux-control-bar glass-panel"
+                        style="margin-bottom: 24px; padding: 12px 24px; display: flex; align-items: center; gap: 24px;">
                         <div class="lux-search-wrapper" style="flex: 1; min-width: 250px;">
                             <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
-                            <input type="text" id="search-password-mgmt" placeholder="Tìm kiếm tên thành viên hoặc MST..." onkeyup="renderPasswordManagement()" style="font-size: 0.95rem;">
+                            <input type="text" id="search-password-mgmt"
+                                placeholder="Tìm kiếm tên thành viên hoặc MST..." onkeyup="renderPasswordManagement()"
+                                style="font-size: 0.95rem;">
                         </div>
-                        
+
                         <div class="lux-filter-group" style="display: flex; align-items: center; gap: 16px;">
-                            <span class="lux-filter-label" style="font-weight: 800; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); opacity: 0.8;">Bộ lọc Ban:</span>
+                            <span class="lux-filter-label"
+                                style="font-weight: 800; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); opacity: 0.8;">Bộ
+                                lọc Ban:</span>
                             <div class="dept-pills-v2" id="password-dept-pills" style="margin:0;">
                                 <button class="pill active" onclick="setPasswordDeptFilter(this, 'ALL')">Tất cả</button>
                                 <button class="pill" onclick="setPasswordDeptFilter(this, 'L&D')">L&D</button>
@@ -1161,7 +1320,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="table-container glass-panel">
                         <table class="data-table">
                             <thead>
@@ -1175,12 +1334,13 @@
                             </thead>
                             <tbody id="password-mgmt-tbody"></tbody>
                         </table>
-                        <div id="password-mgmt-empty" class="empty-state" style="display:none">Không tìm thấy thành viên phù hợp</div>
+                        <div id="password-mgmt-empty" class="empty-state" style="display:none">Không tìm thấy thành viên
+                            phù hợp</div>
                     </div>
                 </section>
 
-    </div><!-- /content-container -->
-    </main>
+            </div><!-- /content-container -->
+        </main>
     </div><!-- /dashboard-layout -->
 
     <!-- ===== MODALS ===== -->
@@ -1189,12 +1349,14 @@
         <div class="modal-wrapper modal-lg">
             <div class="modal-header">
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="width:40px;height:40px;background:var(--lux-gradient);border-radius:12px;display:flex;justify-content:center;align-items:center;color:white;font-size:1.2rem;box-shadow:var(--lux-glow);">
+                    <div
+                        style="width:40px;height:40px;background:var(--lux-gradient);border-radius:12px;display:flex;justify-content:center;align-items:center;color:white;font-size:1.2rem;box-shadow:var(--lux-glow);">
                         <i class="fa-solid fa-award"></i>
                     </div>
                     <div>
                         <h3 id="score-detail-title" style="margin:0;">Chi tiết điểm</h3>
-                        <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Bao gồm điểm dự án, CLB và Ban chuyên môn</p>
+                        <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Bao gồm điểm dự án, CLB và Ban
+                            chuyên môn</p>
                     </div>
                 </div>
                 <button class="close-btn" onclick="closeModal('score-detail-modal')"><i
@@ -1204,7 +1366,8 @@
                 <!-- Rendered by JS -->
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
-                <button class="btn-lux-secondary" onclick="exportIndividualPDFFromModal()" id="btn-export-individual-pdf">
+                <button class="btn-lux-secondary" onclick="exportIndividualPDFFromModal()"
+                    id="btn-export-individual-pdf">
                     <i class="fa-solid fa-file-pdf"></i> Xuất PDF Premium
                 </button>
                 <div style="display:flex; gap:12px;">
@@ -1244,10 +1407,12 @@
                         </div>
                     </div>
                 </div>
-                
-                <div class="member-detail-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;">
+
+                <div class="member-detail-grid"
+                    style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;">
                     <div class="glass-panel" style="padding:16px;">
-                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-address-card"></i> Thông tin cá nhân</h4>
+                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-address-card"></i>
+                            Thông tin cá nhân</h4>
                         <div class="md-info-list">
                             <p><strong>Giới tính:</strong> <span id="md-gender"></span></p>
                             <p><strong>Ngày sinh:</strong> <span id="md-dob"></span></p>
@@ -1257,7 +1422,8 @@
                         </div>
                     </div>
                     <div class="glass-panel" style="padding:16px;">
-                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-envelope"></i> Liên hệ</h4>
+                        <h4 style="margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-envelope"></i> Liên
+                            hệ</h4>
                         <div class="md-info-list">
                             <p><strong>SĐT:</strong> <span id="md-phone"></span></p>
                             <p><strong>Mail cá nhân:</strong> <span id="md-personal-email"></span></p>
@@ -1295,11 +1461,13 @@
                 <form id="member-form">
                     <input type="hidden" id="member-id">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                        <div class="input-group"><label>Họ và Tên đệm</label><input type="text" id="m-lastName" required></div>
+                        <div class="input-group"><label>Họ và Tên đệm</label><input type="text" id="m-lastName"
+                                required></div>
                         <div class="input-group"><label>Tên</label><input type="text" id="m-firstName" required></div>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
-                        <div class="input-group"><label>Chức danh</label><input type="text" id="m-title" placeholder="VD: Cộng tác viên"></div>
+                        <div class="input-group"><label>Chức danh</label><input type="text" id="m-title"
+                                placeholder="VD: Cộng tác viên"></div>
                         <div class="input-group"><label>Giới tính</label>
                             <select id="m-gender">
                                 <option value="Nam">Nam</option>
@@ -1308,10 +1476,12 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:12px;">
-                        <div class="input-group"><label>Khóa - Lớp</label><input type="text" id="m-class-cohort" placeholder="VD: K60 - HR1"></div>
-                        <div class="input-group"><label>Khoa</label><input type="text" id="m-faculty" placeholder="VD: Quản trị NNL"></div>
+                        <div class="input-group"><label>Khóa - Lớp</label><input type="text" id="m-class-cohort"
+                                placeholder="VD: K60 - HR1"></div>
+                        <div class="input-group"><label>Khoa</label><input type="text" id="m-faculty"
+                                placeholder="VD: Quản trị NNL"></div>
                         <div class="input-group"><label>MSSV</label><input type="text" id="m-studentId"></div>
                     </div>
 
@@ -1326,11 +1496,13 @@
                             </select>
                         </div>
                         <div class="input-group"><label>SĐT</label><input type="text" id="m-phone"></div>
-                        <div class="input-group"><label>Ngày sinh</label><input type="text" id="m-dob" placeholder="DD/MM/YYYY"></div>
+                        <div class="input-group"><label>Ngày sinh</label><input type="text" id="m-dob"
+                                placeholder="DD/MM/YYYY"></div>
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
-                        <div class="input-group"><label>Mail cá nhân</label><input type="email" id="m-personalEmail"></div>
+                        <div class="input-group"><label>Mail cá nhân</label><input type="email" id="m-personalEmail">
+                        </div>
                         <div class="input-group"><label>Mail CLB</label><input type="email" id="m-clubEmail"></div>
                     </div>
 
@@ -1359,13 +1531,15 @@
             <div class="modal-body">
                 <p style="margin-bottom:16px;font-size:0.95rem;color:var(--text-muted);">
                     Copy dữ liệu từ Excel theo đúng thứ tự các cột sau rồi Paste vào bên dưới:<br>
-                    <code style="color:var(--primary); font-weight:bold; background:rgba(var(--primary-rgb), 0.1); padding:4px 8px; border-radius:4px; display:block; margin-top:8px;">
-                        HỌ VÀ TÊN ĐỆM	TÊN	CHỨC DANH	GIỚI TÍNH	KHÓA - LỚP	KHOA	MSSV	MAIL CÁ NHÂN	MAIL CLB	SĐT	NGÀY SINH	DÂN TỘC	TÔN GIÁO	QUÊ QUÁN
+                    <code
+                        style="color:var(--primary); font-weight:bold; background:rgba(var(--primary-rgb), 0.1); padding:4px 8px; border-radius:4px; display:block; margin-top:8px;">
+                        HỌ VÀ TÊN ĐỆM	TÊN	CHỨC DANH	GIỚI TÍNH	KHÓA - LỚP	KHOA	MSSV	MAIL CÁ NHÂN	MAIL CLB	SĐT	NGÀY SINH	DÂN TỘC	TÔN GIÁO	QUÊ QUÁN	BAN
                     </code>
                 </p>
                 <div class="input-group full-width">
-                    <label>Paste Dữ liệu (14 cột - Tab separated)</label>
-                    <textarea id="bm-data" rows="12" placeholder="Nguyễn Văn	A	Thành viên	Nam	K12 - HR	Quản trị NNL	2024001	a@mail.com	a.clb@mail.com	0123456789	01/01/2005	Kinh	Không	Hà Nội"
+                    <label>Paste Dữ liệu (15 cột - Tab separated)</label>
+                    <textarea id="bm-data" rows="12"
+                        placeholder="Nguyễn Văn	A	Thành viên	Nam	K12 - HR	Quản trị NNL	2024001	a@mail.com	a.clb@mail.com	0123456789	01/01/2005	Kinh	Không	Hà Nội	L&D"
                         style="width:100%;border:1px solid #334155;border-radius:12px;background:var(--bg-sub);color:#e2e8f0;padding:16px;font-family:monospace;resize:y;"></textarea>
                 </div>
             </div>
@@ -1380,13 +1554,15 @@
     <div class="modal" id="project-modal">
         <div class="modal-wrapper modal-premium">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-diagram-project"></i> <span id="project-modal-title">Quản lý Chương trình</span></h3>
-                <button class="close-btn" onclick="closeModal('project-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <h3><i class="fa-solid fa-diagram-project"></i> <span id="project-modal-title">Quản lý Chương
+                        trình</span></h3>
+                <button class="close-btn" onclick="closeModal('project-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <form id="project-form" onsubmit="event.preventDefault();">
                     <input type="hidden" id="p-id">
-                    
+
                     <!-- Section 1: Thông tin cơ bản -->
                     <div class="lux-form-section">
                         <div class="lux-section-title">
@@ -1396,7 +1572,8 @@
                         <div class="lux-card">
                             <div class="input-group-v2" style="margin-bottom: 20px;">
                                 <label><i class="fa-solid fa-heading"></i> Tên Chương trình / Dự án</label>
-                                <input type="text" id="p-name" placeholder="Ví dụ: Teambuilding 2024, Gen 12 Recruitment..." required>
+                                <input type="text" id="p-name"
+                                    placeholder="Ví dụ: Teambuilding 2024, Gen 12 Recruitment..." required>
                             </div>
                             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                                 <div class="input-group-v2">
@@ -1441,12 +1618,13 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div id="p-pl-selection" class="pl-selection-display" style="display:none;">
                                     <div id="p-pl-list" class="pl-list-container">
                                         <!-- Multi PLs rendered here -->
                                     </div>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')" title="Thêm/Chọn PL">
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')"
+                                        title="Thêm/Chọn PL">
                                         <i class="fa-solid fa-user-plus"></i> Thêm PL
                                     </button>
                                 </div>
@@ -1456,16 +1634,18 @@
 
                     <!-- Section 3: Quản lý Team & Nhân sự -->
                     <div class="lux-form-section" style="margin-bottom:0;">
-                        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div
+                            style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div class="lux-section-title" style="margin-bottom:0;">
                                 <i class="fa-solid fa-people-group"></i>
                                 Cấu trúc Team & Nhân sự
                             </div>
-                            <button type="button" class="btn-lux-primary" onclick="addNewTeam()" style="margin-top:0; padding:10px 20px; font-size: 0.85rem;">
+                            <button type="button" class="btn-lux-primary" onclick="addNewTeam()"
+                                style="margin-top:0; padding:10px 20px; font-size: 0.85rem;">
                                 <i class="fa-solid fa-plus-circle"></i> Thêm Team mới
                             </button>
                         </div>
-                        
+
                         <div id="p-teams-grid-v2" class="teams-grid-premium">
                             <!-- Premium Teams rendered dynamically -->
                         </div>
@@ -1474,7 +1654,8 @@
             </div>
             <div class="modal-footer" id="project-modal-footer">
                 <button class="btn-secondary" onclick="closeModal('project-modal')">Hủy bỏ</button>
-                <button class="btn-lux-primary" id="btn-save-project-v2" onclick="saveProjectV2()" style="margin-top:0; min-width: 180px;">
+                <button class="btn-lux-primary" id="btn-save-project-v2" onclick="saveProjectV2()"
+                    style="margin-top:0; min-width: 180px;">
                     <i class="fa-solid fa-save"></i> <span id="btn-save-project-text">Lưu Dự Án</span>
                 </button>
             </div>
@@ -1486,12 +1667,14 @@
         <div class="modal-wrapper">
             <div class="modal-header">
                 <h3 id="mp-title">Chọn nhân sự</h3>
-                <button class="close-btn" onclick="closeModal('member-picker-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('member-picker-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div class="search-box" style="margin-bottom: 16px;">
                     <i class="fa-solid fa-search"></i>
-                    <input type="text" id="mp-search" placeholder="Tìm theo tên hoặc ban..." onkeyup="renderMemberPicker()">
+                    <input type="text" id="mp-search" placeholder="Tìm theo tên hoặc ban..."
+                        onkeyup="renderMemberPicker()">
                 </div>
                 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div class="dept-pills-v2" style="margin-bottom: 0;">
@@ -1501,8 +1684,10 @@
                         <button class="pill" onclick="setMpFilter(this, 'ER')">ER</button>
                         <button class="pill" onclick="setMpFilter(this, 'EB')">EB</button>
                     </div>
-                    <div class="view-switcher" style="display:flex; gap:4px; padding:4px; background:var(--secondary); border-radius:12px;">
-                        <button class="btn-icon-v2 grid-v" id="btn-picker-grid" onclick="togglePickerView('grid')" title="Dạng lưới">
+                    <div class="view-switcher"
+                        style="display:flex; gap:4px; padding:4px; background:var(--secondary); border-radius:12px;">
+                        <button class="btn-icon-v2 grid-v" id="btn-picker-grid" onclick="togglePickerView('grid')"
+                            title="Dạng lưới">
                             <i class="fa-solid fa-grip"></i>
                         </button>
                         </button>
@@ -1510,16 +1695,19 @@
                 </div>
                 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div style="display:flex; gap:8px;">
-                        <button class="btn-primary-xs" onclick="openModal('batch-team-member-modal')" style="padding: 10px 16px;">
+                        <button class="btn-primary-xs" onclick="openModal('batch-team-member-modal')"
+                            style="padding: 10px 16px;">
                             <i class="fa-solid fa-paste"></i> Nhập nhanh từ Excel
                         </button>
                     </div>
                 </div>
-                <div id="mp-list" class="card-scroll picker-grid" style="max-height: 400px; overflow-y: auto; margin-top: 16px;">
+                <div id="mp-list" class="card-scroll picker-grid"
+                    style="max-height: 400px; overflow-y: auto; margin-top: 16px;">
                     <!-- Members list dynamically rendered as Cards -->
                 </div>
             </div>
-            <div class="modal-footer mp-footer" id="mp-footer" style="display:none; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color);">
+            <div class="modal-footer mp-footer" id="mp-footer"
+                style="display:none; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color);">
                 <div class="selection-count">Đã chọn: <strong id="mp-count">0</strong></div>
                 <button class="btn-lux-primary" onclick="openBatchRolePicker()" style="margin:0;">
                     Tiếp theo <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i>
@@ -1533,10 +1721,12 @@
         <div class="modal-wrapper" style="max-width: 600px;">
             <div class="modal-header">
                 <h3>Phân vai trò hàng loạt</h3>
-                <button class="close-btn" onclick="closeModal('batch-role-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('batch-role-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" style="padding:0;">
-                <div id="batch-role-list" class="batch-role-list card-scroll" style="max-height: 450px; overflow-y: auto; padding: 24px;">
+                <div id="batch-role-list" class="batch-role-list card-scroll"
+                    style="max-height: 450px; overflow-y: auto; padding: 24px;">
                     <!-- Row for each selected member -->
                 </div>
             </div>
@@ -1553,15 +1743,18 @@
         <div class="modal-wrapper" style="max-width: 400px;">
             <div class="modal-header">
                 <h3>Phân vai trò</h3>
-                <button class="close-btn" onclick="closeModal('role-picker-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('role-picker-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <div id="rp-avatar" class="m-list-avatar" style="width: 80px; height: 80px; font-size: 2rem; margin: 0 auto 16px; border-radius: 24px;">?</div>
+                    <div id="rp-avatar" class="m-list-avatar"
+                        style="width: 80px; height: 80px; font-size: 2rem; margin: 0 auto 16px; border-radius: 24px;">?
+                    </div>
                     <h3 id="rp-name" style="font-size: 1.4rem; margin-bottom: 4px;">Tên nhân sự</h3>
                     <p id="rp-dept" style="color: var(--text-muted); font-size: 0.9rem;">Ban ...</p>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Chọn vai trò trong Team</label>
                     <select id="rp-role" class="styled-select" style="width: 100%;">
@@ -1573,7 +1766,7 @@
                         <option value="Cố vấn">Cố vấn</option>
                     </select>
                 </div>
-                
+
                 <div style="margin-top: 32px;">
                     <button class="btn-lux-primary" onclick="saveSelectedRole()" style="width: 100%;">
                         <i class="fa-solid fa-check-circle"></i> Lưu &amp; Thêm vào Team
@@ -1588,13 +1781,14 @@
         <div class="modal-wrapper modal-lg">
             <div class="modal-header">
                 <h3>Nhập Dự án hàng loạt</h3>
-                <button class="close-btn" onclick="closeModal('batch-project-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('batch-project-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
                     Dán danh sách tên dự án (phân tách bởi dòng mới hoặc Tab). Ví dụ: ORIENTATION [Tab] YEAR-END AWARDS
                 </p>
-                <textarea id="bp-data" rows="12" placeholder="Tên dự án 1&#10;Tên dự án 2..." 
+                <textarea id="bp-data" rows="12" placeholder="Tên dự án 1&#10;Tên dự án 2..."
                     style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:'Inter', sans-serif; resize:y; font-size:1.1rem; font-weight:600;"></textarea>
             </div>
             <div class="modal-footer">
@@ -1609,21 +1803,23 @@
         <div class="modal-wrapper modal-lg">
             <div class="modal-header">
                 <h3>Nhập Nhân sự vào Team hàng loạt</h3>
-                <button class="close-btn" onclick="closeModal('batch-team-member-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('batch-team-member-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
                     Dán danh sách <strong>Họ tên</strong> (hoặc MSSV), mỗi dòng một người.
                 </p>
-                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#10;Trần Thị B" 
+                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#10;Trần Thị B"
                     style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:monospace; resize:y;"></textarea>
-                
+
                 <div id="btm-error-log" class="paste-error-log" style="display:none; margin-top:16px;">
                     <div class="error-log-header">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Không tìm thấy các nhân sự này (Vui lòng kiểm tra lại Họ tên & Ban):</span>
                     </div>
-                    <ul id="btm-error-list" style="margin:10px 0 0 20px; color:var(--accent-red); font-size:0.85rem;"></ul>
+                    <ul id="btm-error-list" style="margin:10px 0 0 20px; color:var(--accent-red); font-size:0.85rem;">
+                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1666,14 +1862,18 @@
             </div>
             <div class="modal-footer" style="justify-content:space-between; padding: 20px 32px;">
                 <div style="display:flex; align-items:center; gap:16px;">
-                    <div id="ms-count-badge" style="font-weight:700; color:var(--text-main); font-size:1rem;">Đã chọn: <span id="ms-selected-count">0</span></div>
-                    <button class="btn-secondary" onclick="openModal('batch-team-paste-modal')" style="padding: 8px 16px; border-radius: 12px;">
+                    <div id="ms-count-badge" style="font-weight:700; color:var(--text-main); font-size:1rem;">Đã chọn:
+                        <span id="ms-selected-count">0</span></div>
+                    <button class="btn-secondary" onclick="openModal('batch-team-paste-modal')"
+                        style="padding: 8px 16px; border-radius: 12px;">
                         <i class="fa-solid fa-paste"></i> Paste List
                     </button>
                 </div>
                 <div style="display:flex; gap:12px;">
-                    <button class="btn-secondary" id="ms-back-btn" style="display:none;" onclick="msGoBack()">← Quay lại</button>
-                    <button class="btn-primary" id="ms-next-btn" onclick="msNextStep()" style="min-width:140px; justify-content:space-between;">
+                    <button class="btn-secondary" id="ms-back-btn" style="display:none;" onclick="msGoBack()">← Quay
+                        lại</button>
+                    <button class="btn-primary" id="ms-next-btn" onclick="msNextStep()"
+                        style="min-width:140px; justify-content:space-between;">
                         Tiếp theo <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
@@ -1686,7 +1886,8 @@
         <div class="modal-wrapper" style="max-width:400px">
             <div class="modal-header">
                 <h3 id="cf-modal-title">Quản lý Thư mục Chung</h3>
-                <button class="close-btn" onclick="closeModal('common-folder-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('common-folder-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="cf-id">
@@ -1745,9 +1946,11 @@
                 <div class="folder-filter-bar" style="display:flex; gap:12px; margin-bottom:20px; align-items:center;">
                     <div class="score-search-box" style="flex:1;">
                         <i class="fa-solid fa-search"></i>
-                        <input type="text" id="cv-search-files" placeholder="Tìm tên thành viên..." onkeyup="renderEvidencePhotos()">
+                        <input type="text" id="cv-search-files" placeholder="Tìm tên thành viên..."
+                            onkeyup="renderEvidencePhotos()">
                     </div>
-                    <select id="cv-filter-dept" class="styled-select" style="width:140px;" onchange="renderEvidencePhotos()">
+                    <select id="cv-filter-dept" class="styled-select" style="width:140px;"
+                        onchange="renderEvidencePhotos()">
                         <option value="ALL">Tất cả Ban</option>
                         <option value="L&D">L&D</option>
                         <option value="R&R">R&R</option>
@@ -1755,9 +1958,12 @@
                         <option value="EB">EB</option>
                         <option value="BCN">BCN/Khác</option>
                     </select>
-                    <div class="view-toggle-btns" id="cv-view-toggle" style="display:none; gap:4px; background:var(--bg-panel); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
-                        <button class="toggle-btn-v2" onclick="setEvidenceViewMode('grid')" id="cv-btn-grid" title="Dạng lưới"><i class="fa-solid fa-table-cells-large"></i></button>
-                        <button class="toggle-btn-v2" onclick="setEvidenceViewMode('list')" id="cv-btn-list" title="Dạng danh sách"><i class="fa-solid fa-list-ul"></i></button>
+                    <div class="view-toggle-btns" id="cv-view-toggle"
+                        style="display:none; gap:4px; background:var(--bg-panel); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
+                        <button class="toggle-btn-v2" onclick="setEvidenceViewMode('grid')" id="cv-btn-grid"
+                            title="Dạng lưới"><i class="fa-solid fa-table-cells-large"></i></button>
+                        <button class="toggle-btn-v2" onclick="setEvidenceViewMode('list')" id="cv-btn-list"
+                            title="Dạng danh sách"><i class="fa-solid fa-list-ul"></i></button>
                     </div>
                 </div>
                 <div class="evidence-photo-grid" id="evidence-photo-grid"></div>
@@ -1888,20 +2094,25 @@
         <div class="modal-wrapper" style="max-width:450px">
             <div class="modal-header">
                 <h3>Cấp lại mật khẩu</h3>
-                <button class="close-btn" onclick="closeModal('edit-password-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('edit-password-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <div id="edit-password-member-info" style="margin-bottom:16px; font-weight:600; color:var(--primary); background:var(--bg-highlight); padding:12px; border-radius:12px;"></div>
+                <div id="edit-password-member-info"
+                    style="margin-bottom:16px; font-weight:600; color:var(--primary); background:var(--bg-highlight); padding:12px; border-radius:12px;">
+                </div>
                 <input type="hidden" id="edit-password-m-id">
                 <div class="input-group full-width">
                     <label>Mật khẩu mới</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="admin-new-password" class="lux-input" placeholder="Nhập mật khẩu mới...">
+                        <input type="password" id="admin-new-password" class="lux-input"
+                            placeholder="Nhập mật khẩu mới...">
                         <button class="btn-toggle-pw" onclick="togglePwVisibility('admin-new-password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">Hệ thống sẽ cập nhật ngay lập tức lên Google Sheets.</p>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">Hệ thống sẽ cập nhật ngay lập
+                        tức lên Google Sheets.</p>
                 </div>
                 <div id="admin-password-error" class="pin-error" style="display:none; margin-top:10px;"></div>
             </div>
@@ -1917,14 +2128,17 @@
         <div class="modal-wrapper" style="max-width:450px">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-gear"></i> Cấu hình Quản trị</h3>
-                <button class="close-btn" onclick="closeModal('admin-settings-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('admin-settings-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div class="input-group-v2">
                     <label><i class="fa-solid fa-shield-halved"></i> Đổi mật khẩu Admin</label>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Mật khẩu này dùng để truy cập vào quyền Quản trị viên.</p>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Mật khẩu này dùng để truy
+                        cập vào quyền Quản trị viên.</p>
                     <div class="password-input-wrapper">
-                        <input type="password" id="new-admin-password" class="lux-input" placeholder="Nhập mật khẩu Admin mới...">
+                        <input type="password" id="new-admin-password" class="lux-input"
+                            placeholder="Nhập mật khẩu Admin mới...">
                         <button class="btn-toggle-pw" onclick="togglePwVisibility('new-admin-password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
@@ -1950,7 +2164,8 @@
                 </div>
                 <div class="selector-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="login-member-search" placeholder="Tìm tên của bạn..." onkeyup="renderLoginMemberSelector()">
+                    <input type="text" id="login-member-search" placeholder="Tìm tên của bạn..."
+                        onkeyup="renderLoginMemberSelector()">
                 </div>
                 <div class="login-dept-pills" id="login-dept-pills">
                     <button class="login-pill active" onclick="setLoginDeptFilter(this, 'ALL')">Tất cả</button>
@@ -1974,10 +2189,12 @@
         <div class="modal-wrapper" style="max-width:500px">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-file-export"></i> Xuất Báo Cáo Tổng Hợp</h3>
-                <button class="close-btn" onclick="closeModal('export-report-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('export-report-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Hệ thống sẽ tổng hợp tất cả Đánh giá chéo và Confessions trong khoảng thời gian đã chọn.</p>
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Hệ thống sẽ tổng hợp tất cả
+                    Đánh giá chéo và Confessions trong khoảng thời gian đã chọn.</p>
                 <div class="input-group full-width">
                     <label>Từ ngày</label>
                     <input type="date" id="export-from-date">
@@ -2001,17 +2218,18 @@
         <div class="modal-wrapper modal-lg">
             <div class="modal-header">
                 <h3>🎯 Hướng dẫn Chi tiết Thang điểm 1-10</h3>
-                <button class="close-btn" onclick="closeModal('scoring-guide-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('scoring-guide-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div class="scoring-guide-container">
-                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-primary" onclick="closeModal('scoring-guide-modal')">Đã rõ, cảm ơn!</button>
-            </div>
         </div>
+        <div class="modal-footer">
+            <button class="btn-primary" onclick="closeModal('scoring-guide-modal')">Đã rõ, cảm ơn!</button>
+        </div>
+    </div>
     </div>
 
     <!-- Modal: Batch Team Paste -->
@@ -2019,11 +2237,14 @@
         <div class="modal-wrapper" style="max-width:500px">
             <div class="modal-header">
                 <h3>Paste Danh sách Thành viên</h3>
-                <button class="close-btn" onclick="closeModal('batch-team-paste-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('batch-team-paste-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Dán danh sách tên hoặc MSSV, mỗi dòng một người. Hệ thống sẽ tự động chọn đúng thành viên.</p>
-                <textarea id="batch-team-paste-text" rows="10" placeholder="Copy danh sách dán vào đây..." style="width:100%; border:1px solid var(--border-color); border-radius:12px; padding:12px; background:var(--bg-sidebar); color:var(--text-main); font-family:monospace;"></textarea>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Dán danh sách tên hoặc MSSV,
+                    mỗi dòng một người. Hệ thống sẽ tự động chọn đúng thành viên.</p>
+                <textarea id="batch-team-paste-text" rows="10" placeholder="Copy danh sách dán vào đây..."
+                    style="width:100%; border:1px solid var(--border-color); border-radius:12px; padding:12px; background:var(--bg-sidebar); color:var(--text-main); font-family:monospace;"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('batch-team-paste-modal')">Hủy</button>
@@ -2043,26 +2264,32 @@
                         <p id="batch-eval-subtitle">Chế độ nhập nhanh dữ liệu cho nhiều thành viên</p>
                     </div>
                 </div>
-                <button class="close-btn" onclick="closeModal('batch-eval-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('batch-eval-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" style="padding:0;">
                 <div class="batch-eval-container">
                     <div class="batch-paste-zone">
                         <div class="paste-header">
-                            <label><i class="fa-solid fa-clipboard"></i> Vùng dán dữ liệu (Ctrl+V từ Excel/Sheets)</label>
+                            <label><i class="fa-solid fa-clipboard"></i> Vùng dán dữ liệu (Ctrl+V từ
+                                Excel/Sheets)</label>
                             <span class="help-text">Dán xong dữ liệu sẽ tự động điền vào bảng bên dưới</span>
                         </div>
-                        <textarea id="batch-paste-area" placeholder="Dán dữ liệu Excel vào đây (Ví dụ: Tên - Điểm - Nhận xét)..." onpaste="handleBatchPaste(event)"></textarea>
+                        <textarea id="batch-paste-area"
+                            placeholder="Dán dữ liệu Excel vào đây (Ví dụ: Tên - Điểm - Nhận xét)..."
+                            onpaste="handleBatchPaste(event)"></textarea>
                         <div id="batch-paste-errors" class="paste-error-log" style="display:none;">
                             <div class="error-log-header">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
                                 <span>Không tìm thấy các thành viên sau:</span>
-                                <button class="btn-close-log" onclick="this.parentElement.parentElement.style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+                                <button class="btn-close-log"
+                                    onclick="this.parentElement.parentElement.style.display='none'"><i
+                                        class="fa-solid fa-xmark"></i></button>
                             </div>
                             <ul id="batch-error-list"></ul>
                         </div>
                     </div>
-                    
+
                     <div class="batch-grid-wrapper">
                         <div id="batch-grid-loading" class="grid-loading" style="display:none;">
                             <i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...
@@ -2089,12 +2316,49 @@
         </div>
     </div>
 
-    <!-- Modal: Create Meeting Poll -->
+    </div>
+
+    <!-- Modal: Create/Edit Event -->
+    <div class="modal" id="event-modal">
+        <div class="modal-wrapper" style="max-width:500px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-plus"></i> Quản lý Sự kiện</h3>
+                <button class="close-btn" onclick="closeModal('event-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="event-id">
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-star"></i> Tên sự kiện <span class="required">*</span></label>
+                    <input type="text" id="event-name" class="lux-input" placeholder="VD: Workshop HR 101">
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-calendar-days"></i> Ngày diễn ra <span
+                            class="required">*</span></label>
+                    <input type="date" id="event-date" class="lux-input">
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-map-location-dot"></i> Địa điểm</label>
+                    <input type="text" id="event-location" class="lux-input" placeholder="VD: Phòng B102 / Zoom">
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-circle-info"></i> Ghi chú / Link sự kiện</label>
+                    <textarea id="event-note" class="lux-input" rows="2" placeholder="Thông tin thêm..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('event-modal')">Hủy</button>
+                <button class="btn-primary" onclick="saveEvent()">Lưu sự kiện</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create/Edit Meeting Poll -->
     <div class="modal" id="create-poll-modal">
         <div class="modal-wrapper" style="max-width:560px;">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-calendar-plus"></i> Tạo Vote Lịch Họp</h3>
-                <button class="close-btn" onclick="closeModal('create-poll-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('create-poll-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
                 <div class="input-group-v2">
@@ -2103,15 +2367,18 @@
                 </div>
                 <div class="input-group-v2">
                     <label><i class="fa-solid fa-align-left"></i> Nội dung cuộc họp</label>
-                    <textarea id="poll-content" rows="3" placeholder="Mô tả ngắn gọn nội dung / mục đích cuộc họp..." class="lux-input"></textarea>
+                    <textarea id="poll-content" rows="3" placeholder="Mô tả ngắn gọn nội dung / mục đích cuộc họp..."
+                        class="lux-input"></textarea>
                 </div>
                 <div class="input-group-v2">
-                    <label><i class="fa-solid fa-hourglass-end"></i> Deadline vote <span class="required">*</span></label>
+                    <label><i class="fa-solid fa-hourglass-end"></i> Deadline vote <span
+                            class="required">*</span></label>
                     <input type="datetime-local" id="poll-deadline" class="lux-input">
                 </div>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:16px;">
                     <div class="input-group-v2">
-                        <label><i class="fa-solid fa-calendar-day"></i> Khoảng thời gian từ <span class="required">*</span></label>
+                        <label><i class="fa-solid fa-calendar-day"></i> Khoảng thời gian từ <span
+                                class="required">*</span></label>
                         <input type="date" id="poll-start-date" class="lux-input">
                     </div>
                     <div class="input-group-v2">
@@ -2151,7 +2418,38 @@
     </div>
 
     <!-- Hidden Template for PDF -->
-    <div id="pdf-report-template" style="display:none; background:white; color:#333; padding:40px; font-family:'Inter', sans-serif;">
+    <div id="pdf-report-template"
+        style="display:none; background:white; color:#333; padding:40px; font-family:'Inter', sans-serif;">
+    </div>
+
+    <!-- ===== AUDIO PLAYER ===== -->
+    <div id="audio-player-widget" class="glass-panel">
+        <audio id="main-audio" loop>
+            <source src="Dept- Van Gogh (Feat. Ashley Alisha) Official lyrics video.mp3" type="audio/mpeg">
+        </audio>
+        <div class="audio-info">
+            <div class="audio-icon-wrapper" onclick="togglePlay()">
+                <div class="music-note-icon" id="music-note-icon">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+            </div>
+            <div class="audio-text">
+                <span class="song-title">Background Music</span>
+                <span class="song-artist">Dept - Van Gogh</span>
+            </div>
+            <button class="btn-audio-toggle" onclick="togglePlay()" id="audio-play-btn">
+                <i class="fa-solid fa-play"></i>
+            </button>
+        </div>
+        <div class="audio-controls">
+            <div class="progress-container" id="audio-progress-container" onclick="seekAudio(event)">
+                <div class="progress-bar" id="audio-progress"></div>
+            </div>
+            <div class="volume-container">
+                <i class="fa-solid fa-volume-high" id="volume-icon"></i>
+                <input type="range" id="audio-volume" min="0" max="1" step="0.05" value="0.5" oninput="changeVolume(this.value)">
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

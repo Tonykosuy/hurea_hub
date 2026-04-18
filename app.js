@@ -14,6 +14,8 @@ const state = {
     meetingPollFilter: 'all',
     activePollId: null,
     myTimeSelections: {},
+    clubEvents: [],
+    currentCalendarDate: new Date(),
     activeProjectParticipantsSetup: [],
     activeProjectTeamsSetup: [],
     activeProjectTargetTeam: null,
@@ -143,7 +145,12 @@ function normalizeDataKeys(data) {
         'enddate': 'endDate',
         'starthour': 'startHour',
         'endhour': 'endHour',
-        'votedat': 'votedAt'
+        'votedat': 'votedAt',
+        // Event field mappings
+        'eventdate': 'eventDate',
+        'eventname': 'eventName',
+        'eventlocation': 'eventLocation',
+        'eventnote': 'eventNote'
     };
 
     const newData = {};
@@ -157,6 +164,7 @@ function normalizeDataKeys(data) {
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme(); setupNavigation(); setupEvalTabs(); setupSearchableDropdowns();
     initToast();
+    initAudioPlayer();
     if (API_URL) { await loadDataFromAPI(); } else { seedMockData(); }
     initMeetingScheduler();
     // initPinInputs(); // Replaced by standard password fields
@@ -177,7 +185,8 @@ function renderAllViews() {
         { name: 'Feedbacks', fn: renderFeedbacks },
         { name: 'BugReports', fn: renderBugReports },
         { name: 'Confessions', fn: renderConfessions },
-        { name: 'MeetingPolls', fn: renderMeetingPolls }
+        { name: 'MeetingPolls', fn: renderMeetingPolls },
+        { name: 'ActivityCalendar', fn: renderActivityCalendar }
     ];
 
     views.forEach(v => {
@@ -205,6 +214,7 @@ async function loadDataFromAPI() {
             state.confessions = normalizeDataKeys(d.confessions || []);
             state.meetingPolls = normalizeDataKeys(d.meetingPolls || []);
             state.meetingVotes = normalizeDataKeys(d.meetingVotes || []);
+            state.clubEvents = normalizeDataKeys(d.events || []);
             state.config = normalizeDataKeys(d.config || {});
             if (state.config.adminPassword) ADMIN_PASSWORD = String(state.config.adminPassword);
             if (d.evidences) {
@@ -691,15 +701,18 @@ function processBatchMembers() {
             ethnicity: cols[11] ? cols[11].trim() : '',
             religion: cols[12] ? cols[12].trim() : '',
             hometown: cols[13] ? cols[13].trim() : '',
-            dept: '' 
+            dept: cols[14] ? cols[14].trim() : '' 
         };
         
-        const upTitle = m.title.toUpperCase();
-        if (upTitle.includes('L&D') || upTitle.includes('LD')) m.dept = 'L&D';
-        else if (upTitle.includes('R&R') || upTitle.includes('RR')) m.dept = 'R&R';
-        else if (upTitle.includes('ER')) m.dept = 'ER';
-        else if (upTitle.includes('EB')) m.dept = 'EB';
-        else if (upTitle.includes('BCN') || upTitle.includes('CHỦ NHIỆM')) m.dept = 'BCN';
+        // If Dept is not explicitly provided, try to infer it from Title
+        if (!m.dept) {
+            const upTitle = m.title.toUpperCase();
+            if (upTitle.includes('L&D') || upTitle.includes('LD')) m.dept = 'L&D';
+            else if (upTitle.includes('R&R') || upTitle.includes('RR')) m.dept = 'R&R';
+            else if (upTitle.includes('ER')) m.dept = 'ER';
+            else if (upTitle.includes('EB')) m.dept = 'EB';
+            else if (upTitle.includes('BCN') || upTitle.includes('CHỦ NHIỆM')) m.dept = 'BCN';
+        }
 
         added.push(m);
     });
@@ -2099,11 +2112,20 @@ function calculateMemberClubScore(mId) {
 
 function calculateFinalScores() {
     const tbody = document.getElementById('score-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
+    
     const searchTxt = (document.getElementById('search-score') ? document.getElementById('search-score').value : '').toLowerCase();
     const dFilter = state.scoreDeptFilter;
-    const filtered = state.members.filter(m =>
-        m.name.toLowerCase().includes(searchTxt) && (dFilter === 'ALL' || m.dept === dFilter));
+    const rangeFilter = document.getElementById('filter-score-range') ? document.getElementById('filter-score-range').value : 'ALL';
+    const rankFilter = document.getElementById('filter-score-rank') ? document.getElementById('filter-score-rank').value : 'ALL';
+
+    const filtered = state.members.filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(searchTxt);
+        const matchesDept = (dFilter === 'ALL' || m.dept === dFilter);
+        return matchesSearch && matchesDept;
+    });
+
     filtered.forEach(member => {
         const mId = member.id;
         const prjScore = calculateMemberProjectScore(mId);
@@ -2111,16 +2133,33 @@ function calculateFinalScores() {
         const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
         const deptScore = de ? de.totalScore : 0;
         const total = (prjScore + clubScore + deptScore) / 3;
+
+        // Classification
         let grade = 'Can co gang';
         let gradeVi = 'Cần Cố Gắng';
         if (total >= 8.5) { grade = 'Xuat Sac'; gradeVi = 'Xuất Sắc'; }
         else if (total >= 7) { grade = 'Kha'; gradeVi = 'Khá'; }
         else if (total >= 5) { grade = 'Dat'; gradeVi = 'Đạt'; }
+
+        // Filter by Range
+        let matchesRange = true;
+        if (rangeFilter === '9') matchesRange = (total >= 9);
+        else if (rangeFilter === '8.5') matchesRange = (total >= 8.5);
+        else if (rangeFilter === '7') matchesRange = (total >= 7);
+        else if (rangeFilter === '5') matchesRange = (total >= 5);
+        else if (rangeFilter === 'low') matchesRange = (total < 5);
+
+        // Filter by Rank
+        let matchesRank = (rankFilter === 'ALL' || rankFilter === grade);
+
+        if (!matchesRange || !matchesRank) return;
+
         const gradeColors = { 'Xuat Sac': '#f59e0b', 'Kha': '#10b981', 'Dat': '#0D8ABC', 'Can co gang': '#ef4444' };
         const gc = gradeColors[grade] || '#ef4444';
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:#94a3b8">Ban ${member.dept} - ${member.class}</span></td>
+            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:#94a3b8">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
             <td><span style="color:#38bdf8;font-weight:700">${prjScore.toFixed(2)}</span></td>
             <td><span style="color:#10b981;font-weight:700">${clubScore.toFixed(2)}</span></td>
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
@@ -4774,6 +4813,7 @@ function renderLoginMemberSelector() {
             <div class="login-member-avatar"><i class="fa-solid fa-user"></i></div>
             <div class="login-member-info">
                 <span class="login-member-name">${m.name}</span>
+                <span style="font-size:0.7rem; color: #64748b; font-weight: 500;">Ban: ${mDept || '---'}</span>
             </div>
             ${selectedId === m.id ? '<i class="fa-solid fa-circle-check" style="color:#38bdf8"></i>' : ''}
         `;
@@ -4789,7 +4829,7 @@ function selectLoginMember(mId) {
 
     // Update display card
     document.getElementById('display-name').innerText = member.name;
-    document.getElementById('display-dept').innerText = member.class || '';
+    document.getElementById('display-dept').innerText = member.dept || '---';
     document.getElementById('selected-member-display').classList.add('selected');
 
     // Close selector
@@ -4939,7 +4979,7 @@ function completeLogin() {
     if (welcomeP) {
         welcomeP.innerText = state.userRole === 'admin'
             ? 'Chào mừng bạn trở lại hệ thống quản trị HuReA. Bạn có quyền truy cập toàn bộ.'
-            : 'Chào mừng bạn đến với hệ thống HuReA. Hãy theo dõi tiến độ hoạt động của mình.';
+            : 'Chào mừng bạn đến với hệ thống HuReA. Hãy theo dõi lịch hoạt động và tin tức mới nhất.';
     }
 }
 
@@ -4982,6 +5022,13 @@ function applyPermissions(role) {
     navItems.forEach(item => {
         item.classList.remove('nav-hidden');
     });
+
+    // Dashboard/Home permissions (Admin vs User)
+    const dashboardStats = document.getElementById('admin-dashboard-stats');
+    if (dashboardStats) dashboardStats.style.display = isAdmin ? 'block' : 'none';
+
+    const addEventBtn = document.getElementById('btn-add-event');
+    if (addEventBtn) addEventBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 
     if (role === 'user') {
         const boardMember = isBoardMember();
@@ -6184,3 +6231,280 @@ completeLogin = function() {
     _originalCompleteLoginForMeeting.apply(this, arguments);
     setTimeout(handlePendingPollDeepLink, 500);
 };
+
+// ==========================================
+// ACTIVITY CALENDAR MODULE
+// ==========================================
+function renderActivityCalendar() {
+    const container = document.getElementById('calendar-grid-view');
+    const label = document.getElementById('current-month-label');
+    if (!container || !label) return;
+
+    const date = state.currentCalendarDate || new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-indexed
+
+    // Update label
+    label.innerText = `Tháng ${(month + 1).toString().padStart(2, '0')}/${year}`;
+
+    // Calculate grid
+    const firstDay = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Clear and build grid
+    container.innerHTML = '';
+    
+    // Add DOW Headers
+    const dows = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    dows.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'calendar-dow';
+        div.innerText = d;
+        container.appendChild(div);
+    });
+
+    // Padding for first week
+    for (let i = 0; i < firstDay; i++) {
+        const div = document.createElement('div');
+        div.className = 'calendar-day empty';
+        container.appendChild(div);
+    }
+
+    // Days of month
+    const isAdmin = state.userRole === 'admin';
+    const today = new Date();
+    const isThisMonth = today.getFullYear() === year && today.getMonth() === month;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day';
+        if (isThisMonth && today.getDate() === d) dayDiv.classList.add('today');
+
+        // Check for events
+        const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+        const dayEvents = state.clubEvents.filter(ev => {
+            const evDate = new Date(ev.eventDate);
+            return evDate.getFullYear() === year && evDate.getMonth() === month && evDate.getDate() === d;
+        });
+
+        let eventsHtml = '';
+        if (dayEvents.length > 0) {
+            eventsHtml = `<div class="day-events">
+                ${dayEvents.slice(0, 2).map(ev => `<div class="event-tag">${ev.eventName}</div>`).join('')}
+                ${dayEvents.length > 2 ? `<div class="event-tag" style="background:var(--accent-purple)">+${dayEvents.length - 2} thêm</div>` : ''}
+                <div class="event-dot"></div>
+            </div>`;
+            dayDiv.onclick = () => showEventDayDetail(dateStr, dayEvents);
+        } else if (isAdmin) {
+            dayDiv.onclick = () => {
+                document.getElementById('event-date').value = dateStr;
+                openEventModal();
+            };
+        }
+
+        dayDiv.innerHTML = `
+            <span class="day-number">${d}</span>
+            ${eventsHtml}
+        `;
+        container.appendChild(dayDiv);
+    }
+}
+
+function changeCalendarMonth(offset) {
+    const d = state.currentCalendarDate || new Date();
+    state.currentCalendarDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
+    renderActivityCalendar();
+}
+
+function showEventDayDetail(dateStr, events) {
+    const isAdmin = state.userRole === 'admin';
+    const content = events.map(ev => `
+        <div class="event-detail-item" style="padding:12px; border-radius:12px; background:var(--bg-sidebar); border:1px solid var(--border-color); margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+                <h4 style="margin:0; color:var(--primary);">${ev.eventName}</h4>
+                ${isAdmin ? `
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-icon" onclick="closeModal('event-detail-modal'); editEvent('${ev.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-icon delete" onclick="closeModal('event-detail-modal'); deleteEvent('${ev.id}')"><i class="fa-solid fa-trash"></i></button>
+                </div>` : ''}
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">
+                <p><i class="fa-solid fa-location-dot" style="width:16px;"></i> ${ev.eventLocation || 'N/A'}</p>
+                ${ev.eventNote ? `<p><i class="fa-solid fa-note-sticky" style="width:16px;"></i> ${ev.eventNote}</p>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // Re-use a simple modal for details
+    let detailModal = document.getElementById('event-detail-modal');
+    if (!detailModal) {
+        detailModal = document.createElement('div');
+        detailModal.id = 'event-detail-modal';
+        detailModal.className = 'modal';
+        detailModal.innerHTML = `
+            <div class="modal-wrapper" style="max-width:400px;">
+                <div class="modal-header">
+                    <h3>Sự kiện ngày ${dateStr.split('-').reverse().join('/')}</h3>
+                    <button class="close-btn" onclick="closeModal('event-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" id="event-detail-body"></div>
+                <div class="modal-footer">
+                    ${isAdmin ? `<button class="btn-primary" onclick="closeModal('event-detail-modal'); document.getElementById('event-date').value='${dateStr}'; openEventModal();">Thêm sự kiện</button>` : ''}
+                    <button class="btn-secondary" onclick="closeModal('event-detail-modal')">Đóng</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(detailModal);
+    } else {
+        detailModal.querySelector('.modal-header h3').innerText = `Sự kiện ngày ${dateStr.split('-').reverse().join('/')}`;
+        const footer = detailModal.querySelector('.modal-footer');
+        footer.innerHTML = `
+            ${isAdmin ? `<button class="btn-primary" onclick="closeModal('event-detail-modal'); document.getElementById('event-date').value='${dateStr}'; openEventModal();">Thêm sự kiện</button>` : ''}
+            <button class="btn-secondary" onclick="closeModal('event-detail-modal')">Đóng</button>
+        `;
+    }
+    
+    document.getElementById('event-detail-body').innerHTML = content || '<p style="text-align:center; color:var(--text-muted);">Không có sự kiện nào.</p>';
+    openModal('event-detail-modal');
+}
+
+function openEventModal() {
+    document.getElementById('event-id').value = '';
+    document.getElementById('event-name').value = '';
+    // If event-date wasn't set by click, default to today
+    if (!document.getElementById('event-date').value) {
+        document.getElementById('event-date').value = new Date().toISOString().split('T')[0];
+    }
+    document.getElementById('event-location').value = '';
+    document.getElementById('event-note').value = '';
+    openModal('event-modal');
+}
+
+function editEvent(id) {
+    const ev = state.clubEvents.find(x => x.id === id);
+    if (!ev) return;
+    document.getElementById('event-id').value = ev.id;
+    document.getElementById('event-name').value = ev.eventName;
+    document.getElementById('event-date').value = ev.eventDate ? new Date(ev.eventDate).toISOString().split('T')[0] : '';
+    document.getElementById('event-location').value = ev.eventLocation || '';
+    document.getElementById('event-note').value = ev.eventNote || '';
+    openModal('event-modal');
+}
+
+async function saveEvent() {
+    const name = document.getElementById('event-name').value;
+    const date = document.getElementById('event-date').value;
+    if (!name || !date) return showToast('Vui lòng nhập tên và ngày sự kiện!', 'error');
+
+    const id = document.getElementById('event-id').value || ('ev_' + Date.now());
+    const payload = {
+        id,
+        eventName: name,
+        eventDate: date,
+        eventLocation: document.getElementById('event-location').value,
+        eventNote: document.getElementById('event-note').value
+    };
+
+    try {
+        await syncToBackend('save_event', payload);
+        const idx = state.clubEvents.findIndex(x => x.id === id);
+        if (idx > -1) state.clubEvents[idx] = payload;
+        else state.clubEvents.push(payload);
+        
+        closeModal('event-modal');
+        showToast('Đã lưu sự kiện thành công!', 'success');
+        renderActivityCalendar();
+    } catch (e) {
+        showToast('Lỗi khi lưu sự kiện.', 'error');
+    }
+}
+
+async function deleteEvent(id) {
+    if (!confirm('Bạn có chắc muốn xóa sự kiện này?')) return;
+    try {
+        await syncToBackend('delete_event', { id });
+        state.clubEvents = state.clubEvents.filter(x => x.id !== id);
+        renderActivityCalendar();
+        showToast('Đã xóa sự kiện.', 'info');
+    } catch (e) {
+        showToast('Lỗi khi xóa sự kiện.', 'error');
+    }
+}
+
+// ==========================================
+// AUDIO PLAYER LOGIC
+// ==========================================
+function initAudioPlayer() {
+    const audio = document.getElementById('main-audio');
+    const volumeSlider = document.getElementById('audio-volume');
+    const savedVolume = localStorage.getItem('hurea-audio-volume') || 0.5;
+    
+    if (audio && volumeSlider) {
+        audio.volume = savedVolume;
+        volumeSlider.value = savedVolume;
+        
+        audio.addEventListener('timeupdate', updateAudioProgress);
+        audio.addEventListener('ended', () => {
+            const btn = document.getElementById('audio-play-btn');
+            const icon = document.getElementById('music-note-icon');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            if (icon) icon.classList.remove('playing');
+        });
+    }
+}
+
+function togglePlay() {
+    const audio = document.getElementById('main-audio');
+    const btn = document.getElementById('audio-play-btn');
+    const icon = document.getElementById('music-note-icon');
+    
+    if (!audio) return;
+    
+    if (audio.paused) {
+        audio.play().catch(e => {
+            console.warn("Autoplay blocked or audio error:", e);
+            showToast("Nhấn lại để phát nhạc", "info");
+        });
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        if (icon) icon.classList.add('playing');
+    } else {
+        audio.pause();
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        if (icon) icon.classList.remove('playing');
+    }
+}
+
+function updateAudioProgress() {
+    const audio = document.getElementById('main-audio');
+    const progressBar = document.getElementById('audio-progress');
+    if (!audio || !progressBar) return;
+    
+    const percent = (audio.currentTime / audio.duration) * 100;
+    progressBar.style.width = percent + '%';
+}
+
+function seekAudio(e) {
+    const audio = document.getElementById('main-audio');
+    const container = document.getElementById('audio-progress-container');
+    if (!audio || !container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pos * audio.duration;
+}
+
+function changeVolume(val) {
+    const audio = document.getElementById('main-audio');
+    const volumeIcon = document.getElementById('volume-icon');
+    if (!audio) return;
+    
+    audio.volume = val;
+    localStorage.setItem('hurea-audio-volume', val);
+    
+    if (volumeIcon) {
+        if (val == 0) volumeIcon.className = 'fa-solid fa-volume-mute';
+        else if (val < 0.5) volumeIcon.className = 'fa-solid fa-volume-low';
+        else volumeIcon.className = 'fa-solid fa-volume-high';
+    }
+}
+
