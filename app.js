@@ -2563,10 +2563,28 @@ function showScoreDetail(mId) {
         </div>
 
         <div class="lux-tabs" style="margin-bottom:20px;">
+            ${(state.currentUser && state.currentUser.id === member.id) ? `
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.1); border-radius: 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: #ef4444;">Phúc khảo điểm</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Yêu cầu kiểm tra lại điểm của bạn</div>
+                        </div>
+                    </div>
+                    <button class="btn-appeal" style="margin:0;" onclick="openScoreAppealModal('${member.id}', '${member.name}')">
+                        Bắt đầu phúc khảo
+                    </button>
+                </div>
+            ` : ''}
+
             <div class="lux-tab-nav" style="display:flex; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
                 <button class="pill active" onclick="switchDetailTab(this, 'prj')">Dự án</button>
                 <button class="pill" onclick="switchDetailTab(this, 'clb')">CLB</button>
                 <button class="pill" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
+                <button class="pill" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
             </div>
         </div>
 
@@ -2605,6 +2623,31 @@ function showScoreDetail(mId) {
             </div>
             <div class="score-formula-box" style="margin-top:12px; font-size:0.75rem; background:rgba(0,0,0,0.03); padding:10px; border-radius:8px; line-height:1.4;">
                 <i class="fa-solid fa-comment-dots"></i> <strong>Nhận xét của TPB:</strong> ${deptRemarks}
+            </div>
+        </div>
+        
+        <div id="detail-tab-appeal-hist" class="detail-tab-pane" style="display:none;">
+            <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
+                <table class="data-table">
+                    <thead><tr><th>Ngày gửi</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                    <tbody>
+                        ${(() => {
+                            const appeals = state.bugReports.filter(b => b.memberId === mId && b.area === 'PHÚC KHẢO');
+                            if (appeals.length === 0) return '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có yêu cầu phúc khảo nào</td></tr>';
+                            return appeals.slice().reverse().map(a => {
+                                let stLabel = 'Chờ xử lý', stColor = 'var(--text-muted)';
+                                if (a.status === 'IN_PROGRESS') { stLabel = 'Đang xử lý'; stColor = '#f59e0b'; }
+                                else if (a.status === 'RESOLVED' || a.status === 'CLOSED') { stLabel = 'Đã xong'; stColor = '#10b981'; }
+                                return `<tr>
+                                    <td>${a.createdAt}</td>
+                                    <td style="font-weight:600;">${a.title}</td>
+                                    <td style="color:${stColor}; font-weight:800;">${stLabel}</td>
+                                    <td><button class="btn-text" style="color:var(--primary); font-weight:700;" onclick="openBugDetail('${a.id}')"><i class="fa-solid fa-eye"></i> Chi tiết</button></td>
+                                </tr>`;
+                            }).join('');
+                        })()}
+                    </tbody>
+                </table>
             </div>
         </div>`;
 
@@ -5084,40 +5127,158 @@ async function submitBugReport() {
     alert('Báo cáo lỗi đã được gửi. Cảm ơn bạn!');
 }
 
-function renderBugReports() {
+function renderBugReports(adminMode = 'SYSTEM') {
     const list = document.getElementById('bug-list');
     if (!list) return;
     list.innerHTML = '';
 
-    if (state.bugReports.length === 0) {
+    const isAdmin = state.userRole === 'admin';
+    const adminTabsContainer = document.getElementById('admin-bug-tabs-container');
+    const formColumn = document.querySelector('.bug-form-column');
+
+    if (formColumn) {
+        formColumn.style.display = isAdmin ? 'none' : 'block';
+        const layout = document.querySelector('.bug-report-layout');
+        if (layout) layout.style.gridTemplateColumns = isAdmin ? '1fr' : '1.2fr 1fr';
+    }
+
+    if (adminTabsContainer) {
+        adminTabsContainer.style.display = isAdmin ? 'block' : 'none';
+    }
+
+    // Filter reports based on role and mode
+    let filtered = state.bugReports.slice().reverse();
+    
+    if (isAdmin) {
+        // Admin sees either SYSTEM bugs or ALL appeals depending on the tab
+        filtered = filtered.filter(b => adminMode === 'APPEAL' ? b.area === 'PHÚC KHẢO' : b.area !== 'PHÚC KHẢO');
+    } else {
+        // Regular users ONLY see System Bugs in the global list
+        filtered = filtered.filter(b => b.area !== 'PHÚC KHẢO');
+    }
+
+    if (filtered.length === 0) {
         list.innerHTML = `
             <div class="empty-feed">
                 <i class="fa-solid fa-clipboard-check"></i>
-                <p>Tạm thời chưa có báo cáo nào. Hệ thống của bạn đang rất ổn định!</p>
+                <p>Tạm thời chưa có báo cáo nào ở mục này.</p>
             </div>`;
         return;
     }
 
-    state.bugReports.slice().reverse().forEach(bug => {
-        const priorityLabel = bug.priority === 'HIGH' ? 'Nghiêm trọng' : (bug.priority === 'MEDIUM' ? 'Trung bình' : 'Thấp');
+    filtered.forEach(bug => {
+        let statusLabel = 'Chưa xử lý', statusClass = 'status-tag-open';
+        if (bug.status === 'IN_PROGRESS') {
+            statusLabel = 'Đang xử lý'; statusClass = 'status-tag-progress';
+        } else if (bug.status === 'RESOLVED' || bug.status === 'CLOSED') {
+            statusLabel = 'Đã hoàn thành'; statusClass = 'status-tag-resolved';
+        }
+
+        const isAppeal = bug.area === 'PHÚC KHẢO';
+        const typeLabel = isAppeal ? '📝 Phúc khảo' : '🐞 Lỗi hệ thống';
+        const typeIcon = isAppeal ? 'fa-file-signature' : 'fa-bug';
+        const prioText = bug.priority === 'HIGH' ? 'Ưu tiên: Gấp' : (bug.priority === 'MEDIUM' ? 'Ưu tiên: Thường' : 'Ưu tiên: Thấp');
+
         list.innerHTML += `
             <div class="bug-item prio-${bug.priority}">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
-                    <h5 style="color:var(--text-main);margin:0;">${bug.title}</h5>
-                    <span class="bug-status-tag prio-${bug.priority}">${priorityLabel}</span>
+                <div class="bug-item-header">
+                    <div class="bug-item-title-section">
+                        <div class="bug-item-type-badge">
+                            <i class="fa-solid ${typeIcon}"></i> ${typeLabel}
+                        </div>
+                        <h3 class="bug-item-title">${bug.title}</h3>
+                    </div>
+                    <span class="bug-status-tag ${statusClass}">${statusLabel}</span>
                 </div>
-                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;display:flex;gap:12px;">
-                    <span><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i> ${bug.area || 'Hệ thống'}</span>
-                    <span><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i> ${bug.status}</span>
+
+                <div class="bug-item-grid">
+                    <div class="grid-info-item">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span>${bug.area || 'Hệ thống'}</span>
+                    </div>
+                    <div class="grid-info-item">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span>${prioText}</span>
+                    </div>
+                    <div class="grid-info-item">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <span>${bug.createdAt}</span>
+                    </div>
                 </div>
-                <p style="font-size:0.85rem;line-height:1.5;color:var(--text-muted);margin-bottom:12px;">${bug.desc}</p>
-                ${bug.screenshot ? `<div style="margin-top:12px;"><img src="${bug.screenshot}" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.1);"></div>` : ''}
-                <div class="bug-meta">
-                    <span style="opacity:0.6;"><i class="fa-solid fa-calendar-day"></i> ${bug.createdAt}</span>
-                    <span style="color:var(--primary);cursor:pointer;font-weight:600;" onclick="openBugDetail('${bug.id}')"><i class="fa-solid fa-circle-chevron-right"></i> Chi tiết</span>
+
+                <p class="bug-item-desc">${bug.desc}</p>
+                
+                ${bug.screenshot ? `
+                    <div style="margin-top:8px; border-radius:12px; overflow:hidden; border:1px solid var(--border-color); width:120px; height:80px;">
+                        <img src="${bug.screenshot}" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                ` : ''}
+
+                <div style="margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end;">
+                    <button class="btn-text" style="color:var(--primary); font-weight:800; display:flex; align-items:center; gap:6px;" onclick="openBugDetail('${bug.id}')">
+                        <i class="fa-solid fa-circle-chevron-right"></i> Xem chi tiết
+                    </button>
                 </div>
             </div>`;
     });
+}
+
+function switchAdminBugTab(mode) {
+    const tabs = document.querySelectorAll('.admin-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    
+    const target = (mode === 'SYSTEM') ? tabs[0] : tabs[1];
+    if (target) target.classList.add('active');
+    
+    renderBugReports(mode);
+}
+
+function openScoreAppealModal(mId, mName) {
+    const modal = document.getElementById('score-appeal-modal');
+    if (!modal) return;
+    
+    document.getElementById('appeal-member-name').value = mName;
+    document.getElementById('appeal-title').value = '';
+    document.getElementById('appeal-desc').value = '';
+    
+    state.currentAppealMemberId = mId;
+    openModal('score-appeal-modal');
+}
+
+function submitScoreAppeal() {
+    const title = document.getElementById('appeal-title').value;
+    const desc = document.getElementById('appeal-desc').value;
+    const mName = document.getElementById('appeal-member-name').value;
+    const imgPreview = document.querySelector('#appeal-preview img');
+    const screenshot = imgPreview ? imgPreview.src : null;
+
+    if (!title || !desc) return alert('Vui lòng nhập đầy đủ tiêu đề và nội dung phúc khảo!');
+
+    const appeal = {
+        id: 'appeal_' + Date.now(),
+        title: title,
+        priority: 'MEDIUM',
+        area: 'PHÚC KHẢO',
+        desc: `Phúc khảo bởi ${mName}: ${desc}`,
+        status: 'OPEN',
+        screenshot: screenshot,
+        createdAt: new Date().toLocaleDateString('vi-VN'),
+        term: state.currentTerm,
+        memberId: state.currentAppealMemberId
+    };
+
+    state.bugReports.push(appeal);
+    syncToBackend('save_bug_report', appeal);
+
+    showToast('Yêu cầu phúc khảo của bạn đã được gửi thành công!', 'success');
+    closeModal('score-appeal-modal');
+    
+    // Reset form
+    document.getElementById('appeal-title').value = '';
+    document.getElementById('appeal-desc').value = '';
+    removeImagePreview('appeal-preview', 'appeal-screenshot');
+    
+    renderBugReports();
 }
 
 function openBugDetail(bugId) {
@@ -5161,10 +5322,9 @@ function openBugDetail(bugId) {
             <h4 style="margin-bottom:16px;">Cập nhật trạng thái (Admin)</h4>
             <div style="display:flex;gap:12px;">
                 <select id="update-bug-status" class="styled-select" style="flex:1;">
-                    <option value="OPEN" ${bug.status === 'OPEN' ? 'selected' : ''}>Mở (Đang chờ)</option>
-                    <option value="IN_PROGRESS" ${bug.status === 'IN_PROGRESS' ? 'selected' : ''}>Đang xử lý</option>
-                    <option value="RESOLVED" ${bug.status === 'RESOLVED' ? 'selected' : ''}>Đã khắc phục</option>
-                    <option value="CLOSED" ${bug.status === 'CLOSED' ? 'selected' : ''}>Đã đóng</option>
+                    <option value="OPEN" ${bug.status === 'OPEN' ? 'selected' : ''}>Chưa sửa / Chưa xử lý</option>
+                    <option value="IN_PROGRESS" ${bug.status === 'IN_PROGRESS' ? 'selected' : ''}>Đang sửa / Đang xử lý</option>
+                    <option value="RESOLVED" ${bug.status === 'RESOLVED' ? 'selected' : ''}>Đã sửa / Hoàn thành</option>
                 </select>
                 <button class="btn-primary" onclick="saveBugUpdate('${bug.id}')">Cập nhật</button>
             </div>
@@ -6979,6 +7139,18 @@ function changeVolume(val) {
         if (val == 0) volumeIcon.className = 'fa-solid fa-volume-mute';
         else if (val < 0.5) volumeIcon.className = 'fa-solid fa-volume-low';
         else volumeIcon.className = 'fa-solid fa-volume-high';
+    }
+}
+function toggleAudioWidget() {
+    const widget = document.getElementById('audio-player-widget');
+    const icon = document.getElementById('toggle-widget-icon');
+    if (!widget || !icon) return;
+
+    const isMinimized = widget.classList.toggle('minimized');
+    if (isMinimized) {
+        icon.className = 'fa-solid fa-expand-arrows-alt';
+    } else {
+        icon.className = 'fa-solid fa-compress-arrows-alt';
     }
 }
 

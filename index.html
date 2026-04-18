@@ -1239,14 +1239,26 @@
                         <div class="bug-history-column glass-panel">
                             <div class="column-header">
                                 <div class="header-main">
-                                    <span class="icon-orb orb-history"><i
-                                            class="fa-solid fa-clock-rotate-left"></i></span>
+                                    <span class="icon-orb orb-history"><i class="fa-solid fa-clock-rotate-left"></i></span>
                                     <div class="header-text">
                                         <h2>Lịch sử báo cáo</h2>
                                         <p>Theo dõi tiến độ xử lý các vấn đề của bạn</p>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Tab Switcher (Admin Only) -->
+                            <div id="admin-bug-tabs-container" style="display:none; padding: 0 20px 10px;">
+                                <div id="admin-bug-tabs" class="admin-tab-switcher">
+                                    <button class="admin-tab active" onclick="switchAdminBugTab('SYSTEM')">
+                                        <i class="fa-solid fa-bug"></i> Lỗi hệ thống
+                                    </button>
+                                    <button class="admin-tab" onclick="switchAdminBugTab('APPEAL')">
+                                        <i class="fa-solid fa-file-signature"></i> Phúc khảo điểm
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="column-body" id="bug-list">
                                 <!-- Bug reports will be rendered here -->
                             </div>
@@ -2454,6 +2466,9 @@
 
     <!-- ===== AUDIO PLAYER ===== -->
     <div id="audio-player-widget" class="glass-panel">
+        <button class="btn-toggle-widget" onclick="toggleAudioWidget()" title="Thu nhỏ/Phóng to">
+            <i class="fa-solid fa-compress-arrows-alt" id="toggle-widget-icon"></i>
+        </button>
         <audio id="main-audio" loop>
             <source src="Dept- Van Gogh (Feat. Ashley Alisha) Official lyrics video.mp3" type="audio/mpeg">
         </audio>
@@ -2478,6 +2493,55 @@
             <div class="volume-container">
                 <i class="fa-solid fa-volume-high" id="volume-icon"></i>
                 <input type="range" id="audio-volume" min="0" max="1" step="0.05" value="0.5" oninput="changeVolume(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SCORE APPEAL MODAL (PHÚC KHẢO) ===== -->
+    <div id="score-appeal-modal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-signature"></i> Phúc khảo điểm</h3>
+                <span class="close-modal" onclick="closeModal('score-appeal-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+                    Hãy cung cấp chi tiết về các phần điểm bạn thấy chưa chính xác (thiếu điểm cộng, sai điểm trừ,...) để Ban chủ nhiệm kiểm tra lại.
+                </p>
+                <div class="lux-form">
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-user"></i> Thành viên</label>
+                        <input type="text" id="appeal-member-name" disabled style="background:rgba(0,0,0,0.05);">
+                    </div>
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-heading"></i> Tiêu đề phúc khảo</label>
+                        <input type="text" id="appeal-title" placeholder="VD: Thiếu điểm cộng hỗ trợ chương trình...">
+                    </div>
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-pen-nib"></i> Nội dung chi tiết</label>
+                        <textarea id="appeal-desc" rows="5" placeholder="Mô tả chi tiết các phần điểm bị thiếu hoặc sai lệch..."></textarea>
+                    </div>
+                    <div class="input-group-v2">
+                        <label><i class="fa-solid fa-image"></i> Ảnh minh chứng (nếu có)</label>
+                        <input type="file" id="appeal-screenshot" accept="image/*" style="display:none"
+                            onchange="handleImagePreview(this, 'appeal-preview')">
+                        <div class="lux-dropzone"
+                            onclick="document.getElementById('appeal-screenshot').click()">
+                            <div id="appeal-preview" class="upload-preview-area">
+                                <div class="drop-circle">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="drop-text">
+                                    <strong>Nhấp để tải ảnh lên</strong>
+                                    <span>Tải minh chứng điểm cộng/trừ</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" style="width:100%; margin-top:10px;" onclick="submitScoreAppeal()">
+                        <i class="fa-solid fa-paper-plane"></i> Gửi yêu cầu phúc khảo
+                    </button>
+                </div>
             </div>
         </div>
     </div>
