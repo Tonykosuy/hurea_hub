@@ -7298,14 +7298,14 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
 .audio-icon-wrapper {
     width: 48px;
     height: 48px;
-    background: var(--lux-gradient);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
     border-radius: 14px;
     display: flex;
     justify-content: center;
     align-items: center;
     color: white;
     cursor: pointer;
-    box-shadow: var(--lux-glow);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
     transition: transform 0.3s ease;
 }
 
@@ -7352,9 +7352,10 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     transition: all 0.2s ease;
 }
 .btn-audio-toggle:hover {
-    background: var(--primary);
+    background: #f59e0b;
     color: white;
     transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
 .audio-controls {
@@ -7376,7 +7377,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: var(--lux-gradient);
+    background: linear-gradient(90deg, #f59e0b, #d97706);
     border-radius: 3px;
     transition: width 0.1s linear;
 }
@@ -7405,17 +7406,18 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     appearance: none;
     width: 14px;
     height: 14px;
-    background: var(--primary);
+    background: #f59e0b;
     border: 2px solid #fff;
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(14, 165, 233, 0.5);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
     transition: all 0.2s ease;
+    margin-top: -4.5px;
 }
 
 .volume-container input[type='range']::-webkit-slider-thumb:hover {
     transform: scale(1.2);
-    box-shadow: 0 0 12px rgba(14, 165, 233, 0.7);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);
 }
 
 @keyframes slideUp {
