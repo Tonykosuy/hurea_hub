@@ -7432,3 +7432,72 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
         right: 24px;
     }
 }
+
+/* ==========================================
+   HUReA HUB: THEMED DEPARTMENT EVALUATIONS
+   ========================================== */
+.dept-header-theme {
+    padding: 16px 24px;
+    border-radius: 20px 20px 0 0;
+    color: white;
+    font-weight: 800;
+    font-size: 1.1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.dept-form-container {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    margin-top: 15px;
+    background: var(--bg-panel);
+}
+
+.dept-cat-header {
+    background: var(--bg-sidebar);
+    padding: 10px 20px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dept-table-themed {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.dept-table-themed th {
+    background: var(--active-dept-color);
+    color: white;
+    padding: 14px 18px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    text-align: left;
+    letter-spacing: 1px;
+}
+
+.dept-table-themed td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.dept-table-themed tr:last-child td {
+    border-bottom: none;
+}
+
+/* Override Department Tags with official HuReA colors */
+.dept-tag.tag-ld { background: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2) !important; }
+.dept-tag.tag-rr { background: rgba(245, 158, 11, 0.1) !important; color: #f59e0b !important; border: 1px solid rgba(245, 158, 11, 0.2) !important; }
+.dept-tag.tag-er { background: rgba(14, 165, 233, 0.1) !important; color: #0ea5e9 !important; border: 1px solid rgba(14, 165, 233, 0.2) !important; }
+.dept-tag.tag-eb { background: rgba(16, 185, 129, 0.1) !important; color: #10b981 !important; border: 1px solid rgba(16, 185, 129, 0.2) !important; }
