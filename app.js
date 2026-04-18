@@ -4167,7 +4167,8 @@ function renderEvaluationTasks() {
             const totalRequired = participants.length;
 
             // Count unique raters who have submitted at least one record for this project
-            state.evaluations.forEach(ev => {
+            const submittedRaters = new Set();
+            (state.evaluations || []).forEach(ev => {
                 const evPrj = String(ev.prjId || ev.prjid).trim();
                 if (evPrj === prjIdStr) {
                     submittedRaters.add(String(ev.raterId || ev.raterid).trim());
