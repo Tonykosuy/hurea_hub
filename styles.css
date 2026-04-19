@@ -7503,7 +7503,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
 .dept-tag.tag-eb { background: rgba(16, 185, 129, 0.1) !important; color: #10b981 !important; border: 1px solid rgba(16, 185, 129, 0.2) !important; }
 
 /* ==========================================
-   SCORE APPEAL (PHÚC KH?O) STYLES
+   SCORE APPEAL (PHï¿½C KH?O) STYLES
    ========================================== */
 .status-tag-open { background: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2) !important; }
 .status-tag-progress { background: rgba(245, 158, 11, 0.1) !important; color: #f59e0b !important; border: 1px solid rgba(245, 158, 11, 0.2) !important; }
@@ -7669,6 +7669,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     color: var(--text-muted);
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin: 0;

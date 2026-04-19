@@ -150,7 +150,12 @@ function normalizeDataKeys(data) {
         'eventdate': 'eventDate',
         'eventname': 'eventName',
         'eventlocation': 'eventLocation',
-        'eventnote': 'eventNote'
+        'eventnote': 'eventNote',
+        // Evaluation mappings
+        'disciplinepoints': 'disciplinePoints',
+        'brandscore': 'brandScore',
+        'bonusscore': 'bonusScore',
+        'photocount': 'photoCount'
     };
 
     const newData = {};
@@ -222,7 +227,8 @@ async function loadDataFromAPI() {
             state.config = normalizeDataKeys(d.config || {});
             if (state.config.adminPassword) ADMIN_PASSWORD = String(state.config.adminPassword);
             if (d.evidences) {
-                d.evidences.forEach(ev => {
+                const normalizedEv = normalizeDataKeys(d.evidences);
+                normalizedEv.forEach(ev => {
                     if (ev.memberId) {
                         state.evidences[ev.memberId] = { photos: [], newPhotos: [], label: ev.label || '', photoCount: ev.photoCount || 0 };
                     }
@@ -446,7 +452,7 @@ function switchEvalTab(paneId) {
 // MODALS
 function openModal(id, extra) {
     document.getElementById(id).classList.add('active');
-    if (id === 'project-modal') { state.activeProjectParticipantsSetup = []; renderParticipantList(); }
+    if (id === 'project-modal') { state.activeProjectParticipantsSetup = []; }
     if (id === 'announcement-modal') {
         const idField = document.getElementById('ann-id');
         // Chỉ reset nếu có extra (tức là mở từ nút Tạo mới, còn nếu truyền từ editAnnouncement thì không được gọi với extra là GLOBAL/DEPT bởi vì editAnnouncement mở trực tiếp không qua extra)
@@ -2249,17 +2255,29 @@ function calculateMemberClubScore(mId) {
 
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     let supportCount = 0;
+    let coreteamCount = 0;
     let checkinCount = 0;
+    
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
-        if (participants.some(p => p.memberId === mId && p.role === 'SUPPORT')) supportCount++;
-        if (prj.type === 'internal' && participants.some(p => p.memberId === mId && p.role === 'CHECKIN')) checkinCount++;
+        const pt = participants.find(p => p.memberId === mId);
+        if (!pt) return;
+
+        if (pt.role === 'SUPPORT') {
+            supportCount++;
+        } else if (pt.role === 'CHECKIN') {
+            if (prj.type === 'internal') checkinCount++;
+        } else {
+            // Assume any other role (PL, Leader, Member) is part of Coreteam
+            coreteamCount++;
+        }
     });
 
-    // b. Tổ chức, hỗ trợ các chương trình của CLB (dựa vào danh sách nhân sự hỗ trợ) (hệ số 0.3)
-    let supportScore = 8;
-    if (supportCount >= 2) supportScore = 10;
-    else if (supportCount === 1) supportScore = 9;
+    // b. Tổ chức, hỗ trợ các chương trình của CLB (hệ số 0.3)
+    // Formula: (Non-Project Support * 30%) + (Program Coreteam * 70%)
+    const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
+    const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
+    const supportScore = (sBase * 0.3) + (cBase * 0.7);
 
     // c. Tích cực tham gia chương trình nội bộ (dựa vào danh sách checkin) (hệ số 0.2)
     let inScore = 7;
@@ -2397,20 +2415,27 @@ function showScoreDetail(mId) {
     let disc = discVal; 
     disc = Math.max(0, Math.min(10, disc));
     let supportCount = 0;
+    let coreteamCount = 0;
     let internalCheckinCount = 0;
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
-        if (pt.role === 'SUPPORT') supportCount++;
-        if (prj.type === 'internal' && pt.role === 'CHECKIN') internalCheckinCount++;
+        
+        if (pt.role === 'SUPPORT') {
+            supportCount++;
+        } else if (pt.role === 'CHECKIN') {
+            if (prj.type === 'internal') internalCheckinCount++;
+        } else {
+            coreteamCount++;
+        }
     });
     
-    const mapSupport = c => c >= 2 ? 10 : (c === 1 ? 9 : 8);
-    const mapInternal = c => c >= 3 ? 10 : (c === 2 ? 9 : (c === 1 ? 8 : 7));
-    
-    const evScore = mapSupport(supportCount);
-    const inScore = mapInternal(internalCheckinCount);
+    const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
+    const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
+    const supportScore = (sBase * 0.3) + (cBase * 0.7);
+
+    const inScore = internalCheckinCount >= 3 ? 10 : (internalCheckinCount === 2 ? 9 : (internalCheckinCount === 1 ? 8 : 7));
     const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
     const reasons = (ce && ce.reasons && ce.reasons.length > 0)
         ? ce.reasons.map(r => `<span style="display:inline-block;background:var(--secondary);padding:2px 8px;border-radius:6px;font-size:0.78rem;margin:2px">${r}</span>`).join('')
@@ -2603,7 +2628,7 @@ function showScoreDetail(mId) {
                     <thead><tr><th>Tiêu chí</th><th>Giá trị</th><th>Trọng số</th><th>Thành phần</th></tr></thead>
                     <tbody>
                         <tr><td>Kỷ luật nội quy</td><td>${disc}/10</td><td>30%</td><td>${(parseFloat(disc || 0) * 0.3).toFixed(2)}</td></tr>
-                        <tr><td>Sự kiện Tổ chức</td><td>${evScore}/10</td><td>30%</td><td>${(parseFloat(evScore || 0) * 0.3).toFixed(2)}</td></tr>
+                        <tr><td>Sự kiện Tổ chức</td><td>${supportScore.toFixed(2)}/10</td><td>30%</td><td>${(parseFloat(supportScore || 0) * 0.3).toFixed(2)}</td></tr>
                         <tr><td>Chương trình Nội bộ</td><td>${inScore}/10</td><td>20%</td><td>${(parseFloat(inScore || 0) * 0.2).toFixed(2)}</td></tr>
                         <tr><td>Hình ảnh & Thương hiệu</td><td>${brand}/10</td><td>20%</td><td>${(parseFloat(brand || 0) * 0.2).toFixed(2)}</td></tr>
                     </tbody>
@@ -2674,7 +2699,7 @@ function showScoreDetail(mId) {
 
         const rs = (disc + dRule) / 2;
         const ws = dWork;
-        const cas = (evScore + inScore) / 2;
+        const cas = (supportScore + inScore) / 2;
         const rels = (brand + dRel) / 2;
 
         if (window.memberRadarChart) window.memberRadarChart.destroy();
@@ -2744,21 +2769,28 @@ async function downloadPDF(mId) {
 
         // Automated Club Scoring Calculation for PDF
         let supportCount = 0;
+        let coreteamCount = 0;
         let internalCheckinCount = 0;
         const termProjects = state.projects.filter(p => p.term === state.currentTerm);
         termProjects.forEach(prj => {
             const participants = ensureArray(prj.participants);
             const pt = participants.find(p => p.memberId === mId);
             if (!pt) return;
-            if (pt.role === 'SUPPORT') supportCount++;
-            if (prj.type === 'internal' && pt.role === 'CHECKIN') internalCheckinCount++;
+            
+            if (pt.role === 'SUPPORT') {
+                supportCount++;
+            } else if (pt.role === 'CHECKIN') {
+                if (prj.type === 'internal') internalCheckinCount++;
+            } else {
+                coreteamCount++;
+            }
         });
 
-        const mapSupport = c => c >= 2 ? 10 : (c === 1 ? 9 : 8);
-        const mapInternal = c => c >= 3 ? 10 : (c === 2 ? 9 : (c === 1 ? 8 : 7));
+        const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
+        const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
+        const supportScore = (sBase * 0.3) + (cBase * 0.7);
 
-        const evScore = mapSupport(supportCount);
-        const inScore = mapInternal(internalCheckinCount);
+        const inScore = internalCheckinCount >= 3 ? 10 : (internalCheckinCount === 2 ? 9 : (internalCheckinCount === 1 ? 8 : 7));
         const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
         
         let disc = 10;
@@ -2797,7 +2829,8 @@ async function downloadPDF(mId) {
                 const ruleS = (disc + dRule) / 2;
                 const workS = dWork;
                 const relS = (brand + dRel) / 2;
-                const clubS = (evScore + inScore) / 2;
+                const clubS = (supportScore + inScore) / 2;
+                const prjS = prjScore; // already on scale 10
 
                 new Chart(canvas, {
                     type: 'radar',
@@ -2805,7 +2838,7 @@ async function downloadPDF(mId) {
                         labels: ['Dự án', 'Kỷ luật', 'Chuyên môn', 'HĐ CLB', 'Quan hệ'],
                         datasets: [{
                             label: 'Năng lực',
-                            data: [prjScore, ruleS, workS, clubS, relS],
+                            data: [prjS, ruleS, workS, clubS, relS],
                             backgroundColor: 'rgba(197, 160, 89, 0.35)',
                             borderColor: '#c5a059',
                             borderWidth: 3,
@@ -2948,7 +2981,7 @@ async function downloadPDF(mId) {
                             </thead>
                             <tbody>
                                 <tr><td class="row-category">TINH THẦN TRÁCH NHIỆM</td><td class="text-left">Chấp hành kỷ luật, nội quy, văn hóa CLB</td><td>0.3</td><td>${disc.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">THAM GIA VÀ HỖ TRỢ CÁC CÔNG VIỆC CỦA CLB</td><td class="text-left">Tổ chức, hỗ trợ các chương trình của CLB</td><td>0.3</td><td>${evScore.toFixed(2)}</td></tr>
+                                <tr><td class="row-category">THAM GIA VÀ HỖ TRỢ CÁC CÔNG VIỆC CỦA CLB</td><td class="text-left">Tổ chức, hỗ trợ các chương trình của CLB</td><td>0.3</td><td>${supportScore.toFixed(2)}</td></tr>
                                 <tr><td>&nbsp;</td><td class="text-left">Tích cực tham gia chương trình nội bộ</td><td>0.2</td><td>${inScore.toFixed(2)}</td></tr>
                                 <tr><td class="row-category">PHÁT TRIỂN HÌNH ẢNH CLB</td><td class="text-left">Tuyên truyền, phát triển hình ảnh CLB</td><td>0.2</td><td>${brand.toFixed(2)}</td></tr>
                                 <tr><td class="row-category">MẶT KHÁC</td><td colspan="2">Điểm cộng</td><td>${parseFloat((ce ? ce.disciplinePoints : 0) || 0).toFixed(2)}</td></tr>
@@ -3297,6 +3330,9 @@ function checkExistingScore(type, mId) {
     } else {
         historyEl.style.display = 'none';
         formEl.style.display = 'block';
+        if (document.getElementById(`btn-delete-${type}-edit`)) {
+            document.getElementById(`btn-delete-${type}-edit`).style.display = 'none';
+        }
     }
 }
 
@@ -3335,11 +3371,66 @@ function editEval(type) {
     document.getElementById(`${type}-eval-history`).style.display = 'none';
     document.getElementById(`${type}-eval-form`).style.display = 'block';
     document.getElementById(`btn-cancel-${type}-edit`).style.display = 'inline-block';
+    document.getElementById(`btn-delete-${type}-edit`).style.display = 'inline-block';
+}
+
+async function deleteEvalRecord(type) {
+    const mId = document.getElementById(`eval-${type}-member`).value;
+    if (!mId) return;
+
+    if (!confirm('Bạn có chắc chắn muốn xóa đánh giá này? Dữ liệu sẽ không thể khôi phục.')) return;
+
+    const btn = event.currentTarget;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const sheetName = type === 'club' ? 'ScoreClub' : 'ScoreDept';
+        await syncToBackend('delete_score_record', { type: sheetName, memberId: mId, term: state.currentTerm });
+
+        // Update local state
+        if (type === 'club') {
+            state.clubScores = state.clubScores.filter(x => !(x.memberId === mId && x.term === state.currentTerm));
+        } else {
+            state.deptScores = state.deptScores.filter(x => !(x.memberId === mId && x.term === state.currentTerm));
+        }
+
+        showToast('Xóa đánh giá thành công!', 'success');
+        
+        isEditingEval[type] = false;
+        if (document.getElementById(`btn-cancel-${type}-edit`)) document.getElementById(`btn-cancel-${type}-edit`).style.display = 'none';
+        if (document.getElementById(`btn-delete-${type}-edit`)) document.getElementById(`btn-delete-${type}-edit`).style.display = 'none';
+        
+        // Reset inputs
+        if (type === 'club') {
+            document.getElementById('club-discipline-score').value = '';
+            document.getElementById('club-discipline-reason').value = '';
+            document.getElementById('club-brand-score').value = '';
+            document.getElementById('club-bonus-score').value = '';
+        } else {
+            const member = state.members.find(m => m.id === mId);
+            if (member) renderDeptEvalForm(member.dept);
+            document.getElementById('dept-bonus-score').value = '';
+            document.getElementById('dept-comment').value = '';
+        }
+        
+        checkExistingScore(type, mId);
+    } catch (err) {
+        showToast('Lỗi khi xóa dữ liệu!', 'error');
+        console.error(err);
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
 }
 
 function cancelEvalEdit(type) {
     isEditingEval[type] = false;
     document.getElementById(`btn-cancel-${type}-edit`).style.display = 'none';
+    document.getElementById(`btn-delete-${type}-edit`).style.display = 'none';
     checkExistingScore(type, document.getElementById(`eval-${type}-member`).value);
 }
 
@@ -3402,6 +3493,7 @@ async function saveClubEval() {
 
         isEditingEval.club = false;
         document.getElementById('btn-cancel-club-edit').style.display = 'none';
+        document.getElementById('btn-delete-club-edit').style.display = 'none';
         
         // Reset discipline inputs
         document.getElementById('club-discipline-score').value = '';
@@ -3471,6 +3563,7 @@ async function saveDeptEval() {
         
         isEditingEval.dept = false;
         document.getElementById('btn-cancel-dept-edit').style.display = 'none';
+        document.getElementById('btn-delete-dept-edit').style.display = 'none';
         checkExistingScore('dept', mId);
     } catch (err) {
         showToast('Lỗi khi đồng bộ dữ liệu!', 'error');
@@ -6346,6 +6439,10 @@ function renderMeetingPolls() {
                 <button class="btn-secondary btn-sm" onclick="event.stopPropagation(); copyPollShareLinkById('${poll.id}')" title="Sao chép link">
                     <i class="fa-solid fa-link"></i>
                 </button>
+                ${state.userRole === 'admin' ? `
+                <button class="btn-secondary btn-sm delete" onclick="event.stopPropagation(); deleteMeetingPoll('${poll.id}')" title="Xóa cuộc họp" style="color:var(--danger);">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>` : ''}
                 <span class="poll-voters-count"><i class="fa-solid fa-users"></i> ${voterCount}</span>
             </div>
         `;
@@ -6501,6 +6598,23 @@ function openPollDetail(pollId) {
     // Show/hide submit based on expiry
     const submitBtn = document.getElementById('btn-submit-vote');
     if (submitBtn) submitBtn.style.display = isExpired ? 'none' : 'inline-flex';
+
+    // Header delete button for admin
+    const actionsEl = document.querySelector('#meeting-poll-detail-view .poll-detail-actions');
+    if (actionsEl) {
+        // Remove existing delete btn if any
+        const existing = actionsEl.querySelector('.btn-delete-poll');
+        if (existing) existing.remove();
+
+        if (state.userRole === 'admin') {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-secondary btn-sm delete btn-delete-poll';
+            delBtn.style.color = 'var(--danger)';
+            delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Xóa Cuộc Họp';
+            delBtn.onclick = () => deleteMeetingPoll(pollId);
+            actionsEl.appendChild(delBtn);
+        }
+    }
 }
 
 function closePollDetail() {
@@ -6510,6 +6624,25 @@ function closePollDetail() {
     // Clear hash
     if (window.location.hash.startsWith('#poll=')) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+}
+
+async function deleteMeetingPoll(id) {
+    if (state.userRole !== 'admin') return;
+    if (!confirm('Bạn có chắc chắn muốn xóa cuộc họp này? Toàn bộ dữ liệu vote sẽ bị ẩn.')) return;
+
+    try {
+        await syncToBackend('delete_meeting_poll', { id });
+        state.meetingPolls = state.meetingPolls.filter(p => String(p.id) !== String(id));
+        showToast('Đã xóa cuộc họp thành công!', 'success');
+        
+        if (state.activePollId === id) {
+            closePollDetail();
+        }
+        renderMeetingPolls();
+    } catch (e) {
+        console.error('Failed to delete poll:', e);
+        showToast('Lỗi khi xóa cuộc họp!', 'error');
     }
 }
 

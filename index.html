@@ -687,8 +687,14 @@
                                     <div class="history-card">
                                         <div class="history-header">
                                             <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
-                                            <button class="btn-sm btn-secondary" onclick="editEval('club')"><i
-                                                    class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                            <div style="display:flex; gap:8px;">
+                                                <button class="btn-sm btn-secondary" onclick="editEval('club')"><i
+                                                        class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                                <button class="btn-sm btn-danger" onclick="deleteEvalRecord('club')" 
+                                                        style="background:#fee2e2; color:#ef4444; border:1px solid #fecaca; padding:4px 8px; border-radius:8px;">
+                                                    <i class="fa-solid fa-trash-can"></i> Xóa
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="history-body" id="club-history-content">
                                             <!-- Filled by JS -->
@@ -713,10 +719,12 @@
                                         <label>Điểm cộng Hoạt động CLB (Cộng trực tiếp)</label>
                                         <input type="number" id="club-bonus-score" placeholder="VD: 1.5" step="0.1">
                                     </div>
-                                    <div style="display:flex; gap:12px; margin-top:20px;">
+                                    <div style="display:flex; gap:12px; margin-top:20px; align-items:center;">
                                         <button class="btn-primary" onclick="saveClubEval()">Lưu Đánh Giá CLB</button>
                                         <button id="btn-cancel-club-edit" class="btn-secondary" style="display:none"
                                             onclick="cancelEvalEdit('club')">Hủy bỏ</button>
+                                        <button id="btn-delete-club-edit" class="btn-danger" style="display:none; margin-left:auto; background:none; color:#ef4444; border:none; font-weight:600;"
+                                            onclick="deleteEvalRecord('club')"><i class="fa-solid fa-trash-can"></i> Xóa bản ghi này</button>
                                     </div>
                                 </div> <!-- End club-eval-form -->
                             </div> <!-- End club-form-container -->
@@ -772,8 +780,14 @@
                                     <div class="history-card">
                                         <div class="history-header">
                                             <span><i class="fa-solid fa-clock-rotate-left"></i> Đã đánh giá</span>
-                                            <button class="btn-sm btn-secondary" onclick="editEval('dept')"><i
-                                                    class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                            <div style="display:flex; gap:8px;">
+                                                <button class="btn-sm btn-secondary" onclick="editEval('dept')"><i
+                                                        class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                                                <button class="btn-sm btn-danger" onclick="deleteEvalRecord('dept')"
+                                                        style="background:#fee2e2; color:#ef4444; border:1px solid #fecaca; padding:4px 8px; border-radius:8px;">
+                                                    <i class="fa-solid fa-trash-can"></i> Xóa
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="history-body" id="dept-history-content">
                                             <!-- Filled by JS -->
@@ -794,10 +808,12 @@
                                         <textarea id="dept-comment" rows="3"
                                             placeholder="Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên..."></textarea>
                                     </div>
-                                    <div style="display:flex; gap:12px; margin-top:20px;">
+                                    <div style="display:flex; gap:12px; margin-top:20px; align-items:center;">
                                         <button class="btn-primary" onclick="saveDeptEval()">Lưu Đánh Giá Ban</button>
                                         <button id="btn-cancel-dept-edit" class="btn-secondary" style="display:none"
                                             onclick="cancelEvalEdit('dept')">Hủy bỏ</button>
+                                        <button id="btn-delete-dept-edit" class="btn-danger" style="display:none; margin-left:auto; background:none; color:#ef4444; border:none; font-weight:600;"
+                                            onclick="deleteEvalRecord('dept')"><i class="fa-solid fa-trash-can"></i> Xóa bản ghi này</button>
                                     </div>
                                 </div> <!-- End dept-eval-form -->
                             </div> <!-- End dept-form-container -->
