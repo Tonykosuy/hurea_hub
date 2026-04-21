@@ -7327,6 +7327,7 @@ function formatDateFull(dateStr) {
 // ==========================================
 // CREATE POLL
 // ==========================================
+function handlePollVisibilityChange() {
     const visibility = document.getElementById('poll-visibility').value;
     
     // Hide all
@@ -7572,6 +7573,10 @@ function openPollDetail(pollId) {
     // Show/hide submit based on expiry
     const submitBtn = document.getElementById('btn-submit-vote');
     if (submitBtn) submitBtn.style.display = isExpired ? 'none' : 'inline-flex';
+
+    const actionsEl = document.querySelector('.poll-detail-actions');
+    if (actionsEl) {
+        actionsEl.innerHTML = '';
 
         if (state.userRole === 'admin' || (poll.creatorId && String(poll.creatorId) === String(state.currentUser?.id))) {
             const actionsTop = document.createElement('div');
