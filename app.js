@@ -26,6 +26,8 @@ const state = {
     loginDeptFilter: 'ALL',
     passwordDeptFilter: 'ALL',
     msSelectedIds: [],
+    adminBugStatusFilter: 'ALL',
+    currentAdminBugMode: 'SYSTEM',
     // Project V2 State
     projectTypeFilter: 'ALL',
     projectStatusFilter: 'ALL',
@@ -2486,13 +2488,95 @@ function showScoreDetail(mId) {
             return;
         }
 
-        const evals = state.evaluations.filter(e => e.prjId === prj.id && e.targetId === mId);
+        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
         if (evals.length === 0) {
             prjRows += `<tr><td><strong>${prj.name}</strong></td><td>${pt.role}</td><td colspan="5" style="color:var(--text-muted)">Chưa có đánh giá</td></tr>`;
             return;
         }
         const avg = n => (evals.reduce((s, e) => s + (e[n] || 0), 0) / evals.length).toFixed(1);
         const sc = (evals.reduce((s, e) => s + (e.score || 0), 0) / evals.length).toFixed(2);
+
+        // Build detailed cross-evaluation breakdown
+        const checkPL = (r) => r === 'PL' || r === 'Project Leader';
+        const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
+        const role = pt.role || 'Thành viên';
+        const team = pt.teamName;
+
+        let selfEval = null;
+        let peerEvals = [];
+        let leaderOfTeamEvals = [];
+        let otherLeaderEvals = [];
+        let plEvals = [];
+
+        evals.forEach(e => {
+            const raterId = e.raterId || e.raterid;
+            const raterName = (() => {
+                const m = state.members.find(x => String(x.id) === String(raterId));
+                return m ? m.name : raterId;
+            })();
+            if (String(raterId) === String(mId)) {
+                selfEval = { name: raterName, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+                return;
+            }
+            const raterPt = participants.find(p => String(p.memberId) === String(raterId));
+            if (!raterPt) return;
+            const rRole = raterPt.role;
+            const rTeam = raterPt.teamName;
+            const evalObj = { name: raterName, role: rRole, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+            if (checkPL(rRole)) plEvals.push(evalObj);
+            else if (checkLeader(rRole)) {
+                if (rTeam === team) leaderOfTeamEvals.push(evalObj);
+                else otherLeaderEvals.push(evalObj);
+            } else {
+                if (rTeam === team) peerEvals.push(evalObj);
+            }
+        });
+
+        // Calculate categorical average (same logic as calculateMemberProjectScore)
+        const getAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+        let categories = [];
+        if (selfEval) categories.push(selfEval.score);
+        if (checkPL(role)) {
+            const leadersAvg = getAvg([...leaderOfTeamEvals, ...otherLeaderEvals].map(e => e.score));
+            if (leadersAvg !== null) categories.push(leadersAvg);
+        } else if (checkLeader(role)) {
+            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+            if (teammatesAvg !== null) categories.push(teammatesAvg);
+            const hasPL = participants.some(p => checkPL(p.role));
+            if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
+            else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
+        } else {
+            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+            if (teammatesAvg !== null) categories.push(teammatesAvg);
+            const myLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
+            if (myLeaderAvg !== null) categories.push(myLeaderAvg);
+        }
+        const catAvg = categories.length > 0 ? (categories.reduce((a, b) => a + b, 0) / categories.length).toFixed(2) : '---';
+
+        const detailId = `cross-eval-detail-${prj.id}`;
+        const renderEvalRow = (label, color, items) => {
+            if (items.length === 0) return '';
+            const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
+            const rows = items.map(e => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-bottom:1px solid var(--border-color); font-size:0.82rem;">
+                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${e.name} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
+                    <div style="display:flex; gap:16px; align-items:center;">
+                        <span title="Kỹ năng">KN: ${(e.c4 || 0).toFixed ? e.c4.toFixed(1) : e.c4 || '---'}</span>
+                        <span title="Thái độ">TĐ: ${(e.c1 || 0).toFixed ? e.c1.toFixed(1) : e.c1 || '---'}</span>
+                        <span title="Trách nhiệm">TN: ${(e.c2 || 0).toFixed ? e.c2.toFixed(1) : e.c2 || '---'}</span>
+                        <strong style="color:${color}; min-width:40px; text-align:right;">${(e.score || 0).toFixed(2)}</strong>
+                    </div>
+                </div>`).join('');
+            return `
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:${color}11; border-radius:10px; margin-bottom:4px;">
+                        <span style="font-weight:700; font-size:0.85rem; color:${color};"><i class="fa-solid fa-tag" style="margin-right:6px;"></i>${label} (${items.length})</span>
+                        <span style="font-weight:800; color:${color};">TB: ${avgScore}</span>
+                    </div>
+                    ${rows}
+                </div>`;
+        };
+
         prjRows += `<tr>
             <td style="white-space:normal;"><strong>${prj.name}</strong></td>
             <td>${pt.role}</td>
@@ -2500,7 +2584,48 @@ function showScoreDetail(mId) {
             <td class="text-center">${avg('c4')}</td>
             <td class="text-center">${avg('c1')}</td>
             <td class="text-center">${avg('c2')}</td>
-            <td><strong style="color:var(--primary)">${sc}</strong></td>
+            <td>
+                <strong style="color:var(--primary)">${catAvg}</strong>
+                <button class="btn-text" style="margin-left:6px; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none'">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+            </td>
+        </tr>
+        <tr id="${detailId}" style="display:none;">
+            <td colspan="7" style="padding:0; border-top:none;">
+                <div style="padding:16px 20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:2px solid var(--primary); border-radius:0 0 12px 12px; margin:-1px 0 8px 0;">
+                    <div style="font-weight:800; font-size:0.9rem; margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-chart-pie" style="margin-right:6px;"></i>Chi tiết Đánh giá chéo — ${prj.name}</div>
+                    
+                    ${selfEval ? `
+                    <div style="margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(139, 92, 246, 0.08); border-radius:10px; margin-bottom:4px;">
+                            <span style="font-weight:700; font-size:0.85rem; color:#8b5cf6;"><i class="fa-solid fa-user-pen" style="margin-right:6px;"></i>Tự đánh giá</span>
+                            <span style="font-weight:800; color:#8b5cf6;">${selfEval.score.toFixed(2)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; font-size:0.82rem;">
+                            <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${selfEval.name}</span>
+                            <div style="display:flex; gap:16px; align-items:center;">
+                                <span>KN: ${selfEval.c4 != null ? Number(selfEval.c4).toFixed(1) : '---'}</span>
+                                <span>TĐ: ${selfEval.c1 != null ? Number(selfEval.c1).toFixed(1) : '---'}</span>
+                                <span>TN: ${selfEval.c2 != null ? Number(selfEval.c2).toFixed(1) : '---'}</span>
+                                <strong style="color:#8b5cf6;">${selfEval.score.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    </div>` : '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--text-muted); font-style:italic;"><i class="fa-solid fa-circle-xmark" style="margin-right:4px;"></i>Chưa có tự đánh giá</div>'}
+
+                    ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
+                    ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
+                    ${renderEvalRow('Leader khác', '#f97316', otherLeaderEvals)}
+                    ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
+
+                    <div style="margin-top:14px; padding:12px 16px; background:rgba(14, 165, 233, 0.08); border-radius:12px; border:1px solid rgba(14, 165, 233, 0.15);">
+                        <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--primary);"><i class="fa-solid fa-calculator" style="margin-right:4px;"></i>Công thức Categorical Average</div>
+                        <div style="font-family:monospace; font-size:0.85rem; color:var(--text-main);">
+                            (${categories.map((c, i) => `<span style="font-weight:700;">${c.toFixed(2)}</span>`).join(' + ')}) / ${categories.length} = <strong style="color:var(--primary); font-size:1.05rem;">${catAvg}</strong>
+                        </div>
+                    </div>
+                </div>
+            </td>
         </tr>`;
     });
 
@@ -2702,6 +2827,7 @@ function showScoreDetail(mId) {
 
             <div class="lux-tab-nav" style="display:flex; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
                 <button class="pill active" onclick="switchDetailTab(this, 'prj')">Dự án</button>
+                <button class="pill" onclick="switchDetailTab(this, 'crosseval')">Đánh giá chéo</button>
                 <button class="pill" onclick="switchDetailTab(this, 'clb')">CLB</button>
                 <button class="pill" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
                 <button class="pill" onclick="switchDetailTab(this, 'explanation')"><i class="fa-solid fa-calculator"></i> Giải trình</button>
@@ -2720,8 +2846,89 @@ function showScoreDetail(mId) {
                     </div>
                 </div>
 
+                <div class="formula-item" style="margin-bottom:24px;">
+                    <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--primary); display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-diagram-project"></i> 3. Chi tiết Đánh giá chéo từ Project
+                    </div>
+                    <div class="glass-panel" style="background:rgba(14, 165, 233, 0.03); border:1px solid rgba(14, 165, 233, 0.1); border-radius:16px; overflow:hidden;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:rgba(14, 165, 233, 0.1);">
+                                    <th style="padding:10px; text-align:left;">Tên Project</th>
+                                    <th style="padding:10px; text-align:center;">Vai trò</th>
+                                    <th style="padding:10px; text-align:center;">Điểm TB (Cat)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(() => {
+                                    let rows = '';
+                                    const termProjects = state.projects.filter(p => p.term === state.currentTerm);
+                                    termProjects.forEach(prj => {
+                                        const participants = ensureArray(prj.participants);
+                                        const pt = participants.find(p => p.memberId === mId);
+                                        if (!pt) return;
+                                        const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN';
+                                        if (isSupport) {
+                                            rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                                                <td style="padding:10px; font-weight:600;">${prj.name}</td>
+                                                <td style="padding:10px; text-align:center;"><span class="badge-internal" style="font-size:0.7rem;">Hỗ trợ</span></td>
+                                                <td style="padding:10px; text-align:center; color:var(--text-muted); font-style:italic;">N/A</td>
+                                            </tr>`;
+                                            return;
+                                        }
+                                        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
+                                        // Calculate catAvg logic (simplified for this summary table)
+                                        const role = pt.role || 'Thành viên';
+                                        const team = pt.teamName;
+                                        const checkPL = (r) => r === 'PL' || r === 'Project Leader';
+                                        const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
+                                        
+                                        let selfS = null, peers = [], myLeaders = [], otherLeaders = [], pls = [];
+                                        evals.forEach(e => {
+                                            const raterId = e.raterId || e.raterid;
+                                            if (String(raterId) === String(mId)) { selfS = e.score; return; }
+                                            const raterPt = participants.find(p => String(p.memberId) === String(raterId));
+                                            if (!raterPt) return;
+                                            const rRole = raterPt.role;
+                                            const rTeam = raterPt.teamName;
+                                            if (checkPL(rRole)) pls.push(e.score);
+                                            else if (checkLeader(rRole)) {
+                                                if (rTeam === team) myLeaders.push(e.score); else otherLeaders.push(e.score);
+                                            } else if (rTeam === team) peers.push(e.score);
+                                        });
+
+                                        const getA = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+                                        let cats = [];
+                                        if (selfS !== null) cats.push(selfS);
+                                        if (checkPL(role)) {
+                                            const lAvg = getA([...myLeaders, ...otherLeaders]);
+                                            if (lAvg !== null) cats.push(lAvg);
+                                        } else if (checkLeader(role)) {
+                                            const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
+                                            const plAvg = getA(pls);
+                                            if (plAvg !== null) cats.push(plAvg);
+                                            else { const olAvg = getA(otherLeaders); if (olAvg !== null) cats.push(olAvg); }
+                                        } else {
+                                            const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
+                                            const mlAvg = getA(myLeaders); if (mlAvg !== null) cats.push(mlAvg);
+                                        }
+                                        const pCatAvg = cats.length > 0 ? (cats.reduce((a, b) => a + b, 0) / cats.length).toFixed(2) : '---';
+
+                                        rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                                            <td style="padding:10px; font-weight:600;">${prj.name}</td>
+                                            <td style="padding:10px; text-align:center; font-size:0.8rem; color:var(--text-muted);">${role}</td>
+                                            <td style="padding:10px; text-align:center;"><strong style="color:var(--primary);">${pCatAvg}</strong></td>
+                                        </tr>`;
+                                    });
+                                    return rows || '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Không tham gia Project nào trong nhiệm kỳ</td></tr>';
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="formula-item" style="margin-bottom:20px;">
-                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">2. Điểm CLB (Cơ cấu 3-3-2-2)</div>
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">4. Điểm CLB (Cơ cấu 3-3-2-2)</div>
                     <div style="font-size:0.85rem; line-height:1.6; background:rgba(0,0,0,0.02); padding:15px; border-radius:12px;">
                         <p>• <strong>Kỷ luật (30%):</strong> ${disc.toFixed(1)}/10 ${ce ? `(Lý do: ${ce.reasons || 'N/A'})` : '(Mặc định 10)'}</p>
                         <p>• <strong>Hỗ trợ & Coreteam (30%):</strong> [(${sBase} * 0.3) + (${cBase} * 0.7)] = ${supportScore.toFixed(2)} (Hỗ trợ: ${supportCount}, Coreteam: ${coreteamCount})</p>
@@ -2749,6 +2956,143 @@ function showScoreDetail(mId) {
                     <thead><tr><th>Dự án</th><th>Vai trò</th><th>Đánh giá</th><th>Kỹ năng</th><th>Thái độ</th><th>T.Nhiệm</th><th>Kết quả</th></tr></thead>
                     <tbody>${prjRows || '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa tham gia project nào</td></tr>'}</tbody>
                 </table>
+            </div>
+            <div style="margin-top:12px; text-align:right;">
+                <button class="pill" style="font-size:0.8rem; background:rgba(14, 165, 233, 0.1); color:var(--primary); padding:6px 12px; border:none; cursor:pointer;" onclick="switchDetailTab(this.parentElement.parentElement.parentElement.querySelector('button[onclick*=\'crosseval\']'), 'crosseval')">
+                    Xem chi tiết Đánh giá chéo <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="detail-tab-crosseval" class="detail-tab-pane" style="display:none;">
+            <div class="cross-eval-container" style="display:flex; flex-direction:column; gap:20px;">
+                ${(() => {
+                    let crossHtml = '';
+                    termProjects.forEach(prj => {
+                        const participants = ensureArray(prj.participants);
+                        const pt = participants.find(p => p.memberId === mId);
+                        if (!pt || pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN') return;
+
+                        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
+                        if (evals.length === 0) return;
+
+                        const checkPL = (r) => r === 'PL' || r === 'Project Leader';
+                        const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
+                        const role = pt.role || 'Thành viên';
+                        const team = pt.teamName;
+
+                        let selfEval = null;
+                        let peerEvals = [];
+                        let leaderOfTeamEvals = [];
+                        let otherLeaderEvals = [];
+                        let plEvals = [];
+
+                        evals.forEach(e => {
+                            const raterId = e.raterId || e.raterid;
+                            const raterName = (() => {
+                                const m = state.members.find(x => String(x.id) === String(raterId));
+                                return m ? m.name : raterId;
+                            })();
+                            if (String(raterId) === String(mId)) {
+                                selfEval = { name: raterName, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+                                return;
+                            }
+                            const raterPt = participants.find(p => String(p.memberId) === String(raterId));
+                            if (!raterPt) return;
+                            const rRole = raterPt.role;
+                            const rTeam = raterPt.teamName;
+                            const evalObj = { name: raterName, role: rRole, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+                            if (checkPL(rRole)) plEvals.push(evalObj);
+                            else if (checkLeader(rRole)) {
+                                if (rTeam === team) leaderOfTeamEvals.push(evalObj);
+                                else otherLeaderEvals.push(evalObj);
+                            } else {
+                                if (rTeam === team) peerEvals.push(evalObj);
+                            }
+                        });
+
+                        const getAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+                        let categories = [];
+                        if (selfEval) categories.push(selfEval.score);
+                        if (checkPL(role)) {
+                            const leadersAvg = getAvg([...leaderOfTeamEvals, ...otherLeaderEvals].map(e => e.score));
+                            if (leadersAvg !== null) categories.push(leadersAvg);
+                        } else if (checkLeader(role)) {
+                            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+                            if (teammatesAvg !== null) categories.push(teammatesAvg);
+                            const hasPL = participants.some(p => checkPL(p.role));
+                            if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
+                            else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
+                        } else {
+                            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+                            if (teammatesAvg !== null) categories.push(teammatesAvg);
+                            const myLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
+                            if (myLeaderAvg !== null) categories.push(myLeaderAvg);
+                        }
+                        const catAvg = categories.length > 0 ? (categories.reduce((a, b) => a + b, 0) / categories.length).toFixed(2) : '---';
+
+                        const renderEvalRow = (label, color, items) => {
+                            if (items.length === 0) return '';
+                            const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
+                            const rows = items.map(e => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-bottom:1px solid var(--border-color); font-size:0.82rem;">
+                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${e.name} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
+                                    <div style="display:flex; gap:16px; align-items:center;">
+                                        <span title="Kỹ năng">KN: ${(e.c4 || 0).toFixed ? e.c4.toFixed(1) : e.c4 || '---'}</span>
+                                        <span title="Thái độ">TĐ: ${(e.c1 || 0).toFixed ? e.c1.toFixed(1) : e.c1 || '---'}</span>
+                                        <span title="Trách nhiệm">TN: ${(e.c2 || 0).toFixed ? e.c2.toFixed(1) : e.c2 || '---'}</span>
+                                        <strong style="color:${color}; min-width:40px; text-align:right;">${(e.score || 0).toFixed(2)}</strong>
+                                    </div>
+                                </div>`).join('');
+                            return `
+                                <div style="margin-bottom:12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:${color}11; border-radius:10px; margin-bottom:4px;">
+                                        <span style="font-weight:700; font-size:0.85rem; color:${color};"><i class="fa-solid fa-tag" style="margin-right:6px;"></i>${label} (${items.length})</span>
+                                        <span style="font-weight:800; color:${color};">TB: ${avgScore}</span>
+                                    </div>
+                                    ${rows}
+                                </div>`;
+                        };
+
+                        crossHtml += `
+                        <div style="padding:16px 20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:3px solid var(--primary); border-radius:12px; margin-bottom:20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <div style="font-weight:800; font-size:1.1rem; color:var(--primary);"><i class="fa-solid fa-chart-pie" style="margin-right:8px;"></i>${prj.name}</div>
+                                <div style="font-size:0.85rem; font-weight:700; background:var(--primary); color:white; padding:4px 12px; border-radius:12px;">Điểm dự án: ${catAvg}</div>
+                            </div>
+                            
+                            ${selfEval ? `
+                            <div style="margin-bottom:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(139, 92, 246, 0.08); border-radius:10px; margin-bottom:4px;">
+                                    <span style="font-weight:700; font-size:0.85rem; color:#8b5cf6;"><i class="fa-solid fa-user-pen" style="margin-right:6px;"></i>Tự đánh giá</span>
+                                    <span style="font-weight:800; color:#8b5cf6;">${selfEval.score.toFixed(2)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; font-size:0.82rem;">
+                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${selfEval.name}</span>
+                                    <div style="display:flex; gap:16px; align-items:center;">
+                                        <span>KN: ${selfEval.c4 != null ? Number(selfEval.c4).toFixed(1) : '---'}</span>
+                                        <span>TĐ: ${selfEval.c1 != null ? Number(selfEval.c1).toFixed(1) : '---'}</span>
+                                        <span>TN: ${selfEval.c2 != null ? Number(selfEval.c2).toFixed(1) : '---'}</span>
+                                        <strong style="color:#8b5cf6;">${selfEval.score.toFixed(2)}</strong>
+                                    </div>
+                                </div>
+                            </div>` : '<div style="margin-bottom:12px; font-size:0.82rem; color:var(--text-muted); font-style:italic; padding: 0 12px;"><i class="fa-solid fa-circle-xmark" style="margin-right:4px;"></i>Thành viên này không tự đánh giá</div>'}
+
+                            ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
+                            ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
+                            ${renderEvalRow('Leader khác', '#f97316', otherLeaderEvals)}
+                            ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
+
+                            <div style="margin-top:14px; padding:12px 16px; background:rgba(14, 165, 233, 0.08); border-radius:12px; border:1px solid rgba(14, 165, 233, 0.15);">
+                                <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--primary);"><i class="fa-solid fa-calculator" style="margin-right:4px;"></i>Tính toán Điểm dự án:</div>
+                                <div style="font-family:monospace; font-size:0.9rem; color:var(--text-main); text-align:center;">
+                                    (${categories.map(c => `<strong>${c.toFixed(2)}</strong>`).join(' + ')}) / ${categories.length} = <strong style="color:var(--primary); font-size:1.1rem;">${catAvg}</strong>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    return crossHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Không có dữ liệu đánh giá chéo cho nhiệm kỳ này.</div>';
+                })()}
             </div>
         </div>
 
@@ -4318,7 +4662,11 @@ function openMemberSelectModal(targetTeam = null) {
     state.activeProjectTargetTeam = targetTeam;
     msStep = 1;
 
-    if (targetTeam !== null) {
+    if (state._meetingMemberPickerCallback) {
+        // Load IDs from the meeting picker input if it exists
+        const val = document.getElementById('poll-target-member-ids').value;
+        state.msSelectedIds = val ? val.split(',') : [];
+    } else if (targetTeam !== null) {
         // Only pre-select members who are ALREADY in this team
         state.msSelectedIds = state.activeProjectParticipantsSetup
             .filter(p => p.teamName === targetTeam)
@@ -4336,6 +4684,13 @@ function openMemberSelectModal(targetTeam = null) {
     document.getElementById('ms-title').innerText = targetTeam ? 'Chon Nhan Su Team: ' + targetTeam : 'Chon Nhan Su Tham Gia';
     document.getElementById('ms-search').value = '';
     renderMsGrid();
+    
+    if (state._meetingMemberPickerCallback) {
+        document.getElementById('ms-next-btn').innerText = 'Xác nhận';
+    } else {
+        document.getElementById('ms-next-btn').innerText = 'Tiếp theo';
+    }
+    
     openModal('member-select-modal');
 }
 
@@ -4383,14 +4738,21 @@ function renderMsGrid() {
 }
 
 function msNextStep() {
+    if (state._meetingMemberPickerCallback) {
+        state._meetingMemberPickerCallback(state.msSelectedIds);
+        closeModal('member-select-modal');
+        delete state._meetingMemberPickerCallback;
+        return;
+    }
+
     if (msStep === 1) {
-        if (state.msSelectedIds.length === 0) return alert('Hay chon it nhat 1 thanh vien!');
+        if (state.msSelectedIds.length === 0) return alert('Hãy chọn ít nhất 1 thành viên!');
         msStep = 2;
         document.getElementById('ms-step-1').style.display = 'none';
         document.getElementById('ms-step-2').style.display = 'block';
         document.getElementById('ms-back-btn').style.display = 'inline-flex';
-        document.getElementById('ms-next-btn').innerText = 'Xac nhan Luu';
-        document.getElementById('ms-title').innerText = 'Gan Vi Tri';
+        document.getElementById('ms-next-btn').innerText = 'Xác nhận Lưu';
+        document.getElementById('ms-title').innerText = 'Gán Vị Trí';
         renderMsRoleList();
     } else {
         confirmMsSelection();
@@ -5583,11 +5945,22 @@ function renderBugReports(adminMode = 'SYSTEM') {
     }
 
     // Filter reports based on role and mode
+    state.currentAdminBugMode = adminMode;
     let filtered = state.bugReports.slice().reverse();
     
     if (isAdmin) {
         // Admin sees either SYSTEM bugs or ALL appeals depending on the tab
         filtered = filtered.filter(b => adminMode === 'APPEAL' ? b.area === 'PHÚC KHẢO' : b.area !== 'PHÚC KHẢO');
+        
+        // Apply secondary status filter
+        if (state.adminBugStatusFilter !== 'ALL') {
+            filtered = filtered.filter(b => {
+                if (state.adminBugStatusFilter === 'OPEN') return b.status === 'OPEN' || !b.status;
+                if (state.adminBugStatusFilter === 'IN_PROGRESS') return b.status === 'IN_PROGRESS';
+                if (state.adminBugStatusFilter === 'RESOLVED') return b.status === 'RESOLVED' || b.status === 'CLOSED';
+                return true;
+            });
+        }
     } else {
         // Regular users ONLY see System Bugs in the global list
         filtered = filtered.filter(b => b.area !== 'PHÚC KHẢO');
@@ -5666,7 +6039,18 @@ function switchAdminBugTab(mode) {
     const target = (mode === 'SYSTEM') ? tabs[0] : tabs[1];
     if (target) target.classList.add('active');
     
+    state.currentAdminBugMode = mode;
     renderBugReports(mode);
+}
+
+function setAdminBugStatusFilter(btn, status) {
+    const container = document.getElementById('admin-bug-status-filters');
+    if (container) {
+        container.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+    }
+    state.adminBugStatusFilter = status;
+    renderBugReports(state.currentAdminBugMode);
 }
 
 function openScoreAppealModal(mId, mName) {
@@ -5725,44 +6109,69 @@ function openBugDetail(bugId) {
     const content = document.getElementById('bug-detail-content');
     if (!modal || !content) return;
 
+    let statusLabel = 'Chưa xử lý', statusClass = 'status-tag-open';
+    if (bug.status === 'IN_PROGRESS') {
+        statusLabel = 'Đang xử lý'; statusClass = 'status-tag-progress';
+    } else if (bug.status === 'RESOLVED' || bug.status === 'CLOSED') {
+        statusLabel = 'Đã hoàn thành'; statusClass = 'status-tag-resolved';
+    }
+
     const priorityLabel = bug.priority === 'HIGH' ? 'Nghiêm trọng' : (bug.priority === 'MEDIUM' ? 'Trung bình' : 'Thấp');
 
     content.innerHTML = `
-        <div class="bug-detail-header">
+        <div class="bug-detail-header" style="background:var(--bg-sidebar); padding:24px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:flex-start;">
             <div style="flex:1;">
-                <h3 style="margin-bottom:8px;font-size:1.4rem;">${bug.title}</h3>
-                <div style="display:flex;gap:12px;font-size:0.85rem;align-items:center;">
-                    <span class="bug-status-tag prio-${bug.priority}">${priorityLabel}</span>
-                    <span style="color:var(--text-muted);display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-layer-group"></i> ${bug.area || 'Hệ thống'}</span>
-                    <span style="color:var(--text-muted);display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-clock"></i> ${bug.createdAt}</span>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                    <span class="bug-status-tag ${statusClass}" style="font-size:0.75rem;">${statusLabel}</span>
+                    <h3 style="margin:0; font-size:1.6rem; color:var(--text-main); font-weight:800;">${bug.title}</h3>
+                </div>
+                <div style="display:flex; gap:16px; font-size:0.85rem; color:var(--text-muted);">
+                    <span><i class="fa-solid fa-layer-group" style="margin-right:6px; color:var(--primary);"></i>${bug.area || 'Hệ thống'}</span>
+                    <span><i class="fa-solid fa-gauge-high" style="margin-right:6px; color:var(--accent-yellow);"></i>Mức độ: ${priorityLabel}</span>
+                    <span><i class="fa-solid fa-clock" style="margin-right:6px;"></i>Ngày gửi: ${bug.createdAt}</span>
                 </div>
             </div>
-            <div class="bug-detail-status">
-                <label style="font-size:0.75rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">Trạng thái</label>
-                <div style="font-weight:700;color:var(--primary);">${bug.status}</div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                ${(state.userRole === 'admin' && (bug.status !== 'RESOLVED' && bug.status !== 'CLOSED')) ? `
+                    <button class="btn-primary" style="background:var(--accent-green); box-shadow:0 4px 12px rgba(16,185,129,0.2); padding:10px 20px;" onclick="saveBugUpdate('${bug.id}', 'RESOLVED')">
+                        <i class="fa-solid fa-check-circle"></i> Đã giải quyết
+                    </button>
+                ` : ''}
+                <button class="close-btn" style="font-size:1.8rem; padding:4px;" onclick="closeModal('bug-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
 
-        <div class="bug-detail-body">
-            <h4 style="margin-bottom:12px;color:var(--text-main);">Mô tả chi tiết</h4>
-            <p style="white-space:pre-wrap;line-height:1.6;color:var(--text-muted);">${bug.desc}</p>
+        <div class="bug-detail-body" style="padding:24px; flex:1; overflow-y:auto;">
+            <div style="background:var(--secondary); padding:24px; border-radius:20px; border:1px solid var(--border-color);">
+                <h4 style="margin-bottom:12px; color:var(--text-main); font-size:1.1rem; display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Nội dung báo cáo
+                </h4>
+                <p style="white-space:pre-wrap; line-height:1.7; color:var(--text-main); font-size:1rem;">${bug.desc}</p>
+            </div>
             
             ${bug.screenshot ? `
-            <h4 style="margin-top:24px;margin-bottom:12px;color:var(--text-main);">Ảnh chụp màn hình</h4>
-            <div class="bug-screenshot-detail">
-                <img src="${bug.screenshot}" style="width:100%;border-radius:12px;border:1px solid var(--border-color);">
+            <h4 style="margin-top:32px; margin-bottom:16px; color:var(--text-main); font-size:1.1rem; display:flex; align-items:center; gap:10px;">
+                <i class="fa-solid fa-image" style="color:var(--primary);"></i> Ảnh minh chứng đính kèm
+            </h4>
+            <div class="bug-screenshot-detail" style="box-shadow:var(--shadow-md); border-radius:16px; overflow:hidden; border:1px solid var(--border-color);">
+                <img src="${bug.screenshot}" style="width:100%; display:block; cursor:zoom-in;" onclick="window.open(this.src)">
             </div>` : ''}
         </div>
 
-        <div class="bug-detail-admin" style="display:${state.userRole === 'admin' ? 'block' : 'none'};margin-top:32px;padding-top:24px;border-top:1px solid var(--border-color);">
-            <h4 style="margin-bottom:16px;">Cập nhật trạng thái (Admin)</h4>
-            <div style="display:flex;gap:12px;">
-                <select id="update-bug-status" class="styled-select" style="flex:1;">
-                    <option value="OPEN" ${bug.status === 'OPEN' ? 'selected' : ''}>Chưa sửa / Chưa xử lý</option>
-                    <option value="IN_PROGRESS" ${bug.status === 'IN_PROGRESS' ? 'selected' : ''}>Đang sửa / Đang xử lý</option>
-                    <option value="RESOLVED" ${bug.status === 'RESOLVED' ? 'selected' : ''}>Đã sửa / Hoàn thành</option>
+        <div class="bug-detail-admin" style="display:${state.userRole === 'admin' ? 'block' : 'none'}; margin-top:24px; padding:24px; background:rgba(0,0,0,0.02); border-top:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h4 style="margin:0; font-size:1rem; color:var(--text-main);"><i class="fa-solid fa-user-shield" style="margin-right:8px; color:var(--primary);"></i>Thao tác Quản trị viên</h4>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Trạng thái hiện tại: <strong>${bug.status}</strong></span>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <select id="update-bug-status" class="lux-select" style="flex:1; background:var(--bg-sidebar);">
+                    <option value="OPEN" ${bug.status === 'OPEN' ? 'selected' : ''}>Chưa xử lý (OPEN)</option>
+                    <option value="IN_PROGRESS" ${bug.status === 'IN_PROGRESS' ? 'selected' : ''}>Đang xử lý (IN_PROGRESS)</option>
+                    <option value="RESOLVED" ${bug.status === 'RESOLVED' ? 'selected' : ''}>Đã giải quyết (RESOLVED)</option>
                 </select>
-                <button class="btn-primary" onclick="saveBugUpdate('${bug.id}')">Cập nhật</button>
+                <button class="btn-primary" onclick="saveBugUpdate('${bug.id}')">
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi
+                </button>
             </div>
         </div>
     `;
@@ -5770,19 +6179,19 @@ function openBugDetail(bugId) {
     openModal('bug-detail-modal');
 }
 
-function saveBugUpdate(bugId) {
+function saveBugUpdate(bugId, newStatus = null) {
     const select = document.getElementById('update-bug-status');
-    if (!select) return;
-    const status = select.value;
+    const status = newStatus || (select ? select.value : 'RESOLVED');
+    
     const bug = state.bugReports.find(b => b.id === bugId);
     if (!bug) return;
 
     bug.status = status;
-    syncToBackend('update_bug_status', { id: bugId, status: status });
+    syncToBackend('save_bug_report', bug);
 
-    showToast('Đã cập nhật trạng thái lỗi thành công!', 'success');
+    showToast(`Đã cập nhật trạng thái lỗi thành ${status}!`, 'success');
     closeModal('bug-detail-modal');
-    renderBugReports();
+    renderBugReports(state.currentAdminBugMode || 'SYSTEM');
 }
 
 // ==========================================
@@ -6805,6 +7214,12 @@ function renderMeetingPolls() {
             if (!prj || !prj.participants) return false;
             return prj.participants.some(pt => pt.memberId === userId && pt.teamName === p.targetTeamName);
         }
+
+        if (vision === 'member') {
+            if (!p.targetMemberIds) return false;
+            const ids = String(p.targetMemberIds).split(',');
+            return ids.includes(String(userId));
+        }
         
         return false;
     });
@@ -6828,7 +7243,7 @@ function renderMeetingPolls() {
         const creatorName = poll.creatorName || 'Ẩn danh';
 
         const card = document.createElement('div');
-        card.className = `poll-card ${isExpired ? 'expired' : ''}`;
+        card.className = `poll-card ${isExpired ? 'expired' : ''} ${poll.status === 'FINALIZED' ? 'finalized' : ''}`;
         card.style.animationDelay = `${idx * 0.08}s`;
         
         let visBadge = '';
@@ -6836,17 +7251,23 @@ function renderMeetingPolls() {
         if (vision === 'dept') visBadge = `<span class="poll-vis-badge dept"><i class="fa-solid fa-layer-group"></i> ${poll.targetDept}</span>`;
         else if (vision === 'project') visBadge = `<span class="poll-vis-badge project"><i class="fa-solid fa-diagram-project"></i> Chương trình</span>`;
         else if (vision === 'team') visBadge = `<span class="poll-vis-badge team"><i class="fa-solid fa-people-group"></i> ${poll.targetTeamName}</span>`;
+        else if (vision === 'member') visBadge = `<span class="poll-vis-badge member" style="background:var(--accent-green); color:white;"><i class="fa-solid fa-users-viewfinder"></i> Cá nhân</span>`;
+
+        const isFinalized = poll.status === 'FINALIZED';
+        const statusLabel = isFinalized ? 'Đã chốt lịch' : (isExpired ? 'Đã kết thúc' : 'Đang diễn ra');
+        const statusClass = isFinalized ? 'finalized' : (isExpired ? 'expired' : 'active');
 
         card.innerHTML = `
             <div class="poll-card-title">
-                <i class="fa-solid fa-calendar-check" style="color:${isExpired ? '#64748b' : 'var(--primary)'}"></i>
+                <i class="fa-solid fa-calendar-check" style="color:${isFinalized ? 'var(--accent-green)' : (isExpired ? '#64748b' : 'var(--primary)')}"></i>
                 ${poll.title || 'Cuộc họp không tên'}
                 <div style="display:flex; gap:6px; margin-top:8px;">
-                    <span class="poll-status-badge ${isExpired ? 'expired' : 'active'}">${isExpired ? 'Đã kết thúc' : 'Đang diễn ra'}</span>
+                    <span class="poll-status-badge ${statusClass}">${statusLabel}</span>
                     ${visBadge}
                 </div>
             </div>
             ${poll.content ? `<div class="poll-card-content">${poll.content}</div>` : ''}
+            ${isFinalized ? `<div style="background:var(--accent-green)11; padding:8px 12px; border-radius:8px; margin-top:8px; border:1px dashed var(--accent-green); color:var(--accent-green); font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-check"></i> Chốt: ${poll.finalTime}</div>` : ''}
             <div class="poll-card-meta">
                 <div class="poll-meta-row"><i class="fa-solid fa-user-pen"></i> Người tạo: <strong>${creatorName}</strong></div>
                 <div class="poll-meta-row"><i class="fa-solid fa-hourglass-half"></i> Deadline: <strong>${deadlineStr}</strong></div>
@@ -6854,8 +7275,8 @@ function renderMeetingPolls() {
                 <div class="poll-meta-row"><i class="fa-solid fa-users"></i> <strong>${voterCount}</strong> người đã vote</div>
             </div>
             <div class="poll-card-footer">
-                <button class="btn-lux-primary" onclick="openPollDetail('${poll.id}')" style="padding:10px 20px; font-size:0.85rem;">
-                    <i class="fa-solid fa-arrow-right"></i> ${isExpired ? 'Xem kết quả' : 'Vào Vote'}
+                <button class="btn-lux-primary" onclick="openPollDetail('${poll.id}')" style="padding:10px 20px; font-size:0.85rem; background:${isFinalized ? 'var(--accent-green)' : ''}">
+                    <i class="fa-solid fa-arrow-right"></i> ${isFinalized ? 'Xem kết quả' : (isExpired ? 'Xem kết quả' : 'Vào Vote')}
                 </button>
                 <button class="btn-secondary btn-sm" onclick="event.stopPropagation(); copyPollShareLinkById('${poll.id}')" title="Sao chép link">
                     <i class="fa-solid fa-link"></i>
@@ -6906,13 +7327,13 @@ function formatDateFull(dateStr) {
 // ==========================================
 // CREATE POLL
 // ==========================================
-function handlePollVisibilityChange() {
     const visibility = document.getElementById('poll-visibility').value;
     
     // Hide all
     document.getElementById('poll-dept-target').style.display = 'none';
     document.getElementById('poll-project-target').style.display = 'none';
     document.getElementById('poll-team-target').style.display = 'none';
+    document.getElementById('poll-member-target').style.display = 'none';
     
     if (visibility === 'dept') {
         document.getElementById('poll-dept-target').style.display = 'block';
@@ -6923,6 +7344,46 @@ function handlePollVisibilityChange() {
         document.getElementById('poll-project-target').style.display = 'block';
         document.getElementById('poll-team-target').style.display = 'block';
         populatePollProjectSelections();
+    } else if (visibility === 'member') {
+        document.getElementById('poll-member-target').style.display = 'block';
+    }
+}
+
+function openMeetingMemberPicker() {
+    // Reuse existing openMemberSelectModal pattern
+    // We'll pass a callback to handle the selection
+    state._meetingMemberPickerCallback = (selectedIds) => {
+        const input = document.getElementById('poll-target-member-ids');
+        const count = document.getElementById('poll-member-count');
+        const preview = document.getElementById('poll-selected-members-preview');
+        
+        input.value = selectedIds.join(',');
+        count.innerText = selectedIds.length;
+        
+        // Render preview tags
+        preview.innerHTML = '';
+        selectedIds.forEach(id => {
+            const m = state.members.find(x => String(x.id) === String(id));
+            if (m) {
+                const tag = document.createElement('span');
+                tag.style.cssText = 'background:var(--bg-highlight); padding:4px 10px; border-radius:8px; font-size:0.75rem; color:var(--primary); font-weight:700; display:flex; align-items:center; gap:6px;';
+                tag.innerHTML = `${m.name} <i class="fa-solid fa-xmark" style="cursor:pointer; opacity:0.6;" onclick="removeMeetingMember('${id}')"></i>`;
+                preview.appendChild(tag);
+            }
+        });
+    };
+    
+    // We might need to adjust openMemberSelectModal to support this callback
+    // Or just manually open the modal and handle it.
+    // For now, let's assume we can trigger it.
+    openMemberSelectModal();
+}
+
+function removeMeetingMember(id) {
+    const input = document.getElementById('poll-target-member-ids');
+    let ids = input.value.split(',').filter(x => x && x !== id);
+    if (state._meetingMemberPickerCallback) {
+        state._meetingMemberPickerCallback(ids);
     }
 }
 
@@ -6987,6 +7448,10 @@ function openCreatePollModal() {
     document.getElementById('poll-dept-target').style.display = 'none';
     document.getElementById('poll-project-target').style.display = 'none';
     document.getElementById('poll-team-target').style.display = 'none';
+    document.getElementById('poll-member-target').style.display = 'none';
+    document.getElementById('poll-target-member-ids').value = '';
+    document.getElementById('poll-member-count').innerText = '0';
+    document.getElementById('poll-selected-members-preview').innerHTML = '';
     
     openModal('create-poll-modal');
 }
@@ -7046,6 +7511,7 @@ async function saveMeetingPoll() {
         targetDept,
         targetProjectId,
         targetTeamName,
+        targetMemberIds: document.getElementById('poll-target-member-ids').value,
         creatorId: state.currentUser ? state.currentUser.id : '',
         creatorName: state.currentUser ? state.currentUser.name : 'Ẩn danh',
         createdAt: new Date().toISOString()
@@ -7107,21 +7573,72 @@ function openPollDetail(pollId) {
     const submitBtn = document.getElementById('btn-submit-vote');
     if (submitBtn) submitBtn.style.display = isExpired ? 'none' : 'inline-flex';
 
-    // Header delete button for admin
-    const actionsEl = document.querySelector('#meeting-poll-detail-view .poll-detail-actions');
-    if (actionsEl) {
-        // Remove existing delete btn if any
-        const existing = actionsEl.querySelector('.btn-delete-poll');
-        if (existing) existing.remove();
+        if (state.userRole === 'admin' || (poll.creatorId && String(poll.creatorId) === String(state.currentUser?.id))) {
+            const actionsTop = document.createElement('div');
+            actionsTop.style.display = 'flex';
+            actionsTop.style.gap = '12px';
+            
+            if (poll.status !== 'FINALIZED') {
+                const finalizeBtn = document.createElement('button');
+                finalizeBtn.className = 'btn-premium-xs';
+                finalizeBtn.style.background = 'var(--accent-green)';
+                finalizeBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Chốt lịch họp';
+                finalizeBtn.onclick = () => finalizeMeetingPoll(pollId);
+                actionsTop.appendChild(finalizeBtn);
+            }
 
-        if (state.userRole === 'admin') {
-            const delBtn = document.createElement('button');
-            delBtn.className = 'btn-secondary btn-sm delete btn-delete-poll';
-            delBtn.style.color = 'var(--danger)';
-            delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Xóa Cuộc Họp';
-            delBtn.onclick = () => deleteMeetingPoll(pollId);
-            actionsEl.appendChild(delBtn);
+            if (state.userRole === 'admin') {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn-secondary btn-sm delete btn-delete-poll';
+                delBtn.style.color = 'var(--danger)';
+                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Xóa Cuộc Họp';
+                delBtn.onclick = () => deleteMeetingPoll(pollId);
+                actionsTop.appendChild(delBtn);
+            }
+            actionsEl.appendChild(actionsTop);
         }
+    }
+}
+
+async function finalizeMeetingPoll(pollId) {
+    const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
+    if (!poll) return;
+
+    const finalTime = prompt('Nhập thời gian chốt lịch họp (VD: 19:30, Thứ Ba 22/04):', '');
+    if (!finalTime) return;
+
+    if (!confirm(`Xác nhận chốt lịch họp vào lúc: ${finalTime}?\nLịch này sẽ được thêm vào trang chủ của tất cả người đã vote.`)) return;
+
+    poll.status = 'FINALIZED';
+    poll.finalTime = finalTime;
+
+    try {
+        showToast('Đang chốt lịch và đồng bộ...');
+        await syncToBackend('save_meeting_poll', poll);
+        
+        // Add to Calendar
+        const eventId = 'event_poll_' + poll.id;
+        const voters = getUniqueVoters(poll.id);
+        const event = {
+            id: eventId,
+            title: `[LỊCH HỌP] ${poll.title}`,
+            desc: `Cuộc họp đã được chốt: ${finalTime}\nNội dung: ${poll.content || ''}`,
+            date: poll.startDate, // Use start date as reference or we could try to parse finalTime
+            type: 'meeting',
+            attendees: voters.join(','),
+            term: state.currentTerm,
+            createdAt: new Date().toISOString()
+        };
+        
+        await syncToBackend('save_event', event);
+        state.clubEvents.push(event);
+        
+        showToast('Đã chốt lịch và thêm vào lịch hoạt động!', 'success');
+        openPollDetail(pollId); // Refresh view
+        renderMeetingPolls();
+        renderActivityCalendar();
+    } catch (e) {
+        showToast('Lỗi khi chốt lịch: ' + e.message, 'error');
     }
 }
 

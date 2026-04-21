@@ -375,7 +375,7 @@
                     </div>
 
                     <!-- VIEW SECTION: ACTIVITY CALENDAR -->
-                    <div class="dashboard-calendar-card glass-panel" style="margin-top:24px; padding-left: 5%; padding-right: 5%;">
+                    <div class="dashboard-calendar-card glass-panel" style="margin-top:2%; padding-left: 5%; padding-right: 5%;">
                         <div class="column-header">
                             <div class="header-main">
                                 <span class="icon-orb orb-yellow"><i class="fa-solid fa-calendar-alt"></i></span>
@@ -1291,6 +1291,12 @@
                                         <i class="fa-solid fa-file-signature"></i> Phúc khảo điểm
                                     </button>
                                 </div>
+                                <div class="report-status-filters" id="admin-bug-status-filters">
+                                    <button class="status-filter-btn active" onclick="setAdminBugStatusFilter(this, 'ALL')">Tất cả</button>
+                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'OPEN')">Chưa xử lý</button>
+                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'IN_PROGRESS')">Đang xử lý</button>
+                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'RESOLVED')">Đã giải quyết</button>
+                                </div>
                             </div>
 
                             <div class="column-body" id="bug-list">
@@ -2202,31 +2208,9 @@
 
     <!-- Modal: Bug Detail -->
     <div id="bug-detail-modal" class="modal">
-        <div class="modal-wrapper" style="max-width:700px">
-            <div class="modal-header" style="border-bottom:none;padding-bottom:10px;">
-                <div class="header-main">
-                    <span class="icon-orb orb-bug"><i class="fa-solid fa-bug"></i></span>
-                    <div class="header-text">
-                        <h3 id="bug-detail-title" style="margin:0;color:var(--text-main);font-size:1.2rem;">Chi tiết Lỗi
-                        </h3>
-                        <p id="bug-detail-status" style="margin:0;color:var(--text-muted);font-size:0.85rem;"></p>
-                    </div>
-                </div>
-                <button class="close-btn" onclick="closeModal('bug-detail-modal')"><i
-                        class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body lux-form" style="padding-top:10px;color:var(--text-main);">
-                <div
-                    style="background:var(--bg-sidebar);padding:16px;border-radius:12px;margin-bottom:16px;border:1px solid var(--border-color);">
-                    <strong style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-muted);">Vị trí:
-                        <span id="bug-detail-area" style="color:var(--primary);"></span></strong>
-                    <p id="bug-detail-desc" style="font-size:0.95rem;line-height:1.5;margin:0;color:var(--text-main);">
-                    </p>
-                </div>
-                <div id="bug-detail-image-container" style="text-align:center;">
-                    <img id="bug-detail-image" src="" alt="Bug Screenshot"
-                        style="max-width:100%;border-radius:12px;border:1px solid var(--border-color);display:none;">
-                </div>
+        <div class="modal-wrapper modal-xl">
+            <div id="bug-detail-content" style="display:flex; flex-direction:column; height:100%; overflow:hidden;">
+                <!-- Dynamically populated by openBugDetail in app.js -->
             </div>
         </div>
     </div>
@@ -2520,6 +2504,7 @@
                         <option value="dept">Hiển thị cho ban...</option>
                         <option value="project">Hiển thị cho thành viên chương trình...</option>
                         <option value="team">Hiển thị cho team nhỏ hơn của chương trình...</option>
+                        <option value="member">Hiển thị cho nhân sự chi tiết...</option>
                     </select>
                 </div>
 
@@ -2546,6 +2531,17 @@
                     <select id="poll-target-team" class="lux-select">
                         <!-- To be populated by JS -->
                     </select>
+                </div>
+
+                <div id="poll-member-target" class="input-group-v2" style="display:none;">
+                    <label><i class="fa-solid fa-users-viewfinder"></i> Chọn Nhân sự (<span id="poll-member-count">0</span> đã chọn)</label>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button class="btn-premium-xs" onclick="openMeetingMemberPicker()" style="padding: 10px 16px;">
+                            <i class="fa-solid fa-user-plus"></i> Thêm thành viên
+                        </button>
+                        <div id="poll-selected-members-preview" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+                    </div>
+                    <input type="hidden" id="poll-target-member-ids">
                 </div>
 
                 <div class="input-group-v2">
