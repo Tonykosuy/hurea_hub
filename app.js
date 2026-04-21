@@ -169,7 +169,7 @@ function normalizeDataKeys(data) {
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme(); setupNavigation(); setupEvalTabs(); setupSearchableDropdowns();
     initToast();
-    initAudioPlayer();
+    // initAudioPlayer(); // Removed by request
     if (API_URL) { await loadDataFromAPI(); } else { seedMockData(); }
     initMeetingScheduler();
     // initPinInputs(); // Replaced by standard password fields
@@ -580,7 +580,14 @@ function renderMembers() {
     const dept = document.getElementById('filter-dept')?.value || 'ALL';
 
     grid.innerHTML = '';
-    const filtered = state.members.filter(m =>
+    
+    // Permission Filter: Heads only see their own department
+    let filtered = state.members;
+    if (state.userRole === 'head' && state.currentUser && state.currentUser.dept) {
+        filtered = state.members.filter(m => m.dept === state.currentUser.dept);
+    }
+
+    filtered = filtered.filter(m =>
         m.name.toLowerCase().includes(txt) &&
         (dept === 'ALL' || m.dept === dept));
 
@@ -1457,7 +1464,18 @@ function confirmMemberSelection(memberId) {
         const index = state.selectedPickerIds.indexOf(memberId);
         if (index > -1) {
             state.selectedPickerIds.splice(index, 1);
-        } else {
+        } else if (type.startsWith('TERM_')) {
+        const roleKey = type.replace('TERM_', '');
+        if (!state.tempTermLeadership) state.tempTermLeadership = {};
+        if (!state.tempTermLeadership[roleKey]) state.tempTermLeadership[roleKey] = [];
+        
+        const idx = state.tempTermLeadership[roleKey].indexOf(memberId);
+        if (idx > -1) state.tempTermLeadership[roleKey].splice(idx, 1);
+        else state.tempTermLeadership[roleKey].push(memberId);
+        
+        renderLeaderTags(roleKey, `t-${roleKey.toLowerCase()}-list`);
+        renderMemberPicker();
+    } else {
             state.selectedPickerIds.push(memberId);
         }
         updatePickerCount();
@@ -1652,11 +1670,25 @@ function renderTerms() {
     state.terms.forEach(t => {
         const isActive = t.id === state.currentTerm;
         const bcn = ensureObject(t.bcn);
+        
+        // Helper to get names from IDs
+        const getNames = (ids) => {
+            const idList = ensureArray(ids);
+            if (idList.length === 0) return '...';
+            return idList.map(id => {
+                const m = state.members.find(x => x.id === id);
+                return m ? m.name : 'Unknown';
+            }).join(', ');
+        };
+
+        const presNames = bcn.presIds ? getNames(bcn.presIds) : (bcn.pres || '...');
+        const vpNames = bcn.vpIds ? getNames(bcn.vpIds) : (bcn.vp || '...');
+
         list.innerHTML += `
             <div class="term-item">
                 <div class="term-info">
                     <h4>${t.name}</h4>
-                    <p>Chủ nhiệm: <strong>${bcn.pres || '...'}</strong> | Phó CN: <strong>${bcn.vp || '...'}</strong></p>
+                    <p>Chủ nhiệm: <strong>${presNames}</strong> | Phó CN: <strong>${vpNames}</strong></p>
                 </div>
                 <div>
                     ${isActive ? '<span class="badge-active">Đang hoạt động</span>' : `<button class="btn-secondary btn-sm" onclick="setActiveTerm('${t.id}')">Chọn làm hiện tại</button>`}
@@ -1666,7 +1698,8 @@ function renderTerms() {
     });
     let opts = '';
     state.terms.forEach(t => opts += `<option value="${t.id}">${t.name}</option>`);
-    document.getElementById('p-term').innerHTML = opts;
+    const pTerm = document.getElementById('p-term');
+    if (pTerm) pTerm.innerHTML = opts;
 }
 
 function setActiveTerm(id) {
@@ -1682,27 +1715,74 @@ function editTerm(id) {
     const bcn = ensureObject(t.bcn);
     document.getElementById('t-id').value = t.id;
     document.getElementById('t-name').value = t.name;
-    document.getElementById('t-bcn-president').value = bcn.pres || '';
-    document.getElementById('t-bcn-vp').value = bcn.vp || '';
-    document.getElementById('t-head-ld').value = bcn.ld || '';
-    document.getElementById('t-head-rr').value = bcn.rr || '';
-    document.getElementById('t-head-er').value = bcn.er || '';
-    document.getElementById('t-head-eb').value = bcn.eb || '';
+    
+    // Initialize temp leadership object
+    state.tempTermLeadership = {
+        PRES: ensureArray(bcn.presIds),
+        VP: ensureArray(bcn.vpIds),
+        LD: ensureArray(bcn.ldIds),
+        RR: ensureArray(bcn.rrIds),
+        ER: ensureArray(bcn.erIds),
+        EB: ensureArray(bcn.ebIds)
+    };
+
+    // If IDs are missing but old strings exist, try to match by name (one-time migration feel)
+    const roles = ['PRES', 'VP', 'LD', 'RR', 'ER', 'EB'];
+    const stringKeys = ['pres', 'vp', 'ld', 'rr', 'er', 'eb'];
+    roles.forEach((r, i) => {
+        if (state.tempTermLeadership[r].length === 0 && bcn[stringKeys[i]]) {
+            const names = bcn[stringKeys[i]].split(',').map(n => n.trim());
+            names.forEach(name => {
+                const m = state.members.find(x => x.name.toLowerCase() === name.toLowerCase());
+                if (m && !state.tempTermLeadership[r].includes(m.id)) {
+                    state.tempTermLeadership[r].push(m.id);
+                }
+            });
+        }
+        renderLeaderTags(r, `t-${r.toLowerCase()}-list`);
+    });
+
     openModal('term-modal');
+}
+
+function renderLeaderTags(roleKey, listId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    const ids = state.tempTermLeadership[roleKey] || [];
+    list.innerHTML = ids.map(id => {
+        const m = state.members.find(x => x.id === id);
+        const name = m ? m.name : 'Unknown';
+        return `
+            <div class="leader-tag">
+                ${name}
+                <i class="fa-solid fa-circle-xmark" onclick="removeLeaderFromTerm('${roleKey}', '${id}', '${listId}')"></i>
+            </div>
+        `;
+    }).join('') || '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">Chưa có nhân sự</div>';
+}
+
+function removeLeaderFromTerm(roleKey, memberId, listId) {
+    if (!state.tempTermLeadership[roleKey]) return;
+    state.tempTermLeadership[roleKey] = state.tempTermLeadership[roleKey].filter(id => id !== memberId);
+    renderLeaderTags(roleKey, listId);
 }
 
 function saveTerm() {
     const id = document.getElementById('t-id').value;
+    const ld = state.tempTermLeadership;
     const t = {
         id: id || 't_' + Date.now(),
         name: document.getElementById('t-name').value,
         bcn: {
-            pres: document.getElementById('t-bcn-president').value,
-            vp: document.getElementById('t-bcn-vp').value,
-            ld: document.getElementById('t-head-ld').value,
-            rr: document.getElementById('t-head-rr').value,
-            er: document.getElementById('t-head-er').value,
-            eb: document.getElementById('t-head-eb').value
+            presIds: ld.PRES,
+            vpIds: ld.VP,
+            ldIds: ld.LD,
+            rrIds: ld.RR,
+            erIds: ld.ER,
+            ebIds: ld.EB,
+            // Keep legacy strings for simple display in some places
+            pres: ld.PRES.map(id => (state.members.find(m => m.id === id) || {name:'?'}).name).join(', '),
+            vp: ld.VP.map(id => (state.members.find(m => m.id === id) || {name:'?'}).name).join(', ')
         }
     };
     if (id) state.terms = state.terms.map(x => x.id === id ? t : x);
@@ -2001,7 +2081,17 @@ function renderAnnouncements() {
     if (!gList || !dList) return;
 
     const globalAnns = (state.announcements || []).filter(a => a.type === 'GLOBAL').reverse();
-    const deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT' && (currentAnnDeptFilter === 'ALL' || a.dept === currentAnnDeptFilter)).reverse();
+    
+    // Filtering Dept Announcements: Regular users only see their own department's news
+    let deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT');
+    
+    if (state.userRole === 'user') {
+        const userDept = state.currentUser ? state.currentUser.dept : null;
+        deptAnns = deptAnns.filter(a => a.dept === userDept);
+    }
+    
+    // Apply UI filter (ALL or specific dept pill)
+    deptAnns = deptAnns.filter(a => (currentAnnDeptFilter === 'ALL' || a.dept === currentAnnDeptFilter)).reverse();
 
     gList.innerHTML = globalAnns.length ? globalAnns.map(a => renderAnnCard(a)).join('') : '<div class="empty-mini">Chưa có thông báo toàn CLB.</div>';
     dList.innerHTML = deptAnns.length ? deptAnns.map(a => renderAnnCard(a)).join('') : '<div class="empty-mini">Chưa có thông báo ban này.</div>';
@@ -2308,11 +2398,16 @@ function calculateFinalScores() {
     const rangeFilter = document.getElementById('filter-score-range') ? document.getElementById('filter-score-range').value : 'ALL';
     const rankFilter = document.getElementById('filter-score-rank') ? document.getElementById('filter-score-rank').value : 'ALL';
 
-    const filtered = state.members.filter(m => {
+    let filtered = state.members.filter(m => {
         const matchesSearch = m.name.toLowerCase().includes(searchTxt);
         const matchesDept = (dFilter === 'ALL' || m.dept === dFilter);
         return matchesSearch && matchesDept;
     });
+
+    // Permission Filter: Heads only see their own department
+    if (state.userRole === 'head' && state.currentUser && state.currentUser.dept) {
+        filtered = filtered.filter(m => m.dept === state.currentUser.dept);
+    }
 
     filtered.forEach(member => {
         const mId = member.id;
@@ -2609,7 +2704,42 @@ function showScoreDetail(mId) {
                 <button class="pill active" onclick="switchDetailTab(this, 'prj')">Dự án</button>
                 <button class="pill" onclick="switchDetailTab(this, 'clb')">CLB</button>
                 <button class="pill" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
+                <button class="pill" onclick="switchDetailTab(this, 'explanation')"><i class="fa-solid fa-calculator"></i> Giải trình</button>
                 <button class="pill" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
+            </div>
+        </div>
+
+        <div id="detail-tab-explanation" class="detail-tab-pane" style="display:none;">
+            <div class="score-formula-box" style="padding:20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:16px;">
+                <h4 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-calculator"></i> Công thức & Giải trình chi tiết</h4>
+                
+                <div class="formula-item" style="margin-bottom:20px;">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">1. Điểm Tổng Kết (Hệ số 1/3 mỗi đầu điểm)</div>
+                    <div style="background:rgba(14, 165, 233, 0.1); padding:12px; border-radius:12px; font-family:monospace; font-size:1.1rem; text-align:center;">
+                        Score = (${prjScoreVal} + ${clubScoreVal} + ${deptScoreVal}) / 3 = <strong>${total}</strong>
+                    </div>
+                </div>
+
+                <div class="formula-item" style="margin-bottom:20px;">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">2. Điểm CLB (Cơ cấu 3-3-2-2)</div>
+                    <div style="font-size:0.85rem; line-height:1.6; background:rgba(0,0,0,0.02); padding:15px; border-radius:12px;">
+                        <p>• <strong>Kỷ luật (30%):</strong> ${disc.toFixed(1)}/10 ${ce ? `(Lý do: ${ce.reasons || 'N/A'})` : '(Mặc định 10)'}</p>
+                        <p>• <strong>Hỗ trợ & Coreteam (30%):</strong> [(${sBase} * 0.3) + (${cBase} * 0.7)] = ${supportScore.toFixed(2)} (Hỗ trợ: ${supportCount}, Coreteam: ${coreteamCount})</p>
+                        <p>• <strong>Hoạt động nội bộ (20%):</strong> ${inScore.toFixed(1)}/10 (Check-in nội bộ: ${internalCheckinCount} CT)</p>
+                        <p>• <strong>Xây dựng thương hiệu (20%):</strong> ${brand.toFixed(1)}/10</p>
+                        <p>• <strong>Bonus:</strong> +${(ce && ce.bonusScore ? parseFloat(ce.bonusScore) : 0).toFixed(1)}</p>
+                        <div style="margin-top:10px; padding:10px; background:rgba(16, 185, 129, 0.1); border-radius:8px; font-family:monospace; font-weight:700;">
+                            Club = (${disc.toFixed(1)}*0.3) + (${supportScore.toFixed(2)}*0.3) + (${inScore.toFixed(1)}*0.2) + (${brand.toFixed(1)}*0.2) + Bonus = <strong>${clubScoreVal}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formula-item">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">3. Nhận xét từ Ban Chuyên Môn</div>
+                    <div style="padding:15px; background:rgba(245, 158, 11, 0.05); border-radius:12px; font-style:italic;">
+                        "${deptRemarks}"
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -4047,11 +4177,31 @@ function switchFbTab(btn, paneId) {
 function renderFeedbacks() {
     const grid = document.getElementById('feedback-grid');
     const empty = document.getElementById('feedback-empty');
+    if (!grid || !empty) return;
+
+    // Restriction: Only Admin, BCN, and Dept Heads can view feedback results
+    if (state.userRole === 'user') {
+        grid.innerHTML = '';
+        grid.style.display = 'none';
+        empty.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">
+            <i class="fa-solid fa-lock" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5;"></i>
+            <p><strong>Truy cập bị hạn chế</strong></p>
+            <p style="font-size: 0.85rem;">Phần góp ý này chỉ dành cho Ban chủ nhiệm và Trưởng/Phó ban đối soát.</p>
+        </div>`;
+        empty.style.display = 'flex';
+        return;
+    }
+
     const filterPrj = document.getElementById('filter-feedback-prj').value;
     grid.innerHTML = '';
     let fbEvals = state.evaluations.filter(e => e.term === state.currentTerm && e.feedback && String(e.feedback).trim() !== '');
     if (filterPrj !== 'ALL') fbEvals = fbEvals.filter(e => e.prjId === filterPrj);
-    if (fbEvals.length === 0) { empty.style.display = 'flex'; grid.style.display = 'none'; return; }
+    if (fbEvals.length === 0) { 
+        empty.innerHTML = 'Chưa có phản hồi nào';
+        empty.style.display = 'flex'; 
+        grid.style.display = 'none'; 
+        return; 
+    }
     empty.style.display = 'none';
     grid.style.display = 'grid';
     fbEvals.forEach(fb => {
@@ -4073,8 +4223,16 @@ function renderFeedbacks() {
 // ==========================================
 function submitConfession() {
     const txt = document.getElementById('confession-text').value.trim();
-    if (!txt) return alert('Hay viet gi do truoc khi gui!');
-    const c = { id: 'cf_' + Date.now(), text: txt, term: state.currentTerm, createdAt: new Date().toLocaleDateString('vi-VN') };
+    if (!txt) return alert('Hãy viết gì đó trước khi gửi!');
+    
+    // New status: 'pending' requires approval by Admin/BCN/Heads
+    const c = { 
+        id: 'cf_' + Date.now(), 
+        text: txt, 
+        term: state.currentTerm, 
+        status: 'pending',
+        createdAt: new Date().toLocaleDateString('vi-VN') 
+    };
     state.confessions.push(c);
     syncToBackend('save_confession', c);
     document.getElementById('confession-text').value = '';
@@ -4086,15 +4244,38 @@ function submitConfession() {
 function renderConfessions() {
     const grid = document.getElementById('confession-grid');
     const empty = document.getElementById('confession-empty');
+    if (!grid || !empty) return;
+    
     grid.innerHTML = '';
-    const list = state.confessions.filter(c => !c.term || c.term === state.currentTerm);
+    const isManager = ['admin', 'bcn', 'head'].includes(state.userRole);
+    
+    // Regular users ONLY see approved confessions. Managers see everything.
+    let list = state.confessions.filter(c => !c.term || c.term === state.currentTerm);
+    if (!isManager) {
+        list = list.filter(c => c.status === 'approved');
+    }
+    
     if (list.length === 0) { empty.style.display = 'flex'; return; }
     empty.style.display = 'none';
+    
     list.slice().reverse().forEach(c => {
-        const delBtn = state.userRole === 'admin' ? `<button class="conf-del-btn" onclick="deleteSyncedConfession('${c.id}')"><i class="fa-solid fa-trash-can"></i></button>` : '';
+        const isPending = c.status === 'pending';
+        const delBtn = state.userRole === 'admin' ? `<button class="conf-del-btn" onclick="deleteSyncedConfession('${c.id}')" title="Xóa"><i class="fa-solid fa-trash-can"></i></button>` : '';
+        
+        // Approval button for managers if pending
+        const approveBtn = (isManager && isPending) ? 
+            `<button class="conf-approve-btn" onclick="approveConfession('${c.id}')"><i class="fa-solid fa-check"></i> Duyệt ngay</button>` : '';
+            
+        const pendingBadge = isPending ? `<span class="pending-badge">Đang chờ duyệt</span>` : '';
+        const cardClass = isPending ? 'confession-card pending' : 'confession-card';
+
         grid.innerHTML += `
-            <div class="confession-card">
-                ${delBtn}
+            <div class="${cardClass}">
+                <div class="conf-actions-top">
+                    ${pendingBadge}
+                    ${approveBtn}
+                    ${delBtn}
+                </div>
                 <div class="confession-card-text">${c.text}</div>
                 <div class="confession-card-meta">
                     <span>~ An danh</span>
@@ -4102,6 +4283,17 @@ function renderConfessions() {
                 </div>
             </div>`;
     });
+}
+
+function approveConfession(id) {
+    const conf = state.confessions.find(c => c.id === id);
+    if (!conf) return;
+    
+    conf.status = 'approved';
+    showToast('Đang duyệt confession...');
+    syncToBackend('save_confession', conf); // Reuse save_confession to update
+    renderConfessions();
+    showToast('Đã công khai confession!', 'success');
 }
 
 async function deleteSyncedConfession(id) {
@@ -4569,6 +4761,157 @@ async function saveEvidenceFolder() {
         closeModal('evidence-folder-modal');
     } catch (e) {
         showToast('Lỗi khi nộp minh chứng. Vui lòng thử lại.', 'error');
+        console.error(e);
+    }
+}
+
+// ==========================================
+// EXPORT EVIDENCE LIST (HTML)
+// ==========================================
+function exportEvidenceVisualReport() {
+    const folderId = state.currentCommonFolderId;
+    if (!folderId) return;
+
+    const folder = state.commonFolders.find(f => f.id === folderId);
+    const folderName = folder ? folder.name : 'Folder';
+    
+    const photos = (state.evidenceImages || []).filter(img => img.folderId === folderId);
+    
+    if (photos.length === 0) {
+        return showToast('Không có dữ liệu minh chứng để xuất!', 'warning');
+    }
+
+    showToast('Đang tạo dự thảo danh sách minh chứng có Popup...');
+
+    let tableRows = '';
+    photos.forEach((img, index) => {
+        const member = state.members.find(m => m.id === img.memberId);
+        const name = member ? member.name : (img.filename ? img.filename.split('_')[0] : 'Không rõ');
+        const dept = member ? member.dept : (img.filename ? img.filename.split('_')[1] : 'N/A');
+        const date = formatDateTimeVN(img.createdAt);
+        
+        // Escape image data for JS if needed, but here we can just pass it directly in a function call
+        // Note: We use a simple button with onclick
+        tableRows += `
+        <tr>
+            <td style="text-align: center;">${index + 1}</td>
+            <td><strong>${name}</strong></td>
+            <td style="text-align: center;">${dept}</td>
+            <td style="text-align: center;">${date}</td>
+            <td style="text-align: center;">
+                <button onclick="showPopImage('${img.image}', '${name}')" class="link-btn">Xem ảnh</button>
+            </td>
+        </tr>`;
+    });
+
+    const reportHtml = `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Danh sách minh chứng - ${folderName}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body { font-family: 'Montserrat', sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 40px 20px; }
+            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+            header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+            h1 { color: #0f172a; margin: 0; font-size: 1.6rem; letter-spacing: -0.5px; }
+            .summary { color: #64748b; margin-top: 8px; font-size: 0.95rem; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background: #f1f5f9; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; padding: 12px 15px; border: 1px solid #e2e8f0; }
+            td { padding: 12px 15px; border: 1px solid #e2e8f0; font-size: 0.9rem; }
+            tr:nth-child(even) { background: #f8fafc; }
+            tr:hover { background: #f1f5f9; }
+            .link-btn { display: inline-block; padding: 6px 12px; background: #0ea5e9; color: white; border: none; cursor:pointer; border-radius: 6px; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; font-family: 'Montserrat', sans-serif;}
+            .link-btn:hover { background: #0284c7; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+            
+            /* POPUP STYLES */
+            .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+            .popup-card { position: relative; max-width: 90%; max-height: 90%; display: flex; flex-direction: column; background: white; border-radius: 12px; overflow: hidden; }
+            .popup-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; }
+            .popup-header h4 { margin: 0; color: #334155; }
+            .close-btn { background: #ef4444; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+            .img-container { padding: 10px; overflow: auto; text-align: center; }
+            .img-container img { max-width: 100%; max-height: 80vh; object-fit: contain; }
+
+            @media print {
+                body { background: white; padding: 0; }
+                .container { box-shadow: none; border: none; width: 100%; max-width: 100%; }
+                .link-btn { display: none; }
+                .overlay { display: none !important; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>DANH SÁCH MINH CHỨNG</h1>
+                <p class="summary">Thư mục: <strong>${folderName}</strong> | Tổng cộng: <strong>${photos.length} bản ghi</strong></p>
+            </header>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">STT</th>
+                        <th>Họ tên thành viên</th>
+                        <th style="width: 100px;">Ban</th>
+                        <th style="width: 180px;">Ngày nộp</th>
+                        <th style="width: 120px;">Minh chứng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+            <footer style="text-align: center; margin-top: 40px; color: #94a3b8; font-size: 0.75rem;">
+                Dữ liệu trích xuất từ HuReA Hub - ${new Date().toLocaleString('vi-VN')}
+            </footer>
+        </div>
+
+        <!-- IMAGE POPUP -->
+        <div id="imageOverlay" class="overlay" onclick="closePopImage(event)">
+            <div class="popup-card" onclick="event.stopPropagation()">
+                <div class="popup-header">
+                    <h4 id="popName">Minh chứng</h4>
+                    <button class="close-btn" onclick="closePopImage()">ĐÓNG</button>
+                </div>
+                <div class="img-container">
+                    <img id="popImg" src="" alt="Minh chứng">
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function showPopImage(src, name) {
+                document.getElementById('popImg').src = src;
+                document.getElementById('popName').innerText = "Minh chứng: " + name;
+                document.getElementById('imageOverlay').style.display = 'flex';
+            }
+            function closePopImage(event) {
+                document.getElementById('imageOverlay').style.display = 'none';
+                document.getElementById('popImg').src = "";
+            }
+        </script>
+    </body>
+    </html>`;
+
+    try {
+        const blob = new Blob([reportHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const timestamp = new Date().getTime();
+        const filename = `HuReA_DanhSach_MinhChung_${folderName.replace(/\s+/g, '_')}_${timestamp}.html`;
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('Đã xuất danh sách minh chứng thành công!', 'success');
+    } catch (e) {
+        showToast('Lỗi khi xuất danh sách!', 'error');
         console.error(e);
     }
 }
@@ -5605,25 +5948,50 @@ function handleLogin() {
 
     const password = document.getElementById('login-password').value;
     if (!password) {
-        document.getElementById('login-error').style.display = 'block';
-        document.getElementById('login-error-text').innerText = 'Vui lòng nhập mật khẩu';
+        const err = document.getElementById('login-error');
+        if (err) err.style.display = 'block';
+        const txt = document.getElementById('login-error-text');
+        if (txt) txt.innerText = 'Vui lòng nhập mật khẩu';
         return;
     }
 
     const stored = state.userPasswords.find(p => String(p.memberId) === String(memberId));
 
     if (!stored || String(stored.password) !== password) {
-        document.getElementById('login-error').style.display = 'block';
-        document.getElementById('login-error-text').innerText = 'Sai mật khẩu, vui lòng thử lại';
-        document.getElementById('login-password').value = '';
-        document.getElementById('login-password').focus();
+        const err = document.getElementById('login-error');
+        if (err) err.style.display = 'block';
+        const txt = document.getElementById('login-error-text');
+        if (txt) txt.innerText = 'Sai mật khẩu, vui lòng thử lại';
+        const pwInput = document.getElementById('login-password');
+        if (pwInput) {
+            pwInput.value = '';
+            pwInput.focus();
+        }
         return;
     }
 
-    // Success - login as user
+    // Success - Identify Role
     const member = state.members.find(m => m.id === memberId);
     state.currentUser = member;
-    state.userRole = 'user';
+    
+    // Role Detection
+    const activeTermObj = state.terms.find(t => t.id === state.currentTerm);
+    let role = 'user';
+    
+    if (activeTermObj && activeTermObj.bcn) {
+        const bcn = activeTermObj.bcn;
+        const isPres = ensureArray(bcn.presIds).includes(memberId);
+        const isVp = ensureArray(bcn.vpIds).includes(memberId);
+        const isHead = [bcn.ldIds, bcn.rrIds, bcn.erIds, bcn.ebIds].some(ids => ensureArray(ids).includes(memberId));
+        
+        if (isPres || isVp) {
+            role = 'bcn'; // BCN has near-admin rights
+        } else if (isHead) {
+            role = 'head'; // Department Head
+        }
+    }
+    
+    state.userRole = role;
     completeLogin();
 }
 
@@ -5843,6 +6211,16 @@ function applyPermissions(role) {
 
         const pwNav = document.getElementById('pw-mgmt-nav');
         if (pwNav) pwNav.classList.remove('nav-hidden');
+
+        // BCN restriction: hide password management even though they have other admin rights
+        if (role === 'bcn' || role === 'head') {
+            if (pwNav) pwNav.classList.add('nav-hidden');
+            // Hide specific Admin actions if needed
+            if (role === 'head') {
+                const prjAddBtn = document.querySelector('#projects-view .btn-primary');
+                if (prjAddBtn) prjAddBtn.style.display = 'none';
+            }
+        }
     }
 }
 
@@ -6398,6 +6776,39 @@ function renderMeetingPolls() {
         polls = polls.filter(p => new Date(p.deadline) <= now);
     }
 
+    // Visibility Filtering
+    const userId = state.currentUser ? state.currentUser.id : null;
+    const userRole = state.userRole || 'user';
+    const userDept = (state.currentUser ? state.currentUser.dept : '') || '';
+    
+    polls = polls.filter(p => {
+        // Admins and BCN see everything
+        if (userRole === 'admin' || userRole === 'bcn') return true;
+        // Creator sees their own poll
+        if (p.creatorId === userId) return true;
+        
+        const vision = p.visibility || 'public';
+        if (vision === 'public') return true;
+        
+        if (vision === 'dept') {
+            return userDept === p.targetDept;
+        }
+        
+        if (vision === 'project') {
+            const prj = state.projects.find(x => x.id === p.targetProjectId);
+            if (!prj || !prj.participants) return false;
+            return prj.participants.some(pt => pt.memberId === userId);
+        }
+        
+        if (vision === 'team') {
+            const prj = state.projects.find(x => x.id === p.targetProjectId);
+            if (!prj || !prj.participants) return false;
+            return prj.participants.some(pt => pt.memberId === userId && pt.teamName === p.targetTeamName);
+        }
+        
+        return false;
+    });
+
     grid.innerHTML = '';
 
     if (polls.length === 0) {
@@ -6419,11 +6830,21 @@ function renderMeetingPolls() {
         const card = document.createElement('div');
         card.className = `poll-card ${isExpired ? 'expired' : ''}`;
         card.style.animationDelay = `${idx * 0.08}s`;
+        
+        let visBadge = '';
+        const vision = poll.visibility || 'public';
+        if (vision === 'dept') visBadge = `<span class="poll-vis-badge dept"><i class="fa-solid fa-layer-group"></i> ${poll.targetDept}</span>`;
+        else if (vision === 'project') visBadge = `<span class="poll-vis-badge project"><i class="fa-solid fa-diagram-project"></i> Chương trình</span>`;
+        else if (vision === 'team') visBadge = `<span class="poll-vis-badge team"><i class="fa-solid fa-people-group"></i> ${poll.targetTeamName}</span>`;
+
         card.innerHTML = `
             <div class="poll-card-title">
                 <i class="fa-solid fa-calendar-check" style="color:${isExpired ? '#64748b' : 'var(--primary)'}"></i>
                 ${poll.title || 'Cuộc họp không tên'}
-                <span class="poll-status-badge ${isExpired ? 'expired' : 'active'}">${isExpired ? 'Đã kết thúc' : 'Đang diễn ra'}</span>
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <span class="poll-status-badge ${isExpired ? 'expired' : 'active'}">${isExpired ? 'Đã kết thúc' : 'Đang diễn ra'}</span>
+                    ${visBadge}
+                </div>
             </div>
             ${poll.content ? `<div class="poll-card-content">${poll.content}</div>` : ''}
             <div class="poll-card-meta">
@@ -6485,6 +6906,66 @@ function formatDateFull(dateStr) {
 // ==========================================
 // CREATE POLL
 // ==========================================
+function handlePollVisibilityChange() {
+    const visibility = document.getElementById('poll-visibility').value;
+    
+    // Hide all
+    document.getElementById('poll-dept-target').style.display = 'none';
+    document.getElementById('poll-project-target').style.display = 'none';
+    document.getElementById('poll-team-target').style.display = 'none';
+    
+    if (visibility === 'dept') {
+        document.getElementById('poll-dept-target').style.display = 'block';
+    } else if (visibility === 'project') {
+        document.getElementById('poll-project-target').style.display = 'block';
+        populatePollProjectSelections();
+    } else if (visibility === 'team') {
+        document.getElementById('poll-project-target').style.display = 'block';
+        document.getElementById('poll-team-target').style.display = 'block';
+        populatePollProjectSelections();
+    }
+}
+
+function populatePollProjectSelections() {
+    const projectSelect = document.getElementById('poll-target-project');
+    const activeTerm = state.currentTerm || '';
+    
+    // Only show projects in current term
+    const projects = state.projects.filter(p => p.term === activeTerm);
+    
+    let html = '<option value="">-- Chọn Chương trình --</option>';
+    projects.forEach(p => {
+        html += `<option value="${p.id}">${p.name}</option>`;
+    });
+    projectSelect.innerHTML = html;
+    handlePollProjectChange(); // reset team dropdown
+}
+
+function handlePollProjectChange() {
+    const projectId = document.getElementById('poll-target-project').value;
+    const teamSelect = document.getElementById('poll-target-team');
+    const visibility = document.getElementById('poll-visibility').value;
+    
+    if (visibility !== 'team') return;
+    
+    if (!projectId) {
+        teamSelect.innerHTML = '<option value="">-- Chọn Team --</option>';
+        return;
+    }
+    
+    const project = state.projects.find(p => p.id === projectId);
+    if (!project || !project.teams) {
+        teamSelect.innerHTML = '<option value="">-- Không có team --</option>';
+        return;
+    }
+    
+    let html = '<option value="">-- Chọn Team --</option>';
+    project.teams.forEach(t => {
+        html += `<option value="${t.name}">${t.name}</option>`;
+    });
+    teamSelect.innerHTML = html;
+}
+
 function openCreatePollModal() {
     // Set default values
     const now = new Date();
@@ -6500,6 +6981,13 @@ function openCreatePollModal() {
     document.getElementById('poll-deadline').value = deadlineDt.toISOString().slice(0, 16);
     document.getElementById('poll-start-date').value = tomorrow.toISOString().slice(0, 10);
     document.getElementById('poll-end-date').value = weekLater.toISOString().slice(0, 10);
+    
+    // Reset visibility fields
+    document.getElementById('poll-visibility').value = 'public';
+    document.getElementById('poll-dept-target').style.display = 'none';
+    document.getElementById('poll-project-target').style.display = 'none';
+    document.getElementById('poll-team-target').style.display = 'none';
+    
     openModal('create-poll-modal');
 }
 
@@ -6511,6 +6999,22 @@ async function saveMeetingPoll() {
     const endDate = document.getElementById('poll-end-date').value;
     const startHour = parseInt(document.getElementById('poll-start-hour').value) || 8;
     const endHour = parseInt(document.getElementById('poll-end-hour').value) || 22;
+
+    const visibility = document.getElementById('poll-visibility').value;
+    let targetDept = '';
+    let targetProjectId = '';
+    let targetTeamName = '';
+
+    if (visibility === 'dept') {
+        targetDept = document.getElementById('poll-target-dept').value;
+    } else if (visibility === 'project') {
+        targetProjectId = document.getElementById('poll-target-project').value;
+        if (!targetProjectId) return showToast('Vui lòng chọn Chương trình!', 'error');
+    } else if (visibility === 'team') {
+        targetProjectId = document.getElementById('poll-target-project').value;
+        targetTeamName = document.getElementById('poll-target-team').value;
+        if (!targetProjectId || !targetTeamName) return showToast('Vui lòng chọn đầy đủ Chương trình và Team!', 'error');
+    }
 
     if (!title || !deadline || !startDate || !endDate) {
         showToast('Vui lòng điền đầy đủ thông tin bắt buộc!', 'error');
@@ -6538,6 +7042,10 @@ async function saveMeetingPoll() {
         endDate,
         startHour,
         endHour,
+        visibility,
+        targetDept,
+        targetProjectId,
+        targetTeamName,
         creatorId: state.currentUser ? state.currentUser.id : '',
         creatorName: state.currentUser ? state.currentUser.name : 'Ẩn danh',
         createdAt: new Date().toISOString()
@@ -7198,92 +7706,4 @@ async function deleteEvent(id) {
     }
 }
 
-// ==========================================
-// AUDIO PLAYER LOGIC
-// ==========================================
-function initAudioPlayer() {
-    const audio = document.getElementById('main-audio');
-    const volumeSlider = document.getElementById('audio-volume');
-    const savedVolume = localStorage.getItem('hurea-audio-volume') || 0.5;
-    
-    if (audio && volumeSlider) {
-        audio.volume = savedVolume;
-        volumeSlider.value = savedVolume;
-        
-        audio.addEventListener('timeupdate', updateAudioProgress);
-        audio.addEventListener('ended', () => {
-            const btn = document.getElementById('audio-play-btn');
-            const icon = document.getElementById('music-note-icon');
-            if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
-            if (icon) icon.classList.remove('playing');
-        });
-    }
-}
-
-function togglePlay() {
-    const audio = document.getElementById('main-audio');
-    const btn = document.getElementById('audio-play-btn');
-    const icon = document.getElementById('music-note-icon');
-    
-    if (!audio) return;
-    
-    if (audio.paused) {
-        audio.play().catch(e => {
-            console.warn("Autoplay blocked or audio error:", e);
-            showToast("Nhấn lại để phát nhạc", "info");
-        });
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-        if (icon) icon.classList.add('playing');
-    } else {
-        audio.pause();
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
-        if (icon) icon.classList.remove('playing');
-    }
-}
-
-function updateAudioProgress() {
-    const audio = document.getElementById('main-audio');
-    const progressBar = document.getElementById('audio-progress');
-    if (!audio || !progressBar) return;
-    
-    const percent = (audio.currentTime / audio.duration) * 100;
-    progressBar.style.width = percent + '%';
-}
-
-function seekAudio(e) {
-    const audio = document.getElementById('main-audio');
-    const container = document.getElementById('audio-progress-container');
-    if (!audio || !container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = pos * audio.duration;
-}
-
-function changeVolume(val) {
-    const audio = document.getElementById('main-audio');
-    const volumeIcon = document.getElementById('volume-icon');
-    if (!audio) return;
-    
-    audio.volume = val;
-    localStorage.setItem('hurea-audio-volume', val);
-    
-    if (volumeIcon) {
-        if (val == 0) volumeIcon.className = 'fa-solid fa-volume-mute';
-        else if (val < 0.5) volumeIcon.className = 'fa-solid fa-volume-low';
-        else volumeIcon.className = 'fa-solid fa-volume-high';
-    }
-}
-function toggleAudioWidget() {
-    const widget = document.getElementById('audio-player-widget');
-    const icon = document.getElementById('toggle-widget-icon');
-    if (!widget || !icon) return;
-
-    const isMinimized = widget.classList.toggle('minimized');
-    if (isMinimized) {
-        icon.className = 'fa-solid fa-expand-arrows-alt';
-    } else {
-        icon.className = 'fa-solid fa-compress-arrows-alt';
-    }
-}
 
