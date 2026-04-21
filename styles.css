@@ -5335,7 +5335,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
 /* MODERATION & UI FIXES */
 .dashboard-announcements .column-header .header-text h2,
 .dashboard-calendar-card .column-header .header-text h2 {
-    color: #ffffff !important;
+    color: var(--text-main) !important;
 }
 
 .conf-actions-top {
