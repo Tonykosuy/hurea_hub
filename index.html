@@ -1702,6 +1702,24 @@
                             Danh sách nhân sự điểm danh
                         </div>
 
+                        <!-- Care Team List -->
+                        <div class="lux-card pl-card-premium" style="margin-bottom:16px;">
+                            <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+                                <div
+                                    style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
+                                    <strong><i class="fa-solid fa-heart-pulse"></i> Danh sách Care Team</strong>
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CARE')"
+                                        title="Thêm Care Team">
+                                        <i class="fa-solid fa-user-plus"></i> Thêm người
+                                    </button>
+                                </div>
+                                <div id="p-care-list" class="pl-list-container" style="width:100%;">
+                                    <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
+                                        chọn nhân sự care team</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Support List -->
                         <div class="lux-card pl-card-premium" style="margin-bottom:16px;">
                             <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
@@ -2643,6 +2661,19 @@
                         <i class="fa-solid fa-paper-plane"></i> Gửi yêu cầu phúc khảo
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FEEDBACK DETAIL MODAL ===== -->
+    <div id="feedback-detail-modal" class="modal">
+        <div class="modal-wrapper glass-panel" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-lines"></i> Chi tiết Góp ý & Đánh giá</h3>
+                <button class="close-btn" onclick="closeModal('feedback-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="fb-detail-body" class="modal-body" style="max-height:80vh; overflow-y:auto;">
+                <!-- Content populated by JS -->
             </div>
         </div>
     </div>

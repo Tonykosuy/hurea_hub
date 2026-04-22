@@ -989,7 +989,7 @@ function updateProjectDashboardStats(termProjects) {
 function openCreateProjectModal() {
     state.activeProjectData = {
         id: '', name: '', term: state.currentTerm, type: 'internal', status: 'setup',
-        hasPL: true, plIds: [], teams: [], supportIds: [], checkinIds: []
+        hasPL: true, plIds: [], teams: [], supportIds: [], careIds: [], checkinIds: []
     };
     showProjectModal();
 }
@@ -1014,6 +1014,7 @@ function editProjectV2(id) {
     // Extract SUPPORT and CHECKIN from participants
     const parts = ensureArray(state.activeProjectData.participants);
     state.activeProjectData.supportIds = parts.filter(x => x.role === 'SUPPORT').map(x => x.memberId);
+    state.activeProjectData.careIds = parts.filter(x => x.role === 'CARE').map(x => x.memberId);
     state.activeProjectData.checkinIds = parts.filter(x => x.role === 'CHECKIN').map(x => x.memberId);
 
     showProjectModal();
@@ -1057,6 +1058,7 @@ function showProjectModal() {
 
     togglePLSection();
     renderTeamsV2();
+    renderCareList();
     renderSupportList();
     renderCheckinList();
     openModal('project-modal');
@@ -1079,6 +1081,37 @@ function showProjectModal() {
 
     const saveBtn = document.querySelector('#project-modal-footer .btn-primary');
     if (saveBtn) saveBtn.style.display = isAdmin ? 'block' : 'none';
+}
+
+function renderCareList() {
+    const list = document.getElementById('p-care-list');
+    if (!list) return;
+    const ids = state.activeProjectData.careIds || [];
+    if (ids.length === 0) {
+        list.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn nhân sự care team</div>';
+        return;
+    }
+    list.innerHTML = ids.map(id => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return '';
+        return `
+            <div class="pl-display-capsule">
+                <div class="pl-avatar-mini">${getInitials(m.name)}</div>
+                <div class="pl-info-mini">
+                    <div class="pl-name-mini">${m.name}</div>
+                    <div class="pl-role-mini">${getMemberDept(m)}</div>
+                </div>
+                ${state.userRole === 'admin' ? `<button type="button" class="btn-remove-pl" onclick="removeCareMember('${id}')" title="Gỡ bỏ"><i class="fa-solid fa-times"></i></button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function removeCareMember(id) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
+    if (!state.activeProjectData.careIds) return;
+    state.activeProjectData.careIds = state.activeProjectData.careIds.filter(x => x !== id);
+    renderCareList();
 }
 
 function renderSupportList() {
@@ -1397,6 +1430,7 @@ function renderMemberPicker() {
         const isSelected = state.selectedPickerIds.includes(m.id) || 
             (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'SUPPORT' && (state.activeProjectData.supportIds || []).includes(m.id)) ||
+            (state.mpTarget.type === 'CARE' && (state.activeProjectData.careIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'CHECKIN' && (state.activeProjectData.checkinIds || []).includes(m.id));
 
         if (state.pickerViewMode === 'grid') {
@@ -1427,7 +1461,7 @@ function renderMemberPicker() {
 
 function confirmMemberSelection(memberId) {
     const { type, teamId } = state.mpTarget;
-    if (['PL', 'SUPPORT', 'CHECKIN', 'Team'].includes(type) && state.userRole !== 'admin') {
+    if (['PL', 'SUPPORT', 'CARE', 'CHECKIN', 'Team'].includes(type) && state.userRole !== 'admin') {
         return alert('Bạn không có quyền thực hiện thao tác này.');
     }
     const m = state.members.find(x => x.id === memberId);
@@ -1453,6 +1487,13 @@ function confirmMemberSelection(memberId) {
         if (idx > -1) state.activeProjectData.supportIds.splice(idx, 1);
         else state.activeProjectData.supportIds.push(memberId);
         renderSupportList();
+        renderMemberPicker();
+    } else if (type === 'CARE') {
+        if (!state.activeProjectData.careIds) state.activeProjectData.careIds = [];
+        const idx = state.activeProjectData.careIds.indexOf(memberId);
+        if (idx > -1) state.activeProjectData.careIds.splice(idx, 1);
+        else state.activeProjectData.careIds.push(memberId);
+        renderCareList();
         renderMemberPicker();
     } else if (type === 'CHECKIN') {
         if (!state.activeProjectData.checkinIds) state.activeProjectData.checkinIds = [];
@@ -1613,6 +1654,13 @@ async function saveProjectV2() {
     (p.plIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id)) {
             allParticipants.push({ memberId: id, role: 'PL', teamName: 'Leadership' });
+        }
+    });
+
+    // Add CARE list
+    (p.careIds || []).forEach(id => {
+        if (!allParticipants.some(x => x.memberId === id && x.role === 'CARE')) {
+            allParticipants.push({ memberId: id, role: 'CARE', teamName: 'Care Team' });
         }
     });
 
@@ -4550,16 +4598,106 @@ function renderFeedbacks() {
     grid.style.display = 'grid';
     fbEvals.forEach(fb => {
         const prj = state.projects.find(p => p.id === fb.prjId);
-        const prjName = prj ? prj.name : 'Du an an';
+        const prjName = prj ? prj.name : 'Dự án ẩn';
+        const isNamed = fb.raterId && fb.targetId === fb.raterId && (fb.workDone || fb.teamMessage || fb.feelings);
+        const sender = isNamed ? (state.members.find(m => m.id === fb.raterId)?.name || 'Thành viên') : 'Ẩn danh';
+
         grid.innerHTML += `
             <div class="feedback-card">
                 <div class="fb-header">
                     <span><i class="fa-solid fa-folder"></i> ${prjName}</span>
-                    <span><i class="fa-solid fa-user-secret"></i> An danh</span>
+                    <span><i class="fa-solid ${isNamed ? 'fa-user' : 'fa-user-secret'}"></i> ${sender}</span>
                 </div>
-                <div class="fb-content">"${fb.feedback}"</div>
+                <div class="fb-content" style="margin-bottom:12px;">
+                    ${isNamed ? (fb.generalComment || fb.feelings || 'Đã gửi đánh giá chi tiết') : `"${fb.feedback}"`}
+                </div>
+                ${isNamed ? `
+                    <button class="btn-premium-xs" onclick="openFeedbackDetail('${fb.id}')">
+                        <i class="fa-solid fa-eye"></i> Xem chi tiết
+                    </button>
+                ` : ''}
             </div>`;
     });
+}
+
+function openFeedbackDetail(evalId) {
+    const ev = state.evaluations.find(e => e.id === evalId);
+    if (!ev) return;
+    
+    const prj = state.projects.find(p => p.id === ev.prjId);
+    const sender = state.members.find(m => m.id === ev.raterId);
+    const body = document.getElementById('fb-detail-body');
+    
+    let careTable = '';
+    if (ev.careMessages && Object.keys(ev.careMessages).length > 0) {
+        careTable = `
+            <div class="fb-detail-section">
+                <div class="fb-detail-title">Nhắn nhủ Care Project</div>
+                <div class="fb-detail-list">
+                    ${Object.keys(ev.careMessages).map(cid => {
+                        const m = state.members.find(x => x.id === cid);
+                        return `<div class="fb-detail-item"><strong>${m ? m.name : cid}:</strong> ${ev.careMessages[cid]}</div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    const progLabels = { p1: 'Phân công', p2: 'Truyền thông', p3: 'Nội dung', p4: 'Hỗ trợ', p5: 'Tổ chức' };
+    const levelLabels = ['', 'Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
+
+    body.innerHTML = `
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px dashed var(--border-color);">
+            <div style="font-size:1.1rem; font-weight:700; color:var(--primary-color);">Dự án: ${prj ? prj.name : 'N/A'}</div>
+            <div style="font-size:0.9rem; color:var(--text-muted);">Người gửi: <strong>${sender ? sender.name : 'N/A'}</strong></div>
+        </div>
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Công việc đã làm</div>
+            <div class="fb-detail-text">${ev.workDone || 'Không có thông tin'}</div>
+        </div>
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Nhắn nhủ các thành viên Team</div>
+            <div class="fb-detail-text">${ev.teamMessage || 'Không có thông tin'}</div>
+        </div>
+
+        ${careTable}
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Đánh giá Chương trình</div>
+            <div class="fb-prog-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                ${Object.keys(progLabels).map(key => `
+                    <div style="background:rgba(0,0,0,0.03); padding:8px 12px; border-radius:8px;">
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${progLabels[key]}</div>
+                        <div style="font-weight:600; font-size:0.9rem;">${levelLabels[ev.programEval?.[key] || 0]}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Cảm nhận Bản thân</div>
+            <div class="fb-detail-text">${ev.feelings || 'Không có thông tin'}</div>
+        </div>
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Đề xuất / Mong muốn</div>
+            <div class="fb-detail-text">${ev.proposals || 'Không có thông tin'}</div>
+        </div>
+
+        <div class="fb-detail-section">
+            <div class="fb-detail-title">Nhận xét chung (Công khai)</div>
+            <div class="fb-detail-text">${ev.generalComment || 'Không có thông tin'}</div>
+        </div>
+
+        <div class="fb-detail-section" style="background:var(--bg-card); padding:12px; border-radius:10px; border-left:4px solid var(--accent-color);">
+            <div class="fb-detail-title" style="color:var(--accent-color); margin-bottom:5px;">Góp ý Ẩn danh</div>
+            <div class="fb-detail-text" style="font-style:italic;">"${ev.feedback || 'Không có góp ý'}"</div>
+        </div>
+    `;
+
+    openModal('feedback-detail-modal');
 }
 
 // ==========================================
@@ -5614,7 +5752,10 @@ function startCinematicEvaluation(prjId) {
     if (cine_targets.length === 0) return alert('Không có ai để đánh giá trong dự án này!');
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
     cine_currentStep = 1;
-    cine_totalSteps = cine_targets.length + 1;
+    
+    // New total steps: Targets + Work/Team Msg + Care Team Msg (if exists) + Program Eval + Feelings
+    const hasCareTeam = (prj.careIds || []).length > 0;
+    cine_totalSteps = cine_targets.length + (hasCareTeam ? 4 : 3);
 
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
@@ -5673,15 +5814,112 @@ function renderCineSteps() {
             cine_prefilled_feedback = existing?.feedback || '';
         }
     });
-    const finalStep = cine_totalSteps;
-    c.innerHTML += `<section class="cine-section" data-step="${finalStep}">
+
+    // STEP N+1: Work Done & Team Message
+    const prjId = document.getElementById('eval-prj-id').value;
+    const raterId = document.getElementById('eval-prj-rater').value;
+    const existing = (state.evaluations || []).find(ev =>
+        String(ev.prjId || ev.prjid).trim() === String(prjId).trim() &&
+        String(ev.raterId || ev.raterid).trim() === String(raterId).trim() &&
+        String(ev.targetId || ev.targetid).trim() === String(raterId).trim() // Use self-eval for global info
+    );
+
+    let currentIdx = cine_targets.length + 1;
+    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+        <div class="cine-sec-header">
+            <span class="cine-step-badge">${currentIdx}</span>
+            <h2 class="cine-sec-title">Công việc & Nhắn nhủ Team</h2>
+        </div>
+        <div class="lux-form-group" style="margin-bottom:20px;">
+            <label class="cine-label-text">Các công việc đã làm trong Project</label>
+            <textarea id="cine-work-done" rows="4" placeholder="Liệt kê các đầu việc bạn đã thực hiện...">${existing?.workDone || ''}</textarea>
+        </div>
+        <div class="lux-form-group">
+            <label class="cine-label-text">Gửi lời nhắn nhủ của bạn đến các thành viên của Team</label>
+            <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn gửi đến những người đồng đội...">${existing?.teamMessage || ''}</textarea>
+        </div>
+        <div class="cine-footer-nav">
+            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+        </div>
+    </section>`;
+
+    // STEP N+2: Care Team Messages (if any)
+    const prj = state.projects.find(x => x.id === prjId);
+    const careIds = prj?.careIds || [];
+    if (careIds.length > 0) {
+        currentIdx++;
+        let careHtml = '';
+        careIds.forEach(cid => {
+            const m = state.members.find(x => x.id === cid);
+            const careName = m ? m.name : 'Care Team';
+            const careMsg = existing?.careMessages && existing.careMessages[cid] ? existing.careMessages[cid] : '';
+            careHtml += `
+                <div class="lux-form-group" style="margin-bottom:16px;">
+                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${careName}</strong></label>
+                    <textarea class="cine-care-msg" data-member-id="${cid}" rows="2" placeholder="Lời nhắn cho care...">${careMsg}</textarea>
+                </div>
+            `;
+        });
+
+        c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+            <div class="cine-sec-header">
+                <span class="cine-step-badge">${currentIdx}</span>
+                <h2 class="cine-sec-title">Đánh giá Care Project (Không bắt buộc)</h2>
+            </div>
+            <div class="cine-scroll-box" style="max-height:400px; overflow-y:auto; padding-right:10px;">
+                ${careHtml}
+            </div>
+            <div class="cine-footer-nav">
+                <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
+                <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+            </div>
+        </section>`;
+    }
+
+    // STEP N+3: Program Evaluation
+    currentIdx++;
+    const progEval = existing?.programEval || {};
+    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+        <div class="cine-sec-header">
+            <span class="cine-step-badge">${currentIdx}</span>
+            <h2 class="cine-sec-title">Đánh giá Chương trình</h2>
+        </div>
+        <div class="cine-eval-loop">
+            ${renderProgramEvalItem('p1', 'Phân công công việc hợp lí, rõ ràng', progEval.p1 || 3)}
+            ${renderProgramEvalItem('p2', 'Truyền thông tới sinh viên', progEval.p2 || 3)}
+            ${renderProgramEvalItem('p3', 'Chất lượng nội dung', progEval.p3 || 3)}
+            ${renderProgramEvalItem('p4', 'Công tác hỗ trợ', progEval.p4 || 3)}
+            ${renderProgramEvalItem('p5', 'Công tác tổ chức', progEval.p5 || 3)}
+        </div>
+        <div class="cine-footer-nav">
+            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+        </div>
+    </section>`;
+
+    // STEP N+4: Feelings & Final Feedback
+    currentIdx++;
+    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
         <div class="cine-sec-header">
             <span class="cine-step-badge"><i class="fa-solid fa-flag-checkered"></i></span>
-            <h2 class="cine-sec-title">Góp ý Tổng quan Dự án</h2>
+            <h2 class="cine-sec-title">Cảm nhận của Bản thân</h2>
+        </div>
+        <div class="lux-form-group" style="margin-bottom:16px;">
+            <label class="cine-label-text">Mực độ cảm nhận / Kết quả đạt được của bản thân</label>
+            <textarea id="cine-feelings" rows="3" placeholder="Bạn cảm thấy thế nào sau dự án?">${existing?.feelings || ''}</textarea>
+        </div>
+        <div class="lux-form-group" style="margin-bottom:16px;">
+            <label class="cine-label-text">Đề xuất / Mong muốn cho các dự án sau</label>
+            <textarea id="cine-proposals" rows="3" placeholder="Bạn mong muốn điều gì ở dự án tới?">${existing?.proposals || ''}</textarea>
+        </div>
+        <div class="lux-form-group" style="margin-bottom:16px;">
+            <label class="cine-label-text">Nhận xét chung cho dự án / BTC (Công khai)</label>
+            <textarea id="cine-general-comment" rows="3" placeholder="Lời chia sẻ công khai...">${existing?.generalComment || ''}</textarea>
         </div>
         <div style="margin-bottom:32px;">
             <label class="cine-label-text">Góp ý ẩn danh (cho BTC / Ban / Dự án)</label>
-            <textarea id="cine-final-feedback" rows="4" placeholder="Những suy nghĩ, cảm nhận của bạn... Sẽ hoàn toàn ẩn danh.">${cine_prefilled_feedback || ''}</textarea>
+            <textarea id="cine-final-feedback" rows="2" placeholder="Những suy nghĩ thầm kín... Sẽ hoàn toàn ẩn danh.">${existing?.feedback || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
             <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
@@ -5709,6 +5947,32 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
                 <input type="radio" id="radio_${stepNum}_${critKey}_${i}" name="${name}" value="${i}" ${checked}>
                 <label for="radio_${stepNum}_${critKey}_${i}">
                     <span class="point-val">${i}</span>
+                </label>
+            </div>`;
+    }
+    
+    html += `</div></div>`;
+    return html;
+}
+
+function renderProgramEvalItem(id, label, initialValue = 3) {
+    const name = `program_${id}`;
+    const labels = ['Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
+    
+    let html = `
+    <div class="rating-item">
+        <div class="rating-label" style="margin-bottom: 8px;">
+            <span style="font-weight:600; font-size: 0.95rem; color: var(--text-main);">${label}</span>
+        </div>
+        <div class="rating-group" style="flex-wrap: wrap; gap: 8px;">`;
+        
+    for (let i = 1; i <= 5; i++) {
+        const checked = i === parseInt(initialValue) ? 'checked' : '';
+        html += `
+            <div class="rating-opt-text" style="flex: 1; min-width: 80px;">
+                <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked} style="display:none;">
+                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: var(--text-muted);">
+                    ${labels[i-1]}
                 </label>
             </div>`;
     }
@@ -5763,6 +6027,26 @@ async function submitCinematicEvaluation() {
     `;
 
     const allRecords = [];
+    const workDone = (document.getElementById('cine-work-done')?.value || '').trim();
+    const teamMessage = (document.getElementById('cine-team-message')?.value || '').trim();
+    const feelings = (document.getElementById('cine-feelings')?.value || '').trim();
+    const proposals = (document.getElementById('cine-proposals')?.value || '').trim();
+    const generalComment = (document.getElementById('cine-general-comment')?.value || '').trim();
+
+    // Collect Care Team Messages
+    const careMessages = {};
+    document.querySelectorAll('.cine-care-msg').forEach(ta => {
+        const cid = ta.dataset.memberId;
+        if (cid && ta.value.trim()) careMessages[cid] = ta.value.trim();
+    });
+
+    // Collect Program Evaluation
+    const programEval = {};
+    for (let i = 1; i <= 5; i++) {
+        const val = document.querySelector(`input[name="program_p${i}"]:checked`)?.value;
+        programEval[`p${i}`] = val || 3;
+    }
+
     cine_targets.forEach((pt, idx) => {
         const sn = idx + 1;
         const getVal = (crit) => {
@@ -5778,12 +6062,23 @@ async function submitCinematicEvaluation() {
         const c6 = getVal('c6');
         const c7 = getVal('c7');
         const score = (c1 + c2 + c3 + c4 + c5 + c6 + c7) / 7;
+        
+        const isSelfVal = String(pt.memberId) === String(raterId);
+
         const record = {
             id: `ev_${prjId}_${raterId}_${pt.memberId}`,
             term, prjId, raterId, targetId: pt.memberId,
             raterRole, targetRole: pt.role,
             c1, c2, c3, c4, c5, c6, c7, score,
-            feedback: idx === 0 ? commonFeedback : '',
+            // Only store global fields in the rater's self-evaluation record
+            feedback: isSelfVal ? commonFeedback : '',
+            workDone: isSelfVal ? workDone : '',
+            teamMessage: isSelfVal ? teamMessage : '',
+            careMessages: isSelfVal ? careMessages : {},
+            programEval: isSelfVal ? programEval : {},
+            feelings: isSelfVal ? feelings : '',
+            proposals: isSelfVal ? proposals : '',
+            generalComment: isSelfVal ? generalComment : '',
             createdAt: new Date().toISOString()
         };
 
