@@ -95,11 +95,22 @@ function ensureObject(val) {
     return {};
 }
 
-function getInitials(name) {
-    if (!name) return '?';
-    const parts = name.trim().split(' ');
-    if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+}
+
+/**
+ * Debounce function to limit execution rate of expensive functions
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 /**
@@ -171,18 +182,16 @@ function normalizeDataKeys(data) {
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme(); setupNavigation(); setupEvalTabs(); setupSearchableDropdowns();
     initToast();
-    // initAudioPlayer(); // Removed by request
     if (API_URL) { await loadDataFromAPI(); } else { seedMockData(); }
     initMeetingScheduler();
-    // initPinInputs(); // Replaced by standard password fields
     showLoginScreen();
 });
 
-function renderAllViews() {
+async function renderAllViews() {
     const views = [
         { name: 'Terms', fn: renderTerms },
-        { name: 'Members', fn: renderMembers },
-        { name: 'Projects', fn: renderProjects },
+        { name: 'Members', fn: _renderMembers },
+        { name: 'Projects', fn: _renderProjects },
         { name: 'Stats', fn: updateDashboardStats },
         { name: 'Dropdowns', fn: populateSelectDropdowns },
         { name: 'Evidence', fn: renderEvidenceFolders },
@@ -196,9 +205,13 @@ function renderAllViews() {
         { name: 'ActivityCalendar', fn: renderActivityCalendar }
     ];
 
-    views.forEach(v => {
-        try { v.fn(); } catch (e) { console.error(`Render Error in ${v.name}:`, e); }
-    });
+    for (const v of views) {
+        try { 
+            v.fn(); 
+            // Yield to main thread every few renders to prevent long task blocking
+            await new Promise(r => setTimeout(r, 0));
+        } catch (e) { console.error(`Render Error in ${v.name}:`, e); }
+    }
 }
 
 async function loadDataFromAPI() {
@@ -567,7 +580,7 @@ function populateSelectDropdowns() {
 // ==========================================
 // MEMBERS MODULE
 // ==========================================
-function renderMembers() {
+function _renderMembers() {
     const grid = document.getElementById('members-grid-v2');
     const empty = document.getElementById('members-empty');
     if (!grid || !empty) return;
@@ -607,6 +620,7 @@ function renderMembers() {
     grid.style.display = state.memberViewMode === 'grid' ? 'grid' : 'flex';
     grid.className = state.memberViewMode === 'grid' ? 'members-grid-v2' : 'members-list-v2-container';
 
+    const fragment = document.createDocumentFragment();
     filtered.forEach((m, idx) => {
         const initials = getInitials(m.name);
         const deptClass = m.dept ? `tag-${m.dept.toLowerCase().replace(/&/g, '')}` : '';
@@ -651,9 +665,12 @@ function renderMembers() {
                 </div>
             `;
         }
-        grid.appendChild(item);
+        fragment.appendChild(item);
     });
+    grid.appendChild(fragment);
 }
+
+const renderMembers = debounce(_renderMembers, 300);
 
 function saveMember() {
     if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
@@ -855,7 +872,7 @@ function setProjectFilter(btn, type, val) {
     renderProjects();
 }
 
-function renderProjects() {
+function _renderProjects() {
     const grid = document.getElementById('projects-grid');
     const empty = document.getElementById('projects-empty');
     const searchEl = document.getElementById('search-project');
@@ -871,8 +888,6 @@ function renderProjects() {
     const curTerm = String(state.currentTerm || '').substring(0, 10);
     const termProjects = state.projects.filter(p => String(p.term || '').substring(0, 10) === curTerm);
 
-    // Update dashboard header stats
-    updateProjectDashboardStats(termProjects);
 
     const list = termProjects.filter(p => {
         const matchesSearch = (p.name || '').toLowerCase().includes(txt);
@@ -966,7 +981,11 @@ function renderProjects() {
         `;
         grid.appendChild(div);
     });
+
+    updateProjectDashboardStats(termProjects);
 }
+
+const renderProjects = debounce(_renderProjects, 300);
 
 function updateProjectDashboardStats(termProjects) {
     const totalEl = document.getElementById('stat-total-p');

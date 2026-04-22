@@ -115,9 +115,11 @@ h3 { font-size: 1.25rem; font-weight: 800; }
 
 .blob {
     position: absolute;
-    filter: blur(80px);
+    filter: blur(40px);
     border-radius: 50%;
-    will-change: transform; pointer-events: none;
+    will-change: transform; 
+    pointer-events: none;
+    transform: translate3d(0,0,0);
 }
 
 .blob.color-1 {
@@ -150,8 +152,8 @@ h3 { font-size: 1.25rem; font-weight: 800; }
 /* GLASS EFFECT */
 .glass-panel {
     background: var(--bg-panel);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-glass);
     border-radius: var(--radius-lg);
