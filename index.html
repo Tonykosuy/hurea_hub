@@ -1739,7 +1739,7 @@
                         </div>
 
                         <!-- Checkin List -->
-                        <div class="lux-card pl-card-premium">
+                        <div class="lux-card pl-card-premium" style="margin-bottom:16px;">
                             <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
                                 <div
                                     style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
@@ -1755,7 +1755,26 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Mentor List -->
+                        <div class="lux-card pl-card-premium">
+                            <div class="pl-config-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+                                <div
+                                    style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
+                                    <strong><i class="fa-solid fa-user-graduate"></i> Danh sách Mentor</strong>
+                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('MENTOR')"
+                                        title="Thêm Mentor">
+                                        <i class="fa-solid fa-user-plus"></i> Thêm người
+                                    </button>
+                                </div>
+                                <div id="p-mentor-list" class="pl-list-container" style="width:100%;">
+                                    <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
+                                        chọn mentor</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
                 </form>
             </div>
             <div class="modal-footer" id="project-modal-footer">

@@ -7,28 +7,38 @@
     function doGet(e) {
       try {
         const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        const mode = e.parameter.mode || 'full';
         const configData = getSheetData(ss, 'Config');
         
-        const data = {
-          status: 'success',
-          terms: getSheetData(ss, 'Terms'),
-          members: getSheetData(ss, 'Members'),
-          projects: getSheetData(ss, 'Projects'),
-          evaluations: getSheetData(ss, 'Evals'),
-          clubScores: getSheetData(ss, 'ScoreClub'),
-          deptScores: getSheetData(ss, 'ScoreDept'),
-          confessions: getSheetData(ss, 'Confessions'),
-          evidences: getSheetData(ss, 'Evidence'),
-          announcements: getSheetData(ss, 'Announcements'),
-          bugReports: getSheetData(ss, 'BugReports'),
-          evidenceImages: getSheetData(ss, 'EvidenceImages'),
-          userPasswords: getSheetData(ss, 'UserAuth'),
-          commonFolders: getSheetData(ss, 'CommonFolders'),
-          meetingPolls: getSheetData(ss, 'MeetingPolls'),
-          meetingVotes: getSheetData(ss, 'MeetingVotes'),
-          events: getSheetData(ss, 'Events'),
-          config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' }
-        };
+        let data = { status: 'success' };
+
+        if (mode === 'auth') {
+          data.members = getSheetData(ss, 'Members');
+          data.userPasswords = getSheetData(ss, 'UserAuth');
+          data.terms = getSheetData(ss, 'Terms');
+          data.config = configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' };
+        } else {
+          data = {
+            status: 'success',
+            terms: getSheetData(ss, 'Terms'),
+            members: getSheetData(ss, 'Members'),
+            projects: getSheetData(ss, 'Projects'),
+            evaluations: getSheetData(ss, 'Evals'),
+            clubScores: getSheetData(ss, 'ScoreClub'),
+            deptScores: getSheetData(ss, 'ScoreDept'),
+            confessions: getSheetData(ss, 'Confessions'),
+            evidences: getSheetData(ss, 'Evidence'),
+            announcements: getSheetData(ss, 'Announcements'),
+            bugReports: getSheetData(ss, 'BugReports'),
+            evidenceImages: getSheetData(ss, 'EvidenceImages'),
+            userPasswords: getSheetData(ss, 'UserAuth'),
+            commonFolders: getSheetData(ss, 'CommonFolders'),
+            meetingPolls: getSheetData(ss, 'MeetingPolls'),
+            meetingVotes: getSheetData(ss, 'MeetingVotes'),
+            events: getSheetData(ss, 'Events'),
+            config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' }
+          };
+        }
         
         return ContentService.createTextOutput(JSON.stringify(data))
           .setMimeType(ContentService.MimeType.JSON);
@@ -75,10 +85,9 @@
             result = saveRowData(ss, 'Evals', payload);
             break;
           case 'save_eval_batch':
-            // payload.evals is expected to be an array of evaluation records
+            // Optimized batch save for evaluations
             if (Array.isArray(payload.evals)) {
-              payload.evals.forEach(ev => saveRowData(ss, 'Evals', ev));
-              result = { count: payload.evals.length };
+              result = batchSaveRows(ss, 'Evals', payload.evals);
             } else {
               throw new Error('Payload format error: Expected array in evals');
             }
@@ -188,7 +197,7 @@
           let val = data[i][j];
           
           // Auto-parse JSON for known fields or fields ending in Str
-          const jsonFields = ['participants', 'teams', 'reasons', 'criteria', 'bcn'];
+          const jsonFields = ['participants', 'teams', 'reasons', 'criteria', 'bcn', 'caremessages', 'mentormessages', 'programeval'];
           const isJsonField = jsonFields.includes(headers[j]) || headers[j].endsWith('str');
           
           if (isJsonField && typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
@@ -478,3 +487,76 @@
       
       return { [key]: value };
     }
+
+    function batchSaveRows(ss, sheetName, records) {
+      if (!records || records.length === 0) return { count: 0 };
+      
+      let sheet = findSheet(ss, sheetName) || ss.insertSheet(sheetName);
+      let range = sheet.getDataRange();
+      let data = range.getValues();
+      if (data.length === 1 && data[0][0] === '') data = [];
+      
+      let headers = data.length > 0 ? data[0].map(h => String(h).toLowerCase().trim()) : [];
+      
+      if (headers.length === 0) {
+        headers = Object.keys(records[0]).sort((a, b) => a === 'id' ? -1 : (b === 'id' ? 1 : 0)).map(h => h.toLowerCase().trim());
+        sheet.appendRow(headers);
+        data = [headers];
+      }
+      
+      let headersModified = false;
+      records.forEach(record => {
+        Object.keys(record).forEach(k => {
+          const cleanK = String(k).toLowerCase().trim();
+          if (headers.indexOf(cleanK) === -1) {
+            headers.push(cleanK);
+            headersModified = true;
+          }
+        });
+      });
+      
+      if (headersModified) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+        data = sheet.getDataRange().getValues();
+      }
+      
+      const idColIndex = headers.indexOf('id');
+      const newRows = [];
+      
+      records.forEach(record => {
+        const cleanRecord = {};
+        Object.keys(record).forEach(k => {
+          cleanRecord[String(k).toLowerCase().trim()] = record[k];
+        });
+        
+        const rowValues = headers.map(h => {
+          let val = cleanRecord[h];
+          if (typeof val === 'object' && val !== null) return JSON.stringify(val);
+          return val !== undefined ? val : '';
+        });
+        
+        let rowIndex = -1;
+        if (record.id && idColIndex > -1) {
+          for (let i = 1; i < data.length; i++) {
+            if (String(data[i][idColIndex]) === String(record.id)) {
+              rowIndex = i + 1;
+              break;
+            }
+          }
+        }
+        
+        if (rowIndex > -1) {
+          sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
+        } else {
+          newRows.push(rowValues);
+          data.push(rowValues);
+        }
+      });
+      
+      if (newRows.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+      }
+      
+      return { count: records.length };
+    }
+

@@ -139,6 +139,12 @@ function normalizeDataKeys(data) {
         'targetid': 'targetId',
         'raterrole': 'raterRole',
         'targetrole': 'targetRole',
+        'caremessages': 'careMessages',
+        'mentormessages': 'mentorMessages',
+        'programeval': 'programEval',
+        'workdone': 'workDone',
+        'teammessage': 'teamMessage',
+        'generalcomment': 'generalComment',
         'folderid': 'folderId',
         'folderlabel': 'folderLabel',
         // Member field mappings
@@ -220,16 +226,62 @@ async function renderAllViews() {
 
 async function loadDataFromAPI() {
     state.initialLoading = true;
-    renderAllViews();
-
     const loader = document.getElementById('global-loader');
     if (loader) loader.style.display = 'flex';
+
     try {
-        const r = await fetch(API_URL);
+        // PHASE 1: Quick Auth Load (Members, Terms, Config)
+        const authResp = await fetch(`${API_URL}?mode=auth`);
+        const authData = await authResp.json();
+        
+        if (authData.status === 'success') {
+            state.terms = normalizeDataKeys(authData.terms || []);
+            state.members = normalizeDataKeys(authData.members || []);
+            state.userPasswords = normalizeDataKeys(authData.userPasswords || []);
+            state.config = normalizeDataKeys(authData.config || {});
+            
+            if (state.config.adminPassword) ADMIN_PASSWORD = String(state.config.adminPassword);
+            
+            // Set current term from auth data
+            if (state.terms && state.terms.length > 0) {
+                state.currentTerm = (state.config && state.config.currentTerm) ? state.config.currentTerm : state.terms[state.terms.length - 1].id;
+                const activeTerm = state.terms.find(t => t.id === state.currentTerm) || state.terms[state.terms.length - 1];
+                const labelEl = document.getElementById('active-term-label');
+                if (labelEl) labelEl.innerText = activeTerm.name;
+            }
+
+            // IMMEDIATELY show login screen so user can interact
+            renderLoginMemberSelector();
+            showLoginScreen();
+            if (loader) loader.style.display = 'none';
+            state.initialLoading = false;
+
+            // PHASE 2: Background Full Load (Projects, Evaluations, Scores, etc.)
+            loadFullDataInBackground();
+        }
+    } catch (e) {
+        console.error('Initial Load Error:', e);
+        if (loader) loader.style.display = 'none';
+        state.initialLoading = false;
+    }
+}
+
+async function loadFullDataInBackground() {
+    try {
+        const r = await fetch(`${API_URL}?mode=full`);
         const d = await r.json();
         if (d.status === 'success') {
             state.terms = normalizeDataKeys(d.terms || []); state.members = normalizeDataKeys(d.members || []);
-            state.projects = normalizeDataKeys(d.projects || []); state.evaluations = normalizeDataKeys(d.evaluations || []);
+            state.projects = normalizeDataKeys(d.projects || []);
+            state.evaluations = normalizeDataKeys(d.evaluations || []).map(ev => ({
+                ...ev,
+                careMessages: safeJsonParse(ev.careMessages, {}),
+                mentorMessages: safeJsonParse(ev.mentorMessages, {}),
+                programEval: safeJsonParse(ev.programEval, {}),
+                workDone: ev.workDone || '',
+                teamMessage: ev.teamMessage || '',
+                generalComment: ev.generalComment || ''
+            }));
             state.clubScores = normalizeDataKeys(d.clubScores || []); 
             state.deptScores = normalizeDataKeys(d.deptScores || []).map(ds => ({
                 ...ds,
@@ -256,35 +308,18 @@ async function loadDataFromAPI() {
             if (d.evidenceImages) {
                 state.evidenceImages = ensureArray(d.evidenceImages).map(normalizeDataKeys);
             }
-            if (state.terms && state.terms.length > 0) {
-                // Safe term picking: use d.config if available, otherwise last term
-                state.currentTerm = (d.config && d.config.currentTerm) ? d.config.currentTerm : state.terms[state.terms.length - 1].id;
-                const activeTerm = state.terms.find(t => t.id === state.currentTerm) || state.terms[state.terms.length - 1];
-                const labelEl = document.getElementById('active-term-label');
-                if (labelEl) labelEl.innerText = activeTerm.name;
-            } else {
-                const labelEl = document.getElementById('active-term-label');
-                if (labelEl) labelEl.innerText = 'Kho dữ liệu TRỐNG';
-            }
+            
             // Diagnostic info
-            console.log('--- API SYNC DIAGNOSTIC ---');
-            console.log('Projects loaded:', state.projects.length);
-            console.log('Members loaded:', state.members.length);
-            console.log('Current Term ID:', state.currentTerm);
+            console.log('--- FULL API SYNC COMPLETE ---');
+            console.log('Projects:', state.projects.length);
+            console.log('Evals:', state.evaluations.length);
             console.log('---------------------------');
 
-            if (state.projects.length === 0 && (state.members.length > 0 || state.terms.length > 0)) {
-                console.warn('Warning: Projects tab is empty but other data loaded. Check sheet tab name "Projects".');
-            }
-        } else {
-            console.error('API Error:', d.message);
+            // Final render of all views now that full data is available
+            renderAllViews();
         }
     } catch (e) {
-        console.error('Network Error:', e.message);
-    } finally {
-        state.initialLoading = false;
-        if (loader) loader.style.display = 'none';
-        renderAllViews();
+        console.error('Background Load Error:', e.message);
     }
 }
 
@@ -1012,7 +1047,7 @@ function updateProjectDashboardStats(termProjects) {
 function openCreateProjectModal() {
     state.activeProjectData = {
         id: '', name: '', term: state.currentTerm, type: 'internal', status: 'setup',
-        hasPL: true, plIds: [], teams: [], supportIds: [], careIds: [], checkinIds: []
+        hasPL: true, plIds: [], teams: [], supportIds: [], careIds: [], checkinIds: [], mentorIds: []
     };
     showProjectModal();
 }
@@ -1039,6 +1074,7 @@ function editProjectV2(id) {
     state.activeProjectData.supportIds = parts.filter(x => x.role === 'SUPPORT').map(x => x.memberId);
     state.activeProjectData.careIds = parts.filter(x => x.role === 'CARE').map(x => x.memberId);
     state.activeProjectData.checkinIds = parts.filter(x => x.role === 'CHECKIN').map(x => x.memberId);
+    state.activeProjectData.mentorIds = parts.filter(x => x.role === 'MENTOR').map(x => x.memberId);
 
     showProjectModal();
 }
@@ -1053,12 +1089,23 @@ function showProjectModal() {
     document.getElementById('p-has-pl').checked = p.hasPL;
 
     const isAdmin = state.userRole === 'admin';
-    document.getElementById('project-modal-title').innerText = isAdmin ? (p.id ? 'Cập nhật & Ghi đè Chương trình' : 'Khởi tạo Dự án mới') : 'Thông tin Chương trình';
+    const modalTitle = document.getElementById('project-modal-title');
+    if (modalTitle) {
+        modalTitle.innerText = isAdmin ? (p.id ? 'Cập nhật & Ghi đè Chương trình' : 'Khởi tạo Dự án mới') : 'Thông tin Chương trình';
+    }
 
-    // Update Save button text to emphasize overwrite
     const saveBtnText = document.getElementById('btn-save-project-text');
-    if (saveBtnText) {
-        saveBtnText.innerText = p.id ? 'Lưu Ghi đè lên bản cũ' : 'Lưu Dự Án';
+    const saveBtn = document.getElementById('btn-save-project-v2');
+    if (saveBtnText && saveBtn) {
+        if (p.id) {
+            saveBtnText.innerText = 'Cập nhật & Ghi đè';
+            saveBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'; // Warning Orange for overwrite
+            saveBtn.style.borderColor = '#f59e0b';
+        } else {
+            saveBtnText.innerText = 'Lưu Dự Án';
+            saveBtn.style.background = ''; // Use default
+            saveBtn.style.borderColor = '';
+        }
     }
 
     // Hide/Show personnel addition buttons based on role
@@ -1084,6 +1131,7 @@ function showProjectModal() {
     renderCareList();
     renderSupportList();
     renderCheckinList();
+    renderMentorList();
     openModal('project-modal');
 
     // Handle read-only for non-admin
@@ -1102,8 +1150,8 @@ function showProjectModal() {
         btn.style.display = isAdmin ? 'inline-flex' : 'none';
     });
 
-    const saveBtn = document.querySelector('#project-modal-footer .btn-primary');
-    if (saveBtn) saveBtn.style.display = isAdmin ? 'block' : 'none';
+    const footerSaveBtn = document.querySelector('#project-modal-footer .btn-primary, #project-modal-footer .btn-lux-primary');
+    if (footerSaveBtn) footerSaveBtn.style.display = isAdmin ? 'block' : 'none';
 }
 
 function renderCareList() {
@@ -1197,6 +1245,37 @@ function removeCheckinMember(id) {
     if (!state.activeProjectData.checkinIds) return;
     state.activeProjectData.checkinIds = state.activeProjectData.checkinIds.filter(x => x !== id);
     renderCheckinList();
+}
+
+function renderMentorList() {
+    const list = document.getElementById('p-mentor-list');
+    if (!list) return;
+    const ids = state.activeProjectData.mentorIds || [];
+    if (ids.length === 0) {
+        list.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa chọn mentor</div>';
+        return;
+    }
+    list.innerHTML = ids.map(id => {
+        const m = state.members.find(x => x.id === id);
+        if (!m) return '';
+        return `
+            <div class="pl-display-capsule">
+                <div class="pl-avatar-mini">${getInitials(m.name)}</div>
+                <div class="pl-info-mini">
+                    <div class="pl-name-mini">${m.name}</div>
+                    <div class="pl-role-mini">${getMemberDept(m)}</div>
+                </div>
+                ${state.userRole === 'admin' ? `<button type="button" class="btn-remove-pl" onclick="removeMentorMember('${id}')" title="Gỡ bỏ"><i class="fa-solid fa-times"></i></button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function removeMentorMember(id) {
+    if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
+    if (!state.activeProjectData.mentorIds) return;
+    state.activeProjectData.mentorIds = state.activeProjectData.mentorIds.filter(x => x !== id);
+    renderMentorList();
 }
 
 
@@ -1454,7 +1533,8 @@ function renderMemberPicker() {
             (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'SUPPORT' && (state.activeProjectData.supportIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'CARE' && (state.activeProjectData.careIds || []).includes(m.id)) ||
-            (state.mpTarget.type === 'CHECKIN' && (state.activeProjectData.checkinIds || []).includes(m.id));
+            (state.mpTarget.type === 'CHECKIN' && (state.activeProjectData.checkinIds || []).includes(m.id)) ||
+            (state.mpTarget.type === 'MENTOR' && (state.activeProjectData.mentorIds || []).includes(m.id));
 
         if (state.pickerViewMode === 'grid') {
             item.className = `picker-member-card ${isSelected ? 'selected' : ''}`;
@@ -1484,7 +1564,7 @@ function renderMemberPicker() {
 
 function confirmMemberSelection(memberId) {
     const { type, teamId } = state.mpTarget;
-    if (['PL', 'SUPPORT', 'CARE', 'CHECKIN', 'Team'].includes(type) && state.userRole !== 'admin') {
+    if (['PL', 'SUPPORT', 'CARE', 'CHECKIN', 'MENTOR', 'Team'].includes(type) && state.userRole !== 'admin') {
         return alert('Bạn không có quyền thực hiện thao tác này.');
     }
     const m = state.members.find(x => x.id === memberId);
@@ -1524,6 +1604,13 @@ function confirmMemberSelection(memberId) {
         if (idx > -1) state.activeProjectData.checkinIds.splice(idx, 1);
         else state.activeProjectData.checkinIds.push(memberId);
         renderCheckinList();
+        renderMemberPicker();
+    } else if (type === 'MENTOR') {
+        if (!state.activeProjectData.mentorIds) state.activeProjectData.mentorIds = [];
+        const idx = state.activeProjectData.mentorIds.indexOf(memberId);
+        if (idx > -1) state.activeProjectData.mentorIds.splice(idx, 1);
+        else state.activeProjectData.mentorIds.push(memberId);
+        renderMentorList();
         renderMemberPicker();
     } else {
         // Multi-select for Teams
@@ -1698,6 +1785,13 @@ async function saveProjectV2() {
     (p.checkinIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id && x.role === 'CHECKIN')) {
             allParticipants.push({ memberId: id, role: 'CHECKIN', teamName: 'Checkin' });
+        }
+    });
+
+    // Add MENTOR list
+    (p.mentorIds || []).forEach(id => {
+        if (!allParticipants.some(x => x.memberId === id && x.role === 'MENTOR')) {
+            allParticipants.push({ memberId: id, role: 'MENTOR', teamName: 'Mentors' });
         }
     });
 
@@ -2431,7 +2525,8 @@ function calculateMemberClubScore(mId) {
         } else if (pt.role === 'CHECKIN') {
             if (prj.type === 'internal') checkinCount++;
         } else {
-            // Assume any other role (PL, Leader, Member) is part of Coreteam
+            // Assume any other role (PL, Leader, Member, CARE, MENTOR) is part of Coreteam activity
+            // Careteam counts as Coreteam for activity score as requested.
             coreteamCount++;
         }
     });
@@ -2515,7 +2610,7 @@ function calculateFinalScores() {
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:#94a3b8">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
+            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
             <td><span style="color:#38bdf8;font-weight:700">${prjScore.toFixed(2)}</span></td>
             <td><span style="color:#10b981;font-weight:700">${clubScore.toFixed(2)}</span></td>
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
@@ -2901,6 +2996,7 @@ function showScoreDetail(mId) {
                 <button class="pill" onclick="switchDetailTab(this, 'crosseval')">Đánh giá chéo</button>
                 <button class="pill" onclick="switchDetailTab(this, 'clb')">CLB</button>
                 <button class="pill" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
+                <button class="pill" onclick="switchDetailTab(this, 'feedback')">Góp ý & Tin nhắn</button>
                 <button class="pill" onclick="switchDetailTab(this, 'explanation')"><i class="fa-solid fa-calculator"></i> Giải trình</button>
                 <button class="pill" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
             </div>
@@ -3193,6 +3289,81 @@ function showScoreDetail(mId) {
             </div>
             <div class="score-formula-box" style="margin-top:12px; font-size:0.75rem; background:rgba(0,0,0,0.03); padding:10px; border-radius:8px; line-height:1.4;">
                 <i class="fa-solid fa-comment-dots"></i> <strong>Nhận xét của TPB:</strong> ${deptRemarks}
+            </div>
+        </div>
+
+        <div id="detail-tab-feedback" class="detail-tab-pane" style="display:none;">
+            <div class="feedback-container" style="display:flex; flex-direction:column; gap:20px;">
+                ${(() => {
+                    let fbHtml = '';
+                    termProjects.forEach(prj => {
+                        const evalRecord = state.evaluations.find(e => 
+                            (e.prjId || e.prjid) === prj.id && 
+                            (e.raterId || e.raterid) === mId && 
+                            (e.targetId || e.targetid) === mId
+                        );
+                        if (!evalRecord) return;
+
+                        fbHtml += `
+                            <div style="padding:20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:3px solid #8b5cf6; border-radius:12px;">
+                                <div style="font-weight:800; font-size:1.1rem; color:#8b5cf6; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                                    <i class="fa-solid fa-message"></i> ${prj.name} — Báo cáo cá nhân
+                                </div>
+                                
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
+                                    <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+                                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Công việc đã thực hiện</div>
+                                        <div style="font-size:0.9rem; line-height:1.6; white-space:pre-wrap;">${evalRecord.workDone || '---'}</div>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+                                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Nhắn nhủ đội ngũ (Team)</div>
+                                        <div style="font-size:0.9rem; line-height:1.6; font-style:italic; white-space:pre-wrap;">"${evalRecord.teamMessage || '---'}"</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
+                                    <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+                                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Cảm nghĩ cá nhân</div>
+                                        <div style="font-size:0.85rem; line-height:1.6;">${evalRecord.feelings || '---'}</div>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+                                        <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Đề xuất & Đóng góp</div>
+                                        <div style="font-size:0.85rem; line-height:1.6;">${evalRecord.proposals || '---'}</div>
+                                    </div>
+                                </div>
+
+                                <div style="padding-top:15px; border-top:1px dashed var(--border-color);">
+                                    <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">Tin nhắn gửi Care Team & Mentor</div>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                                        <div>
+                                            <strong style="font-size:0.8rem; color:var(--primary);">Care Team:</strong>
+                                            ${Object.keys(evalRecord.careMessages || {}).length > 0 ? `
+                                                <ul style="margin:5px 0; padding-left:18px; font-size:0.85rem; line-height:1.4;">
+                                                    ${Object.entries(evalRecord.careMessages).map(([cid, msg]) => {
+                                                        const m = state.members.find(x => x.id === cid);
+                                                        return `<li style="margin-bottom:4px;"><strong>${m ? m.name : cid}:</strong> ${msg}</li>`;
+                                                    }).join('')}
+                                                </ul>
+                                            ` : '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic; margin-top:4px;">Không có tin nhắn</div>'}
+                                        </div>
+                                        <div>
+                                            <strong style="font-size:0.8rem; color:var(--primary);">Mentors:</strong>
+                                            ${Object.keys(evalRecord.mentorMessages || {}).length > 0 ? `
+                                                <ul style="margin:5px 0; padding-left:18px; font-size:0.85rem; line-height:1.4;">
+                                                    ${Object.entries(evalRecord.mentorMessages).map(([mid, msg]) => {
+                                                        const m = state.members.find(x => x.id === mid);
+                                                        return `<li style="margin-bottom:4px;"><strong>${m ? m.name : mid}:</strong> ${msg}</li>`;
+                                                    }).join('')}
+                                                </ul>
+                                            ` : '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic; margin-top:4px;">Không có tin nhắn</div>'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    return fbHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Thành viên này chưa để lại góp ý nào trong nhiệm kỳ.</div>';
+                })()}
             </div>
         </div>
         
@@ -4494,8 +4665,8 @@ async function exportScoreboardToPDF() {
     template.innerHTML = `
         <div style="text-align:center; padding-bottom: 20px; border-bottom: 2px solid #0ea5e9; margin-bottom: 40px;">
             <h1 style="font-family:'Times New Roman', serif; font-size: 26px; color: #1e293b; margin: 0; font-weight: bold;">BẢNG ĐIỂM TỔNG HỢP NHÂN SỰ</h1>
-            <p style="font-family:'Times New Roman', serif; font-size: 16px; color: #64748b; margin: 5px 0 0;">Câu lạc bộ HuReA - Nhiệm kỳ ${state.currentTerm}</p>
-            <p style="font-family:'Times New Roman', serif; font-size: 14px; color: #94a3b8; margin-top: 5px;">Ban: ${dFilter === 'ALL' ? 'Toàn CLB' : dFilter} | Tìm kiếm: ${searchTxt || 'Tất cả'}</p>
+            <p style="font-family:'Times New Roman', serif; font-size: 16px; color: var(--text-muted); margin: 5px 0 0;">Câu lạc bộ HuReA - Nhiệm kỳ ${state.currentTerm}</p>
+            <p style="font-family:'Times New Roman', serif; font-size: 14px; color: var(--text-muted); margin-top: 5px;">Ban: ${dFilter === 'ALL' ? 'Toàn CLB' : dFilter} | Tìm kiếm: ${searchTxt || 'Tất cả'}</p>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-family:'Times New Roman', serif; font-size: 12px;">
@@ -4527,7 +4698,7 @@ async function exportScoreboardToPDF() {
                         <tr>
                             <td style="padding: 10px; border: 1px solid #e2e8f0;">
                                 <strong style="font-size: 13px;">${member.name}</strong><br>
-                                <span style="font-size: 11px; color: #64748b;">Ban ${member.dept} - ${member.class || ''}</span>
+                                <span style="font-size: 11px; color: var(--text-muted);">Ban ${member.dept} - ${member.class || ''}</span>
                             </td>
                             <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0;">${prjScore}</td>
                             <td style="padding: 10px; text-align: center; border: 1px solid #e2e8f0;">${clubScore}</td>
@@ -4551,7 +4722,7 @@ async function exportScoreboardToPDF() {
             </div>
         </div>
         
-        <div style="margin-top: 40px; text-align: center; font-size: 10px; font-family:'Times New Roman', serif; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+        <div style="margin-top: 40px; text-align: center; font-size: 10px; font-family:'Times New Roman', serif; color: var(--text-muted); border-top: 1px solid #f1f5f9; padding-top: 10px;">
             Hệ thống Quản trị HuReA Hub • Báo cáo tự động được bảo mật
         </div>
     `;
@@ -4941,7 +5112,7 @@ function renderMsRoleList() {
             <div class="ms-role-row">
                 <div style="flex:1">
                     <strong>${m.name}</strong>
-                    <span style="margin-left:8px;font-size:0.8rem;color:#94a3b8">${m.dept}</span>
+                    <span style="margin-left:8px;font-size:0.8rem;color:var(--text-muted)">${m.dept}</span>
                 </div>
                 <div style="display:flex;gap:8px;">
                     <select id="ms-role-${mId}" style="width:160px;padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-main);color:var(--text-main);">
@@ -5340,7 +5511,7 @@ function exportEvidenceVisualReport() {
             .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
             header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
             h1 { color: #0f172a; margin: 0; font-size: 1.6rem; letter-spacing: -0.5px; }
-            .summary { color: #64748b; margin-top: 8px; font-size: 0.95rem; }
+            .summary { color: var(--text-muted); margin-top: 8px; font-size: 0.95rem; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th { background: #f1f5f9; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; padding: 12px 15px; border: 1px solid #e2e8f0; }
             td { padding: 12px 15px; border: 1px solid #e2e8f0; font-size: 0.9rem; }
@@ -5386,7 +5557,7 @@ function exportEvidenceVisualReport() {
                     ${tableRows}
                 </tbody>
             </table>
-            <footer style="text-align: center; margin-top: 40px; color: #94a3b8; font-size: 0.75rem;">
+            <footer style="text-align: center; margin-top: 40px; color: var(--text-muted); font-size: 0.75rem;">
                 Dữ liệu trích xuất từ HuReA Hub - ${new Date().toLocaleString('vi-VN')}
             </footer>
         </div>
@@ -5632,9 +5803,10 @@ function renderEvaluationTasks() {
         if (isAdmin) {
             // Admin View: Monitoring Progress
             const participants = ensureArray(p.participants);
-            const totalRequired = participants.length;
+            // Filter out non-evaluating roles for progress count
+            const totalRequired = participants.filter(pt => !['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)).length;
 
-            // Count unique raters who have submitted at least one record for this project
+            // Count unique raters who have submitted at least one record (usually self-eval) for this project
             const submittedRaters = new Set();
             (state.evaluations || []).forEach(ev => {
                 const evPrj = String(ev.prjId || ev.prjid).trim();
@@ -5652,13 +5824,13 @@ function renderEvaluationTasks() {
                     <div class="task-status-tag" style="background:rgba(14,165,233,0.1); color:#0ea5e9;">
                         <i class="fa-solid fa-users"></i> Theo dõi tiến độ
                     </div>
-                    <div style="margin-top:16px; font-size:0.9rem; color:#94a3b8;">
+                    <div style="margin-top:16px; font-size:0.95rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span>Hoàn thành:</span>
-                            <span style="color:#f8fafc; font-weight:700;">${doneCount} / ${totalRequired}</span>
+                            <span class="eval-progress-label">Đã hoàn thành:</span>
+                            <span class="eval-progress-val">${doneCount} / ${totalRequired}</span>
                         </div>
-                        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
-                            <div style="width:${(doneCount / totalRequired) * 100}%; height:100%; background:var(--primary); transition:width 1s ease;"></div>
+                        <div style="height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
+                            <div style="width:${totalRequired > 0 ? (doneCount / totalRequired) * 100 : 0}%; height:100%; background:var(--primary); transition:width 1s ease;"></div>
                         </div>
                     </div>
                 </div>
@@ -5776,9 +5948,8 @@ function startCinematicEvaluation(prjId) {
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
     cine_currentStep = 1;
     
-    // New total steps: Targets + Work/Team Msg + Care Team Msg (if exists) + Program Eval + Feelings
-    const hasCareTeam = (prj.careIds || []).length > 0;
-    cine_totalSteps = cine_targets.length + (hasCareTeam ? 4 : 3);
+    // Total steps: Targets + Work/Team Msg + Care/Mentor Msg (Always) + Program Eval + Feelings
+    cine_totalSteps = cine_targets.length + 4;
 
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
@@ -5814,7 +5985,7 @@ function renderCineSteps() {
         c.innerHTML += `<section class="cine-section" data-step="${stepNum}">
             <div class="cine-sec-header">
                 <span class="cine-step-badge">${stepNum}</span>
-                <h2 class="cine-sec-title">Đánh giá: ${targetLabel} <span style="font-size:1rem;color:#94a3b8">(${pt.role})</span></h2>
+                <h2 class="cine-sec-title">Đánh giá: ${targetLabel} <span style="font-size:1rem;color:#ffffff">(${pt.role})</span></h2>
             </div>
             <input type="hidden" name="targetId_${stepNum}" value="${pt.memberId}">
             <div class="cine-eval-loop">
@@ -5867,38 +6038,75 @@ function renderCineSteps() {
         </div>
     </section>`;
 
-    // STEP N+2: Care Team Messages (if any)
+    // STEP N+2: Care & Mentor Messages (Always)
     const prj = state.projects.find(x => x.id === prjId);
-    const careIds = prj?.careIds || [];
-    if (careIds.length > 0) {
-        currentIdx++;
-        let careHtml = '';
+    const participants = ensureArray(prj?.participants);
+    
+    // Attempt to get IDs from explicit arrays, fallback to participants list
+    let careIds = ensureArray(prj?.careIds);
+    if (careIds.length === 0) {
+        careIds = participants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
+    }
+    
+    let mentorIds = ensureArray(prj?.mentorIds);
+    if (mentorIds.length === 0) {
+        mentorIds = participants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
+    }
+
+    currentIdx++;
+
+    let extraHtml = '';
+    if (careIds.length > 0 || mentorIds.length > 0) {
+        // Render Care Boxes
         careIds.forEach(cid => {
             const m = state.members.find(x => x.id === cid);
             const careName = m ? m.name : 'Care Team';
             const careMsg = existing?.careMessages && existing.careMessages[cid] ? existing.careMessages[cid] : '';
-            careHtml += `
+            extraHtml += `
                 <div class="lux-form-group" style="margin-bottom:16px;">
-                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${careName}</strong></label>
-                    <textarea class="cine-care-msg" data-member-id="${cid}" rows="2" placeholder="Lời nhắn cho care...">${careMsg}</textarea>
+                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${careName}</strong> (Care Team)</label>
+                    <textarea class="cine-care-msg cine-extra-msg" data-member-id="${cid}" rows="2" placeholder="Lời nhắn cho care...">${careMsg}</textarea>
                 </div>
             `;
         });
 
-        c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
-            <div class="cine-sec-header">
-                <span class="cine-step-badge">${currentIdx}</span>
-                <h2 class="cine-sec-title">Đánh giá Care Project (Không bắt buộc)</h2>
+        // Render Mentor Boxes
+        mentorIds.forEach(mid => {
+            const m = state.members.find(x => x.id === mid);
+            const mentorName = m ? m.name : 'Mentor';
+            const mentorMsg = (existing?.mentorMessages && existing.mentorMessages[mid]) ? existing.mentorMessages[mid] : '';
+            extraHtml += `
+                <div class="lux-form-group" style="margin-bottom:16px;">
+                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${mentorName}</strong> (Mentor)</label>
+                    <textarea class="cine-mentor-msg cine-extra-msg" data-member-id="${mid}" rows="2" placeholder="Lời nhắn cho mentor...">${mentorMsg}</textarea>
+                </div>
+            `;
+        });
+    } else {
+        extraHtml = `
+            <div style="padding:40px; text-align:center; background:rgba(255,255,255,0.03); border-radius:24px; border:1px dashed rgba(255,255,255,0.1); margin: 20px 0;">
+                <i class="fa-solid fa-circle-info" style="font-size:2.5rem; color:var(--primary); margin-bottom:20px; display:block;"></i>
+                <p style="color:#ffffff; font-size:1.15rem; line-height:1.6; font-weight:500;">
+                    Chương trình này không có Care Team và Mentor.<br>
+                    <span style="font-size:0.9rem; opacity:0.7; color:#ffffff;">Vui lòng bấm <strong>Tiếp tục</strong> để chuyển sang bước kế tiếp.</span>
+                </p>
             </div>
-            <div class="cine-scroll-box" style="max-height:400px; overflow-y:auto; padding-right:10px;">
-                ${careHtml}
-            </div>
-            <div class="cine-footer-nav">
-                <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
-                <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
-            </div>
-        </section>`;
+        `;
     }
+
+    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+        <div class="cine-sec-header">
+            <span class="cine-step-badge">${currentIdx}</span>
+            <h2 class="cine-sec-title">Gửi lời nhắn đến Care & Mentor (Không bắt buộc)</h2>
+        </div>
+        <div class="cine-scroll-box" style="max-height:400px; overflow-y:auto; padding-right:10px;">
+            ${extraHtml}
+        </div>
+        <div class="cine-footer-nav">
+            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+        </div>
+    </section>`;
 
     // STEP N+3: Program Evaluation
     currentIdx++;
@@ -5959,7 +6167,7 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:600; font-size: 0.95rem; color: var(--text-main);">${label}</span>
+            <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
         </div>
         <div class="rating-group">`;
         
@@ -5985,7 +6193,7 @@ function renderProgramEvalItem(id, label, initialValue = 3) {
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:600; font-size: 0.95rem; color: var(--text-main);">${label}</span>
+            <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
         </div>
         <div class="rating-group" style="flex-wrap: wrap; gap: 8px;">`;
         
@@ -5994,7 +6202,7 @@ function renderProgramEvalItem(id, label, initialValue = 3) {
         html += `
             <div class="rating-opt-text" style="flex: 1; min-width: 80px;">
                 <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked} style="display:none;">
-                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: var(--text-muted);">
+                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: #ffffff;">
                     ${labels[i-1]}
                 </label>
             </div>`;
@@ -6056,11 +6264,16 @@ async function submitCinematicEvaluation() {
     const proposals = (document.getElementById('cine-proposals')?.value || '').trim();
     const generalComment = (document.getElementById('cine-general-comment')?.value || '').trim();
 
-    // Collect Care Team Messages
+    // Collect Care & Mentor Messages
     const careMessages = {};
+    const mentorMessages = {};
     document.querySelectorAll('.cine-care-msg').forEach(ta => {
         const cid = ta.dataset.memberId;
         if (cid && ta.value.trim()) careMessages[cid] = ta.value.trim();
+    });
+    document.querySelectorAll('.cine-mentor-msg').forEach(ta => {
+        const mid = ta.dataset.memberId;
+        if (mid && ta.value.trim()) mentorMessages[mid] = ta.value.trim();
     });
 
     // Collect Program Evaluation
@@ -6098,6 +6311,7 @@ async function submitCinematicEvaluation() {
             workDone: isSelfVal ? workDone : '',
             teamMessage: isSelfVal ? teamMessage : '',
             careMessages: isSelfVal ? careMessages : {},
+            mentorMessages: isSelfVal ? mentorMessages : {},
             programEval: isSelfVal ? programEval : {},
             feelings: isSelfVal ? feelings : '',
             proposals: isSelfVal ? proposals : '',
@@ -6556,7 +6770,7 @@ function renderLoginMemberSelector() {
                 <div class="progress-container">
                     <div class="progress-bar-fill"></div>
                 </div>
-                <p style="color: #64748b; font-size: 0.8rem;">Vui lòng đợi trong giây lát</p>
+                <p style="color: var(--text-muted); font-size: 0.8rem;">Vui lòng đợi trong giây lát</p>
             </div>
         `;
         return;
@@ -6610,7 +6824,7 @@ function renderLoginMemberSelector() {
             <div class="login-member-avatar"><i class="fa-solid fa-user"></i></div>
             <div class="login-member-info">
                 <span class="login-member-name">${m.name}</span>
-                <span style="font-size:0.7rem; color: #64748b; font-weight: 500;">Ban: ${mDept || '---'}</span>
+                <span style="font-size:0.7rem; color: var(--text-muted); font-weight: 500;">Ban: ${mDept || '---'}</span>
             </div>
             ${selectedId === m.id ? '<i class="fa-solid fa-circle-check" style="color:#38bdf8"></i>' : ''}
         `;
@@ -7014,7 +7228,7 @@ calculateFinalScores = function () {
         const gc = gradeColors[grade] || '#ef4444';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:#94a3b8">Ban ${member.dept} - ${member.class}</span></td>
+            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept} - ${member.class}</span></td>
             <td><span style="color:#38bdf8;font-weight:700">${prjScore.toFixed(2)}</span></td>
             <td><span style="color:#10b981;font-weight:700">${clubScore.toFixed(2)}</span></td>
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
@@ -7233,7 +7447,7 @@ async function generatePDFReport() {
         template.innerHTML = `
             <div style="text-align:center; margin-bottom:40px; border-bottom: 2px solid #0ea5e9; padding-bottom: 20px;">
                 <h1 style="color:#0ea5e9; font-size:28px; margin-bottom:8px; font-family: 'Times New Roman', serif; font-weight: bold;">BÁO CÁO TỔNG HỢP HUREA HUB</h1>
-                <p style="color:#64748b; font-size:14px; font-family: 'Times New Roman', serif;">Khoảng thời gian: ${fromDate} — ${toDate}</p>
+                <p style="color:var(--text-muted); font-size:14px; font-family: 'Times New Roman', serif;">Khoảng thời gian: ${fromDate} — ${toDate}</p>
             </div>
 
             <div style="margin-bottom:40px;">
@@ -7255,7 +7469,7 @@ async function generatePDFReport() {
                                 <td style="padding:10px; border:1px solid #e2e8f0;">${e.raterName}</td>
                                 <td style="padding:10px; border:1px solid #e2e8f0;">${e.targetName}</td>
                                 <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold; color:#0ea5e9;">${e.averageScore}</td>
-                                <td style="padding:10px; border:1px solid #e2e8f0; color: #64748b; font-style: italic;">"${e.comments || 'Không có nhận xét'}"</td>
+                                <td style="padding:10px; border:1px solid #e2e8f0; color: var(--text-muted); font-style: italic;">"${e.comments || 'Không có nhận xét'}"</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -7267,7 +7481,7 @@ async function generatePDFReport() {
                 <div style="display: grid; grid-template-columns: 1fr; gap: 16px; font-family: 'Times New Roman', serif;">
                     ${filteredConfessions.map(c => `
                         <div style="background:#fdfcfb; padding:20px; border-radius:12px; border:1px solid #f3f4f6; position: relative; margin-bottom: 12px;">
-                            <div style="font-size:11px; color:#94a3b8; margin-bottom:8px; text-transform: uppercase;">Gửi vào: ${c.createdAt || 'N/A'}</div>
+                            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px; text-transform: uppercase;">Gửi vào: ${c.createdAt || 'N/A'}</div>
                             <div style="font-size:14px; color:#334155; line-height:1.6;">${c.text}</div>
                             <div style="margin-top: 12px; font-size: 12px; color: #f59e0b; font-weight: 600;">— Người gửi: Ẩn danh</div>
                         </div>
@@ -7577,7 +7791,7 @@ function renderMeetingPolls() {
 
         card.innerHTML = `
             <div class="poll-card-title">
-                <i class="fa-solid fa-calendar-check" style="color:${isFinalized ? 'var(--accent-green)' : (isExpired ? '#64748b' : 'var(--primary)')}"></i>
+                <i class="fa-solid fa-calendar-check" style="color:${isFinalized ? 'var(--accent-green)' : (isExpired ? 'var(--text-muted)' : 'var(--primary)')}"></i>
                 ${poll.title || 'Cuộc họp không tên'}
                 <div style="display:flex; gap:6px; margin-top:8px;">
                     <span class="poll-status-badge ${statusClass}">${statusLabel}</span>
