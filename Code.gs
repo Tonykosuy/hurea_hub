@@ -582,3 +582,55 @@
       return { count: records.length };
     }
 
+
+    /**
+     * Tự động gửi file backup Excel về email hàng ngày
+     * Giúp bảo mật dữ liệu và đề phòng sự cố
+     */
+    function dailyBackup() {
+      const emailRecipient = 'pn852007@gmail.com';
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const spreadsheetId = spreadsheet.getId();
+      const sheetName = spreadsheet.getName();
+      
+      const token = ScriptApp.getOAuthToken();
+      const url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export?exportFormat=xlsx&format=xlsx';
+      
+      const response = UrlFetchApp.fetch(url, {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+      
+      const fileBlob = response.getBlob().setName(sheetName + ' Backup ' + new Date().toLocaleDateString('vi-VN') + ' (Daily).xlsx');
+      
+      const subject = '[HuReA Hub] Backup dữ liệu hệ thống - ' + new Date().toLocaleDateString('vi-VN');
+      const body = 'Chào bạn,\n\nĐây là file backup dữ liệu của hệ thống HuReA Hub (định dạng Excel) được gửi tự động định kỳ để đảm bảo an toàn dữ liệu.\n\nThời gian: ' + new Date().toLocaleString('vi-VN') + '\n\nTrân trọng,\nHệ thống HuReA Hub';
+      
+      MailApp.sendEmail({
+        to: emailRecipient,
+        subject: subject,
+        body: body,
+        attachments: [fileBlob]
+      });
+    }
+
+    /**
+     * Hàm thiết lập trigger hàng ngày (Admin chạy hàm này THỦ CÔNG 1 lần duy nhất trong Apps Script editor để kích hoạt)
+     */
+    function setupDailyBackupTrigger() {
+      // Xóa các trigger cũ cùng tên để tránh trùng lặp
+      const triggers = ScriptApp.getProjectTriggers();
+      for (let i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === 'dailyBackup') {
+          ScriptApp.deleteTrigger(triggers[i]);
+        }
+      }
+      
+      // Tạo trigger mới chạy hàng ngày vào khoảng 0-1h sáng
+      ScriptApp.newTrigger('dailyBackup')
+        .timeBased()
+        .everyDays(1)
+        .atHour(0)
+        .create();
+    }
