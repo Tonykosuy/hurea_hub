@@ -7149,13 +7149,13 @@ function applyPermissions(role) {
 
         const deptComment = document.getElementById('dept-comment');
         if (deptComment) {
-            deptComment.disabled = !boardMember;
-            deptComment.placeholder = boardMember ? "Nhập nhận xét chi tiết..." : "Chỉ Admin và Trưởng/Phó Ban mới có quyền nhập nhận xét.";
+            deptComment.disabled = true;
+            deptComment.placeholder = "Chỉ Admin mới có quyền nhập nhận xét.";
         }
 
         const deptSaveBtn = document.querySelector('#eval-dept .btn-primary');
         if (deptSaveBtn) {
-            deptSaveBtn.style.display = boardMember ? 'block' : 'none';
+            deptSaveBtn.style.display = 'none';
         }
 
         const evalCalcActions = document.querySelector('#eval-calc .pane-header div[style*="gap:12px"]');
