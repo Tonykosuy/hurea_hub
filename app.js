@@ -529,7 +529,7 @@ function openModal(id, extra) {
             document.getElementById('ann-dept-group').style.display = extra === 'DEPT' ? 'block' : 'none';
 
             // If user is not admin/BCN, lock to their department
-            if (extra === 'DEPT' && state.userRole !== 'admin' && state.userRole !== 'bcn' && state.currentUser && state.currentUser.dept) {
+            if (extra === 'DEPT' && state.userRole !== 'admin' && state.currentUser && state.currentUser.dept) {
                 if (deptSelect) {
                     deptSelect.value = state.currentUser.dept;
                     deptSelect.disabled = true;
@@ -2288,7 +2288,7 @@ function renderAnnouncements() {
     // Filtering Dept Announcements: Regular members only see their own department's news
     let deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT' && a.term === state.currentTerm);
 
-    if (state.userRole !== 'admin' && state.userRole !== 'bcn') {
+    if (state.userRole !== 'admin') {
         const userDept = state.currentUser ? state.currentUser.dept : null;
         deptAnns = deptAnns.filter(a => a.dept === userDept);
     }
@@ -2384,7 +2384,7 @@ function editAnnouncement(id) {
     const deptSelect = document.getElementById('ann-dept-select');
     if (deptSelect) {
         deptSelect.value = ann.dept || 'L&D';
-        deptSelect.disabled = (state.userRole !== 'admin' && state.userRole !== 'bcn');
+        deptSelect.disabled = (state.userRole !== 'admin');
     }
     document.getElementById('ann-priority').value = ann.priority || 'NORMAL';
 
@@ -4195,7 +4195,7 @@ async function saveClubEval() {
     if (!mId) return alert('Chưa chọn thành viên');
 
     // Admin or Board Member check
-    if (state.userRole !== 'admin' && !isBoardMember()) {
+    if (state.userRole !== 'admin') {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
@@ -4269,7 +4269,7 @@ async function saveDeptEval() {
     if (!mId) return alert('Chưa chọn thành viên');
 
     // Admin or Board Member check
-    if (state.userRole !== 'admin' && !isBoardMember()) {
+    if (state.userRole !== 'admin') {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
@@ -4963,7 +4963,7 @@ function renderConfessions() {
     if (!grid || !empty) return;
 
     grid.innerHTML = '';
-    const isManager = ['admin', 'bcn', 'head'].includes(state.userRole);
+    const isManager = state.userRole === 'admin';
 
     // Regular users ONLY see approved confessions. Managers see everything.
     let list = state.confessions.filter(c => !c.term || c.term === state.currentTerm);
@@ -6978,9 +6978,9 @@ function handleLogin() {
         const isHead = [bcn.ldIds, bcn.rrIds, bcn.erIds, bcn.ebIds].some(ids => ensureArray(ids).includes(memberId));
 
         if (isPres || isVp) {
-            role = 'bcn'; // BCN has near-admin rights
+            role = 'user'; // Was 'bcn' - Downgraded to match user permissions
         } else if (isHead) {
-            role = 'head'; // Department Head
+            role = 'user'; // Was 'head' - Downgraded to match user permissions
         }
     }
 
@@ -7102,8 +7102,8 @@ function updateHeaderUser() {
 }
 
 function applyPermissions(role) {
-    const isAdmin = role === 'admin' || role === 'bcn';
-    const isHead = role === 'head';
+    const isAdmin = role === 'admin'; // Only admin has system rights now
+    const isHead = role === 'head'; // Should be false for non-admins now
     const fbAdmin = document.getElementById('feedback-admin-actions');
     if (fbAdmin) fbAdmin.style.display = isAdmin ? 'block' : 'none';
 
@@ -7130,24 +7130,17 @@ function applyPermissions(role) {
         navItems.forEach(item => {
             const target = item.getAttribute('data-target');
             // Members and Terms are Admin only
-            if (target === 'members-view' || target === 'terms-view') {
+            if (target === 'members-view' || target === 'terms-view' || target === 'eval-view') {
                 item.classList.add('nav-hidden');
-            }
-            // Eval view is visible for board members (BCN) but tabs inside will be filtered
-            if (target === 'eval-view' && boardMember) {
-                item.classList.remove('nav-hidden');
             }
         });
 
         // Evaluation Tabs visibility
         document.querySelectorAll('.eval-tab').forEach(tab => {
             const evalTarget = tab.getAttribute('data-eval');
-            if (evalTarget === 'eval-club') {
-                // Club Activity Eval is STRICTLY Admin only
+            if (evalTarget === 'eval-club' || evalTarget === 'eval-dept') {
+                // Both Club and Dept Evals are for Admin only now
                 tab.style.display = 'none';
-            } else if (evalTarget === 'eval-dept') {
-                // Dept Eval is for Admin and Board Members (BCN)
-                tab.style.display = boardMember ? '' : 'none';
             } else {
                 // Peer Eval (360) is for everyone
                 tab.style.display = '';
@@ -7208,18 +7201,9 @@ function applyPermissions(role) {
         const prjStaffBtn = document.querySelector('.participant-manager .btn-primary');
         if (prjStaffBtn) prjStaffBtn.style.display = 'inline-flex';
 
+        // Password management is for admin only
         const pwNav = document.getElementById('pw-mgmt-nav');
-        if (pwNav) pwNav.classList.remove('nav-hidden');
-
-        // BCN restriction: hide password management even though they have other admin rights
-        if (role === 'bcn' || role === 'head') {
-            if (pwNav) pwNav.classList.add('nav-hidden');
-            // Hide specific Admin actions if needed
-            if (role === 'head') {
-                const prjAddBtn = document.querySelector('#projects-view .btn-primary');
-                if (prjAddBtn) prjAddBtn.style.display = 'none';
-            }
-        }
+        if (pwNav) pwNav.classList.add('nav-hidden');
     }
 }
 
@@ -7778,8 +7762,8 @@ function renderMeetingPolls() {
     const userDept = (state.currentUser ? state.currentUser.dept : '') || '';
 
     polls = polls.filter(p => {
-        // Admins and BCN see everything
-        if (userRole === 'admin' || userRole === 'bcn') return true;
+        // Admins see everything
+        if (userRole === 'admin') return true;
         // Creator sees their own poll
         if (p.creatorId === userId) return true;
 
