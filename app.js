@@ -7112,13 +7112,13 @@ function applyPermissions(role) {
         item.classList.remove('nav-hidden');
     });
 
-    // Dashboard/Home permissions (Visible for Admin/BCN/Head, Charts only for users)
+    // Dashboard/Home permissions (Visible for Admin, BCN, Head, and Users)
     const dashboardStats = document.getElementById('admin-dashboard-stats');
     if (dashboardStats) {
         dashboardStats.style.display = (isAdmin || isHead || role === 'user') ? 'block' : 'none';
-        // Within dashboard stats, the grid (Total members, etc) is for Admin/BCN/Head
+        // Within dashboard stats, the grid (Total members, etc) is visible for everyone logged in
         const statsGrid = dashboardStats.querySelector('.stats-grid');
-        if (statsGrid) statsGrid.style.display = (isAdmin || isHead) ? 'grid' : 'none';
+        if (statsGrid) statsGrid.style.display = (isAdmin || isHead || role === 'user') ? 'grid' : 'none';
     }
 
     const addEventBtn = document.getElementById('btn-add-event');
