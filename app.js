@@ -8523,6 +8523,9 @@ async function deleteMeetingPoll(id) {
     try {
         await syncToBackend('delete_meeting_poll', { id });
         state.meetingPolls = state.meetingPolls.filter(p => String(p.id) !== String(id));
+        // Also remove associated votes from local state
+        state.meetingVotes = (state.meetingVotes || []).filter(v => String(v.pollId || v.pollid) !== String(id));
+        
         showToast('Đã xóa cuộc họp thành công!', 'success');
 
         if (state.activePollId === id) {

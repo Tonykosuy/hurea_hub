@@ -148,7 +148,8 @@
             result = saveRowData(ss, 'MeetingVotes', payload);
             break;
           case 'delete_meeting_poll':
-            result = deleteRowData(ss, 'MeetingPolls', payload.id);
+            deleteRowData(ss, 'MeetingPolls', payload.id);
+            result = deleteVotesByPollId(ss, payload.id);
             break;
           case 'save_event':
             result = saveRowData(ss, 'Events', payload);
@@ -327,6 +328,27 @@
       }
       return { deleted: false };
     }
+
+    function deleteVotesByPollId(ss, pollId) {
+      let sheet = ss.getSheetByName('MeetingVotes');
+      if(!sheet) return { success: true, count: 0 };
+      
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return { success: true, count: 0 };
+      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      const pollIdColIndex = headers.indexOf('pollid');
+      if (pollIdColIndex === -1) return { success: true, count: 0 };
+      
+      let deletedCount = 0;
+      for(let i=data.length - 1; i>=1; i--) {
+        if(String(data[i][pollIdColIndex]) === String(pollId)) {
+          sheet.deleteRow(i + 1);
+          deletedCount++;
+        }
+      }
+      return { success: true, deletedCount: deletedCount };
+    }
+
 
     function deleteScoreRecord(ss, sheetName, memberId, term) {
       let sheet = findSheet(ss, sheetName);
