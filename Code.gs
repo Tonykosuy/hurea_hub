@@ -197,8 +197,8 @@
           let val = data[i][j];
           
           // Auto-parse JSON for known fields or fields ending in Str
-          const jsonFields = ['participants', 'teams', 'reasons', 'criteria', 'bcn', 'caremessages', 'mentormessages', 'programeval'];
-          const isJsonField = jsonFields.includes(headers[j]) || headers[j].endsWith('str');
+          const jsonFields = ['participants', 'teams', 'reasons', 'criteria', 'bcn', 'caremessages', 'mentormessages', 'programeval', 'availability'];
+          const isJsonField = jsonFields.includes(headers[j]) || headers[j].toLowerCase().trim().endsWith('str');
           
           if (isJsonField && typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
             try {

@@ -16,6 +16,13 @@
 </head>
 
 <body>
+    <!-- GLOBAL LOADING SCREEN -->
+    <div id="global-loader" class="global-loader">
+        <div class="loader-content">
+            <div class="lux-spinner"></div>
+            <div class="loader-text">HuReA Hub đang tải dữ liệu...</div>
+        </div>
+    </div>
     <!-- ===== LOGIN OVERLAY ===== -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-mesh-bg">
@@ -375,7 +382,8 @@
                     </div>
 
                     <!-- VIEW SECTION: ACTIVITY CALENDAR -->
-                    <div class="dashboard-calendar-card glass-panel" style="margin-top:2%; padding-left: 5%; padding-right: 5%;">
+                    <div class="dashboard-calendar-card glass-panel"
+                        style="margin-top:2%; padding-left: 5%; padding-right: 5%;">
                         <div class="column-header">
                             <div class="header-main">
                                 <span class="icon-orb orb-yellow"><i class="fa-solid fa-calendar-alt"></i></span>
@@ -1120,9 +1128,12 @@
                             <div class="poll-section-header">
                                 <h3><i class="fa-solid fa-fire"></i> Kết quả tổng hợp</h3>
                                 <div class="poll-legend-inline heatmap-legend" id="heatmap-legend">
-                                    <span class="legend-item"><span class="legend-dot dot-heat-0"></span> 0 người</span>
-                                    <span class="legend-item"><span class="legend-dot dot-heat-low"></span> Ít</span>
-                                    <span class="legend-item"><span class="legend-dot dot-heat-mid"></span> TB</span>
+                                    <span class="legend-item"><span class="legend-dot"
+                                            style="background:rgba(255, 255, 255, 0.05);"></span> 0 người</span>
+                                    <span class="legend-item"><span class="legend-dot"
+                                            style="background:rgba(34, 211, 238, 0.4);"></span> Ít</span>
+                                    <span class="legend-item"><span class="legend-dot"
+                                            style="background:rgba(14, 165, 233, 0.7);"></span> TB</span>
                                     <span class="legend-item"><span class="legend-dot dot-heat-high"></span>
                                         Nhiều</span>
                                 </div>
@@ -1158,7 +1169,7 @@
                             <div class="dev-photo-side">
                                 <div class="dev-photo-frame">
                                     <img src="image.png" alt="Developer Portrait">
-                                    <div class="dev-badge">Founder & Lead Dev</div>
+                                    <div class="dev-badge">Lead Dev</div>
                                 </div>
                             </div>
                             <div class="dev-info-side">
@@ -1292,10 +1303,14 @@
                                     </button>
                                 </div>
                                 <div class="report-status-filters" id="admin-bug-status-filters">
-                                    <button class="status-filter-btn active" onclick="setAdminBugStatusFilter(this, 'ALL')">Tất cả</button>
-                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'OPEN')">Chưa xử lý</button>
-                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'IN_PROGRESS')">Đang xử lý</button>
-                                    <button class="status-filter-btn" onclick="setAdminBugStatusFilter(this, 'RESOLVED')">Đã giải quyết</button>
+                                    <button class="status-filter-btn active"
+                                        onclick="setAdminBugStatusFilter(this, 'ALL')">Tất cả</button>
+                                    <button class="status-filter-btn"
+                                        onclick="setAdminBugStatusFilter(this, 'OPEN')">Chưa xử lý</button>
+                                    <button class="status-filter-btn"
+                                        onclick="setAdminBugStatusFilter(this, 'IN_PROGRESS')">Đang xử lý</button>
+                                    <button class="status-filter-btn"
+                                        onclick="setAdminBugStatusFilter(this, 'RESOLVED')">Đã giải quyết</button>
                                 </div>
                             </div>
 
@@ -2157,7 +2172,8 @@
                     onchange="handleEvidenceUpload(this)">
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" style="background:#0ea5e9; color:white; border-color:#0ea5e9;" onclick="exportEvidenceVisualReport()">
+                <button class="btn-secondary" style="background:#0ea5e9; color:white; border-color:#0ea5e9;"
+                    onclick="exportEvidenceVisualReport()">
                     <i class="fa-solid fa-list-check"></i> Xuất danh sách minh chứng
                 </button>
                 <button class="btn-secondary" onclick="closeModal('evidence-folder-modal')">Đóng</button>
@@ -2519,11 +2535,12 @@
     <div class="modal" id="create-poll-modal">
         <div class="modal-wrapper" style="max-width:560px;">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-calendar-plus"></i> Tạo Vote Lịch Họp</h3>
+                <h3 id="poll-modal-title"><i class="fa-solid fa-calendar-plus"></i> Tạo Vote Lịch Họp</h3>
                 <button class="close-btn" onclick="closeModal('create-poll-modal')"><i
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
+                <input type="hidden" id="poll-edit-id">
                 <div class="input-group-v2">
                     <label><i class="fa-solid fa-heading"></i> Tên cuộc họp <span class="required">*</span></label>
                     <input type="text" id="poll-title" placeholder="VD: Họp Ban L&D tuần 4/2026" class="lux-input">
@@ -2571,7 +2588,8 @@
                 </div>
 
                 <div id="poll-member-target" class="input-group-v2" style="display:none;">
-                    <label><i class="fa-solid fa-users-viewfinder"></i> Chọn Nhân sự (<span id="poll-member-count">0</span> đã chọn)</label>
+                    <label><i class="fa-solid fa-users-viewfinder"></i> Chọn Nhân sự (<span
+                            id="poll-member-count">0</span> đã chọn)</label>
                     <div style="display:flex; gap:12px; align-items:center;">
                         <button class="btn-premium-xs" onclick="openMeetingMemberPicker()" style="padding: 10px 16px;">
                             <i class="fa-solid fa-user-plus"></i> Thêm thành viên
@@ -2621,8 +2639,71 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('create-poll-modal')">Hủy</button>
-                <button class="btn-lux-primary" onclick="saveMeetingPoll()">
+                <button class="btn-lux-primary" onclick="saveMeetingPoll()" id="btn-save-poll">
                     <i class="fa-solid fa-check"></i> Tạo Vote
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: FINALIZE POLL -->
+    <div class="modal" id="finalize-poll-modal">
+        <div class="modal-wrapper" style="max-width:540px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-check"></i> Chốt Lịch Họp</h3>
+                <button class="close-btn" onclick="closeModal('finalize-poll-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px;">Chọn một trong các khung giờ tối ưu nhất dựa trên số lượng người rảnh:
+                </p>
+                <div id="finalize-options-list" class="finalize-options-grid">
+                    <!-- JS fills this -->
+                </div>
+                <div class="input-group-v2" style="margin-top:20px;">
+                    <label><i class="fa-solid fa-align-left"></i> Nội dung họp (Optional)</label>
+                    <textarea id="finalize-content" class="lux-input" rows="2"
+                        placeholder="VD: Review dự án, Plan tuần tới..."></textarea>
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-location-dot"></i> Địa điểm / Hình thức họp (Optional)</label>
+                    <input type="text" id="finalize-location" class="lux-input"
+                        placeholder="VD: Google Meet / Phòng 302">
+                </div>
+                <div class="input-group-v2">
+                    <label><i class="fa-solid fa-note-sticky"></i> Ghi chú thêm (Optional)</label>
+                    <textarea id="finalize-note" class="lux-input" rows="2"
+                        placeholder="VD: Các bạn nhớ mang theo laptop..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('finalize-poll-modal')">Hủy</button>
+                <button class="btn-lux-primary" onclick="confirmFinalizeMeeting()">
+                    <i class="fa-solid fa-check-double"></i> Xác nhận chốt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MEETING NOTICE (SUCCESS) -->
+    <div class="modal" id="meeting-notice-modal">
+        <div class="modal-wrapper" style="max-width:500px;">
+            <div class="modal-header">
+                <h3 style="color:var(--accent-green);"><i class="fa-solid fa-circle-check"></i> Chốt lịch thành công!
+                </h3>
+                <button class="close-btn" onclick="closeModal('meeting-notice-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:12px;">Dưới đây là mẫu tin nhắn để gửi vào nhóm:</p>
+                <div id="meeting-notice-template-box" class="notice-template-box"
+                    style="background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; font-family:'Courier New', monospace; font-size:0.9rem; white-space:pre-wrap; border:1px solid rgba(255,255,255,0.1);">
+                    <!-- Template content here -->
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content:center;">
+                <button class="btn-lux-primary" onclick="copyMeetingNotice()">
+                    <i class="fa-solid fa-copy"></i> Sao chép Tin nhắn
                 </button>
             </div>
         </div>
@@ -2689,7 +2770,8 @@
         <div class="modal-wrapper glass-panel" style="max-width: 700px;">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-file-lines"></i> Chi tiết Góp ý & Đánh giá</h3>
-                <button class="close-btn" onclick="closeModal('feedback-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" onclick="closeModal('feedback-detail-modal')"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="fb-detail-body" class="modal-body" style="max-height:80vh; overflow-y:auto;">
                 <!-- Content populated by JS -->

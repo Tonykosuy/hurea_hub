@@ -14,6 +14,9 @@ const state = {
     meetingPollFilter: 'all',
     activePollId: null,
     myTimeSelections: {},
+    msGridDragging: false,
+    msGridDragMode: 'select',
+    lastHandledKey: null,
     clubEvents: [],
     currentCalendarDate: new Date(),
     activeProjectParticipantsSetup: [],
@@ -169,6 +172,9 @@ function normalizeDataKeys(data) {
         'starthour': 'startHour',
         'endhour': 'endHour',
         'votedat': 'votedAt',
+        'finaltime': 'finalTime',
+        'finallocation': 'finalLocation',
+        'finalnote': 'finalNote',
         // Event field mappings
         'eventdate': 'eventDate',
         'eventname': 'eventName',
@@ -253,10 +259,9 @@ async function loadDataFromAPI() {
             // IMMEDIATELY show login screen so user can interact
             renderLoginMemberSelector();
             showLoginScreen();
-            if (loader) loader.style.display = 'none';
-            state.initialLoading = false;
 
             // PHASE 2: Background Full Load (Projects, Evaluations, Scores, etc.)
+            // We KEEP the loader visible until PHASE 2 finishes for critical data
             loadFullDataInBackground();
         }
     } catch (e) {
@@ -320,6 +325,10 @@ async function loadFullDataInBackground() {
         }
     } catch (e) {
         console.error('Background Load Error:', e.message);
+    } finally {
+        state.initialLoading = false;
+        const loader = document.getElementById('global-loader');
+        if (loader) loader.classList.add('fade-out');
     }
 }
 
@@ -509,6 +518,7 @@ function openModal(id, extra) {
     if (id === 'project-modal') { state.activeProjectParticipantsSetup = []; }
     if (id === 'announcement-modal') {
         const idField = document.getElementById('ann-id');
+        const deptSelect = document.getElementById('ann-dept-select');
         // Chỉ reset nếu có extra (tức là mở từ nút Tạo mới, còn nếu truyền từ editAnnouncement thì không được gọi với extra là GLOBAL/DEPT bởi vì editAnnouncement mở trực tiếp không qua extra)
         if (extra) {
             if (idField) idField.value = '';
@@ -517,6 +527,17 @@ function openModal(id, extra) {
             document.getElementById('ann-type').value = extra;
             document.getElementById('ann-modal-title').innerText = extra === 'GLOBAL' ? 'Đăng Tin Toàn CLB' : 'Đăng Tin Ban';
             document.getElementById('ann-dept-group').style.display = extra === 'DEPT' ? 'block' : 'none';
+            
+            // If user is not admin/BCN, lock to their department
+            if (extra === 'DEPT' && state.userRole !== 'admin' && state.userRole !== 'bcn' && state.currentUser && state.currentUser.dept) {
+                if (deptSelect) {
+                    deptSelect.value = state.currentUser.dept;
+                    deptSelect.disabled = true;
+                }
+            } else {
+                if (deptSelect) deptSelect.disabled = false;
+            }
+
             document.getElementById('ann-preview').style.display = 'flex';
             document.getElementById('ann-preview').innerHTML = `
                 <div class="drop-circle" style="width:40px;height:40px;font-size:1rem;">
@@ -1024,7 +1045,7 @@ function _renderProjects() {
     updateProjectDashboardStats(termProjects);
 }
 
-const renderProjects = debounce(_renderProjects, 300);
+let renderProjects = debounce(_renderProjects, 300);
 
 function updateProjectDashboardStats(termProjects) {
     const totalEl = document.getElementById('stat-total-p');
@@ -2093,11 +2114,13 @@ function initDashboardCharts() {
         const m = state.members.find(member => member.id === ev.targetId);
         if (m && evalDataByDept[m.dept]) {
             evalDataByDept[m.dept].count++;
-            evalDataByDept[m.dept].totalAvg += (ev.avgScore || 0);
-            const critScores = safeJsonParse(ev.scores, {});
-            Object.values(critScores).forEach((val, idx) => {
-                if (idx < 5) evalDataByDept[m.dept].scores[idx] += val;
-            });
+            const avg = ev.score || ev.avgScore || ev.totalScore || 0;
+            evalDataByDept[m.dept].totalAvg += parseFloat(avg);
+            // Map c1..c5 to individual radar points (Expertise, Responsibility, Communication, Creativity, Attitude)
+            for (let i = 1; i <= 5; i++) {
+                const val = parseFloat(ev[`c${i}`] || 0);
+                evalDataByDept[m.dept].scores[i - 1] += val;
+            }
         }
     });
 
@@ -2166,10 +2189,11 @@ function initDashboardCharts() {
     // --- 3. Score Distribution ---
     const scoreBuckets = [0, 0, 0, 0, 0]; // <5, 5-7, 7-8, 8-9, 9-10
     state.members.forEach(m => {
-        // Find most recent avgScore for this member in current term
-        const mEvals = termEvals.filter(e => e.targetId === m.id);
+        // Find most recent score for this member in current term
+        const mEvals = termEvals.filter(e => String(e.targetId) === String(m.id));
         if (mEvals.length > 0) {
-            const avg = mEvals[0].avgScore || 0;
+            const lastEval = mEvals[mEvals.length - 1];
+            const avg = lastEval.score || lastEval.avgScore || lastEval.totalScore || 0;
             if (avg < 5) scoreBuckets[0]++;
             else if (avg < 7) scoreBuckets[1]++;
             else if (avg < 8) scoreBuckets[2]++;
@@ -2218,7 +2242,19 @@ function initDashboardCharts() {
 
     // --- 5. Project Health ---
     const prjStatus = { 'Chưa chạy': 0, 'Đang chạy': 0, 'Hoàn thành': 0 };
-    state.projects.filter(p => p.term === state.currentTerm).forEach(p => prjStatus[p.status || 'Chưa chạy']++);
+    state.projects.filter(p => p.term === state.currentTerm).forEach(p => {
+        let status = p.status || 'Chưa chạy';
+        // Normalize common status strings
+        if (status === 'setup') status = 'Chưa chạy';
+        if (status === 'running') status = 'Đang chạy';
+        if (status === 'finish') status = 'Hoàn thành';
+        
+        if (prjStatus[status] !== undefined) prjStatus[status]++;
+        else {
+            // If it's a dynamic status not in the default list, we still want to track it
+            prjStatus[status] = (prjStatus[status] || 0) + 1;
+        }
+    });
 
     if (dashboardCharts.projectStatus) dashboardCharts.projectStatus.destroy();
     dashboardCharts.projectStatus = new Chart(document.getElementById('chart-project-status'), {
@@ -2247,12 +2283,12 @@ function renderAnnouncements() {
     const dList = document.getElementById('dept-announcements-list');
     if (!gList || !dList) return;
 
-    const globalAnns = (state.announcements || []).filter(a => a.type === 'GLOBAL').reverse();
+    const globalAnns = (state.announcements || []).filter(a => a.type === 'GLOBAL' && a.term === state.currentTerm).reverse();
     
-    // Filtering Dept Announcements: Regular users only see their own department's news
-    let deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT');
+    // Filtering Dept Announcements: Regular members only see their own department's news
+    let deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT' && a.term === state.currentTerm);
     
-    if (state.userRole === 'user') {
+    if (state.userRole !== 'admin' && state.userRole !== 'bcn') {
         const userDept = state.currentUser ? state.currentUser.dept : null;
         deptAnns = deptAnns.filter(a => a.dept === userDept);
     }
@@ -2287,8 +2323,8 @@ function renderAnnCard(ann) {
 
 function filterDeptAnn(dept) {
     currentAnnDeptFilter = dept;
-    document.querySelectorAll('.dept-pills .pill').forEach(p => {
-        p.classList.toggle('active', p.innerText.includes(dept) || (dept === 'ALL' && p.innerText === 'Tất cả'));
+    document.querySelectorAll('.dept-pills-v2 .pill').forEach(p => {
+        p.classList.toggle('active', p.innerText === dept || (dept === 'ALL' && p.innerText === 'Tất cả'));
     });
     renderAnnouncements();
 }
@@ -2345,7 +2381,11 @@ function editAnnouncement(id) {
     document.getElementById('ann-type').value = ann.type;
     document.getElementById('ann-title').value = ann.title;
     document.getElementById('ann-content').value = ann.content;
-    document.getElementById('ann-dept-select').value = ann.dept || 'L&D';
+    const deptSelect = document.getElementById('ann-dept-select');
+    if (deptSelect) {
+        deptSelect.value = ann.dept || 'L&D';
+        deptSelect.disabled = (state.userRole !== 'admin' && state.userRole !== 'bcn');
+    }
     document.getElementById('ann-priority').value = ann.priority || 'NORMAL';
 
     const preview = document.getElementById('ann-preview');
@@ -5907,8 +5947,16 @@ function startCinematicEvaluation(prjId) {
         return alert('Nhân sự Hỗ trợ và Check-in không tham gia đánh giá chéo!');
     }
     
-    const checkPL = (r) => r === 'PL' || r === 'Project Leader';
-    const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
+    const checkPL = (r) => {
+        if (!r) return false;
+        const lower = r.toLowerCase().trim();
+        return lower === 'pl' || lower === 'project leader' || lower === 'trưởng dự án';
+    };
+    const checkLeader = (r) => {
+        if (!r) return false;
+        const lower = r.toLowerCase().trim();
+        return (lower.includes('leader') || lower === 'tl' || lower === 'nhóm trưởng') && !checkPL(r);
+    };
     const hasPL = participants.some(pt => checkPL(pt.role));
 
     let targets = [];
@@ -5933,12 +5981,16 @@ function startCinematicEvaluation(prjId) {
         });
     } else {
         // Core Team: Self + Leader of their team + Teammates (CTs in same team)
+        // Explicitly exclude Project Leader (PL) from Core Team targets
         targets = participants.filter(pt => {
             if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isMyLeader = pt.teamName === raterTeam && checkLeader(pt.role);
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && pt.memberId !== raterId;
-            return isSelf || isMyLeader || isTeammate;
+            const isPL = checkPL(pt.role);
+            
+            // Core Team evaluates themselves, their team leader, and teammates (not PL)
+            return (isSelf || isMyLeader || isTeammate) && !isPL; 
         });
     }
 
@@ -7050,7 +7102,8 @@ function updateHeaderUser() {
 }
 
 function applyPermissions(role) {
-    const isAdmin = role === 'admin';
+    const isAdmin = role === 'admin' || role === 'bcn';
+    const isHead = role === 'head';
     const fbAdmin = document.getElementById('feedback-admin-actions');
     if (fbAdmin) fbAdmin.style.display = isAdmin ? 'block' : 'none';
 
@@ -7059,9 +7112,14 @@ function applyPermissions(role) {
         item.classList.remove('nav-hidden');
     });
 
-    // Dashboard/Home permissions (Admin vs User)
+    // Dashboard/Home permissions (Visible for Admin/BCN/Head, Charts only for users)
     const dashboardStats = document.getElementById('admin-dashboard-stats');
-    if (dashboardStats) dashboardStats.style.display = isAdmin ? 'block' : 'none';
+    if (dashboardStats) {
+        dashboardStats.style.display = (isAdmin || isHead || role === 'user') ? 'block' : 'none';
+        // Within dashboard stats, the grid (Total members, etc) is for Admin/BCN/Head
+        const statsGrid = dashboardStats.querySelector('.stats-grid');
+        if (statsGrid) statsGrid.style.display = (isAdmin || isHead) ? 'grid' : 'none';
+    }
 
     const addEventBtn = document.getElementById('btn-add-event');
     if (addEventBtn) addEventBtn.style.display = isAdmin ? 'inline-flex' : 'none';
@@ -7659,9 +7717,6 @@ async function exportIncompleteEvaluationsPDF() {
 // MEETING SCHEDULER MODULE — When2Meet Style
 // ==========================================
 
-let msGridDragging = false;
-let msGridDragMode = 'select'; // 'select' or 'deselect'
-
 function initMeetingScheduler() {
     // Check URL hash for deep link
     checkMeetingDeepLink();
@@ -7799,7 +7854,7 @@ function renderMeetingPolls() {
                 </div>
             </div>
             ${poll.content ? `<div class="poll-card-content">${poll.content}</div>` : ''}
-            ${isFinalized ? `<div style="background:var(--accent-green)11; padding:8px 12px; border-radius:8px; margin-top:8px; border:1px dashed var(--accent-green); color:var(--accent-green); font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-check"></i> Chốt: ${poll.finalTime}</div>` : ''}
+            ${isFinalized ? `<div style="background:var(--accent-green)11; padding:8px 12px; border-radius:8px; margin-top:8px; border:1px dashed var(--accent-green); color:var(--accent-green); font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-check"></i> Chốt: ${poll.finalTime || poll.finaltime || 'N/A'}</div>` : ''}
             <div class="poll-card-meta">
                 <div class="poll-meta-row"><i class="fa-solid fa-user-pen"></i> Người tạo: <strong>${creatorName}</strong></div>
                 <div class="poll-meta-row"><i class="fa-solid fa-hourglass-half"></i> Deadline: <strong>${deadlineStr}</strong></div>
@@ -7825,12 +7880,9 @@ function renderMeetingPolls() {
 }
 
 function getUniqueVoters(pollId) {
-    const voters = new Set();
-    state.meetingVotes.forEach(v => {
-        if (String(v.pollId || v.pollid) === String(pollId)) {
-            voters.add(String(v.userId || v.userid));
-        }
-    });
+    if (!state.meetingVotes) return [];
+    const pollVotes = state.meetingVotes.filter(v => String(v.pollId || v.pollid) === String(pollId));
+    const voters = new Set(pollVotes.map(v => String(v.userId || v.userid)));
     return Array.from(voters);
 }
 
@@ -7961,6 +8013,11 @@ function handlePollProjectChange() {
 }
 
 function openCreatePollModal() {
+    // Reset UI for "Create" mode
+    document.getElementById('poll-modal-title').innerHTML = '<i class="fa-solid fa-calendar-plus"></i> Tạo Vote Lịch Họp';
+    document.getElementById('btn-save-poll').innerHTML = '<i class="fa-solid fa-check"></i> Tạo Vote';
+    document.getElementById('poll-edit-id').value = '';
+
     // Set default values
     const now = new Date();
     const tomorrow = new Date(now);
@@ -7975,6 +8032,8 @@ function openCreatePollModal() {
     document.getElementById('poll-deadline').value = deadlineDt.toISOString().slice(0, 16);
     document.getElementById('poll-start-date').value = tomorrow.toISOString().slice(0, 10);
     document.getElementById('poll-end-date').value = weekLater.toISOString().slice(0, 10);
+    document.getElementById('poll-start-hour').value = '8';
+    document.getElementById('poll-end-hour').value = '22';
     
     // Reset visibility fields
     document.getElementById('poll-visibility').value = 'public';
@@ -7990,6 +8049,7 @@ function openCreatePollModal() {
 }
 
 async function saveMeetingPoll() {
+    const editId = document.getElementById('poll-edit-id').value;
     const title = document.getElementById('poll-title').value.trim();
     const content = document.getElementById('poll-content').value.trim();
     const deadline = document.getElementById('poll-deadline').value;
@@ -8031,8 +8091,11 @@ async function saveMeetingPoll() {
         return;
     }
 
+    const pollId = editId || ('poll_' + Date.now());
+    const existingPoll = editId ? state.meetingPolls.find(p => String(p.id) === String(editId)) : null;
+
     const poll = {
-        id: 'poll_' + Date.now(),
+        id: pollId,
         title,
         content,
         deadline,
@@ -8045,24 +8108,104 @@ async function saveMeetingPoll() {
         targetProjectId,
         targetTeamName,
         targetMemberIds: document.getElementById('poll-target-member-ids').value,
-        creatorId: state.currentUser ? state.currentUser.id : '',
-        creatorName: state.currentUser ? state.currentUser.name : 'Ẩn danh',
-        createdAt: new Date().toISOString()
+        creatorId: existingPoll ? existingPoll.creatorId : (state.currentUser ? state.currentUser.id : ''),
+        creatorName: existingPoll ? existingPoll.creatorName : (state.currentUser ? state.currentUser.name : 'Ẩn danh'),
+        createdAt: existingPoll ? existingPoll.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: existingPoll ? (existingPoll.status || 'ACTIVE') : 'ACTIVE'
     };
 
     // Save locally
-    state.meetingPolls.push(poll);
+    const idx = state.meetingPolls.findIndex(p => String(p.id) === String(pollId));
+    if (idx > -1) {
+        state.meetingPolls[idx] = poll;
+    } else {
+        state.meetingPolls.push(poll);
+    }
 
     // Save to backend
     try {
         await syncToBackend('save_meeting_poll', poll);
-        showToast('Đã tạo vote lịch họp thành công!', 'success');
+        showToast(editId ? 'Đã cập nhật thông tin thành công!' : 'Đã tạo vote lịch họp thành công!', 'success');
+        
+        if (!editId) {
+            // SHOW INVITE TEMPLATE
+            const shareUrl = `${window.location.origin}${window.location.pathname}#poll=${pollId}`;
+            const inviteMsg = `🗓️ **MỜI VOTE LỊCH HỌP: ${poll.title.toUpperCase()}**` +
+                              `\n\n📝 Nội dung: ${poll.content || 'Họp định kỳ'}` +
+                              `\n🕒 Khoảng thời gian: ${formatDateVN(poll.startDate)} ➔ ${formatDateVN(poll.endDate)}` +
+                              `\n⏰ Hạn chốt vote: ${formatDateTimeVN(poll.deadline)}` +
+                              `\n\n👉 **Vui lòng vào link sau để báo giờ rảnh:**` +
+                              `\n${shareUrl}` +
+                              `\n\n📌 *Các thành viên chủ động cập nhật lịch để ban/chương trình chốt lịch sớm nhất!*`;
+            
+            state.currentMeetingNotice = inviteMsg;
+            document.getElementById('meeting-notice-template-box').innerText = inviteMsg;
+            
+            const noticeTitle = document.querySelector('#meeting-notice-modal h3');
+            if (noticeTitle) noticeTitle.innerHTML = '<i class="fa-solid fa-bullhorn"></i> Mời thành viên Vote';
+            
+            openModal('meeting-notice-modal');
+        }
     } catch (e) {
         showToast('Lỗi khi lưu: ' + e.message, 'error');
     }
 
     closeModal('create-poll-modal');
     renderMeetingPolls();
+    if (editId) openPollDetail(editId); 
+}
+
+function editMeetingPoll(pollId) {
+    const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
+    if (!poll) return;
+
+    // Switch Modal UI to "Edit" mode
+    document.getElementById('poll-modal-title').innerHTML = '<i class="fa-solid fa-edit"></i> Chỉnh sửa Vote Lịch Họp';
+    document.getElementById('btn-save-poll').innerHTML = '<i class="fa-solid fa-save"></i> Cập nhật ngay';
+    document.getElementById('poll-edit-id').value = poll.id;
+
+    // Fill data
+    document.getElementById('poll-title').value = poll.title || '';
+    document.getElementById('poll-content').value = poll.content || '';
+    document.getElementById('poll-deadline').value = poll.deadline || '';
+    document.getElementById('poll-start-date').value = poll.startDate || '';
+    document.getElementById('poll-end-date').value = poll.endDate || '';
+    document.getElementById('poll-start-hour').value = poll.startHour || '8';
+    document.getElementById('poll-end-hour').value = poll.endHour || '22';
+    
+    document.getElementById('poll-visibility').value = poll.visibility || 'public';
+    handlePollVisibilityChange(); // Show/hide relevant fields
+
+    if (poll.visibility === 'dept') {
+        document.getElementById('poll-target-dept').value = poll.targetDept || '';
+    } else if (poll.visibility === 'project' || poll.visibility === 'team') {
+        document.getElementById('poll-target-project').value = poll.targetProjectId || '';
+        handlePollProjectChange();
+        if (poll.visibility === 'team') {
+            document.getElementById('poll-target-team').value = poll.targetTeamName || '';
+        }
+    } else if (poll.visibility === 'member') {
+        const ids = poll.targetMemberIds || '';
+        document.getElementById('poll-target-member-ids').value = ids;
+        const idArr = ids ? ids.split(',') : [];
+        document.getElementById('poll-member-count').innerText = idArr.length;
+        
+        // Render preview
+        const preview = document.getElementById('poll-selected-members-preview');
+        preview.innerHTML = '';
+        idArr.forEach(mid => {
+           const m = state.members.find(u => String(u.id) === String(mid));
+           if (m) {
+               const tag = document.createElement('span');
+               tag.className = 'member-mini-tag';
+               tag.innerHTML = `${m.name} <i class="fa-solid fa-xmark" onclick="removeMeetingMember('${m.id}')"></i>`;
+               preview.appendChild(tag);
+           }
+        });
+    }
+
+    openModal('create-poll-modal');
 }
 
 // ==========================================
@@ -8085,13 +8228,14 @@ function openPollDetail(pollId) {
     const infoEl = document.getElementById('poll-detail-info');
     infoEl.innerHTML = `
         <h2>${poll.title || 'Cuộc họp'}</h2>
-        ${poll.content ? `<div class="poll-desc">${poll.content}</div>` : ''}
+        ${(poll.finalContent || poll.content) ? `<div class="poll-desc">${poll.finalContent || poll.content}</div>` : ''}
         <div class="poll-info-chips">
             <span class="info-chip"><i class="fa-solid fa-user-pen"></i> ${poll.creatorName || 'Ẩn danh'}</span>
             <span class="info-chip"><i class="fa-solid fa-hourglass-half"></i> Deadline: ${formatDateTimeVN(poll.deadline)}</span>
             <span class="info-chip"><i class="fa-solid fa-calendar-days"></i> ${formatDateVN(poll.startDate)} → ${formatDateVN(poll.endDate)}</span>
             <span class="info-chip"><i class="fa-solid fa-clock"></i> ${poll.startHour || 8}:00 — ${poll.endHour || 22}:00</span>
             <span class="poll-status-badge ${isExpired ? 'expired' : 'active'}">${isExpired ? 'Đã kết thúc' : 'Đang diễn ra'}</span>
+            ${poll.status === 'FINALIZED' ? `<span class="info-chip" style="background:var(--accent-green)22; color:var(--accent-green); border-color:var(--accent-green);"><i class="fa-solid fa-check"></i> Chốt: ${poll.finalTime || poll.finaltime || 'Chưa rõ'}</span>` : ''}
         </div>
     `;
 
@@ -8102,9 +8246,20 @@ function openPollDetail(pollId) {
     buildMyTimeGrid(poll);
     buildHeatmapGrid(poll);
 
-    // Show/hide submit based on expiry
+    // Show/hide submit based on expiry or finalized status
     const submitBtn = document.getElementById('btn-submit-vote');
-    if (submitBtn) submitBtn.style.display = isExpired ? 'none' : 'inline-flex';
+    const clearBtn = document.getElementById('btn-clear-vote');
+    const isFinalized = poll.status === 'FINALIZED';
+
+    if (submitBtn) submitBtn.style.display = (isExpired || isFinalized) ? 'none' : 'inline-flex';
+    if (clearBtn) clearBtn.style.display = (isExpired || isFinalized) ? 'none' : 'inline-flex';
+
+    if (isFinalized) {
+        const statusEl = document.getElementById('vote-status-text');
+        if (statusEl) {
+            statusEl.innerHTML = `<span style="color:var(--accent-green); font-weight:700;"><i class="fa-solid fa-check-double"></i> Cuộc họp này đã chốt lịch: ${poll.finalTime}</span>`;
+        }
+    }
 
     const actionsEl = document.querySelector('.poll-detail-actions');
     if (actionsEl) {
@@ -8122,6 +8277,22 @@ function openPollDetail(pollId) {
                 finalizeBtn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> Chốt lịch họp';
                 finalizeBtn.onclick = () => finalizeMeetingPoll(pollId);
                 actionsTop.appendChild(finalizeBtn);
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn-premium-xs';
+                editBtn.style.background = 'var(--accent-blue)';
+                editBtn.innerHTML = '<i class="fa-solid fa-edit"></i> Sửa thông tin';
+                editBtn.onclick = () => editMeetingPoll(pollId);
+                actionsTop.appendChild(editBtn);
+            }
+
+            if (poll.status === 'FINALIZED') {
+                const noticeBtn = document.createElement('button');
+                noticeBtn.className = 'btn-premium-xs';
+                noticeBtn.style.background = 'var(--accent-purple)';
+                noticeBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy tin nhắn chốt';
+                noticeBtn.onclick = () => copyFinalizedNoticeById(pollId);
+                actionsTop.appendChild(noticeBtn);
             }
 
             if (state.userRole === 'admin') {
@@ -8137,46 +8308,185 @@ function openPollDetail(pollId) {
     }
 }
 
+function copyFinalizedNoticeById(pollId) {
+    const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
+    if (!poll || poll.status !== 'FINALIZED') return;
+
+    const voters = getUniqueVoters(poll.id);
+    const finalContent = poll.finalContent || poll.finalcontent || poll.content || '';
+    const msg = `📢 **THÔNG BÁO LỊCH HỌP: ${poll.title.toUpperCase()}**` +
+                `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
+                `\n🕒 Thời gian: ${poll.finalTime || poll.finaltime}` +
+                `\n📍 Địa điểm: ${poll.finalLocation || poll.finallocation || 'Chưa cập nhật'}` +
+                `${(poll.finalNote || poll.finalnote) ? `\n📝 Ghi chú: ${poll.finalNote || poll.finalnote}` : ''}` +
+                `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
+                `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
+
+    navigator.clipboard.writeText(msg).then(() => {
+        showToast('Đã copy tin nhắn thông báo!', 'success');
+    }).catch(() => {
+        showToast('Lỗi khi copy thông báo.', 'error');
+    });
+}
+
 async function finalizeMeetingPoll(pollId) {
     const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
     if (!poll) return;
 
-    const finalTime = prompt('Nhập thời gian chốt lịch họp (VD: 19:30, Thứ Ba 22/04):', '');
-    if (!finalTime) return;
+    state.activePollIdForFinalize = pollId;
 
-    if (!confirm(`Xác nhận chốt lịch họp vào lúc: ${finalTime}?\nLịch này sẽ được thêm vào trang chủ của tất cả người đã vote.`)) return;
+    // Recalculate top slots
+    const days = getDaysArray(poll.startDate, poll.endDate);
+    const startHour = parseInt(poll.startHour) || 8;
+    const endHour = parseInt(poll.endHour) || 22;
+
+    const cellCounts = {};
+    const cellVoters = {};
+    state.meetingVotes.forEach(v => {
+        if (String(v.pollId || v.pollid) !== String(pollId)) return;
+        const avail = safeJsonParse(v.availability, {});
+        Object.keys(avail).forEach(key => {
+            if (avail[key]) {
+                cellCounts[key] = (cellCounts[key] || 0) + 1;
+                if (!cellVoters[key]) cellVoters[key] = [];
+                cellVoters[key].push(v.userName || v.username || 'Ẩn danh');
+            }
+        });
+    });
+
+    const allSlots = [];
+    Object.keys(cellCounts).forEach(key => {
+        const parts = key.split('_');
+        allSlots.push({
+            key,
+            count: cellCounts[key],
+            day: parts[0],
+            hour: parseInt(parts[1]),
+            voters: cellVoters[key] || []
+        });
+    });
+
+    allSlots.sort((a, b) => b.count - a.count || a.day.localeCompare(b.day) || a.hour - b.hour);
+    const top = allSlots.slice(0, 5);
+
+    const listEl = document.getElementById('finalize-options-list');
+    if (top.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Không có ai vote rảnh khung giờ nào.</p>';
+    } else {
+        listEl.innerHTML = top.map((slot, idx) => `
+            <div class="finalize-option-item ${idx === 0 ? 'selected' : ''}" onclick="selectFinalizeOption(this)">
+                <input type="radio" name="final-slot" value="${slot.day}_${slot.hour}" ${idx === 0 ? 'checked' : ''} data-label="${formatDateFull(slot.day)} (${String(slot.hour).padStart(2, '0')}:00 - ${String(slot.hour + 1).padStart(2, '0')}:00)">
+                <div class="ot-time">
+                    <strong>${formatDateFull(slot.day)}</strong>
+                    <small>${String(slot.hour).padStart(2, '0')}:00 — ${String(slot.hour + 1).padStart(2, '0')}:00</small>
+                </div>
+                <div class="ot-voters">${slot.count} người</div>
+            </div>
+        `).join('');
+    }
+
+    // Reset inputs
+    document.getElementById('finalize-content').value = poll.content || '';
+    document.getElementById('finalize-location').value = '';
+    document.getElementById('finalize-note').value = '';
+
+    openModal('finalize-poll-modal');
+}
+
+function selectFinalizeOption(el) {
+    document.querySelectorAll('.finalize-option-item').forEach(item => item.classList.remove('selected'));
+    el.classList.add('selected');
+    const radio = el.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+}
+
+async function confirmFinalizeMeeting() {
+    const pollId = state.activePollIdForFinalize;
+    const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
+    if (!poll) return;
+
+    const selectedRadio = document.querySelector('input[name="final-slot"]:checked');
+    if (!selectedRadio) {
+        showToast('Vui lòng chọn một khung giờ!', 'error');
+        return;
+    }
+
+    const finalTimeLabel = selectedRadio.dataset.label;
+    const finalContent = document.getElementById('finalize-content').value.trim();
+    const finalLocation = document.getElementById('finalize-location').value.trim();
+    const finalNote = document.getElementById('finalize-note').value.trim();
+
+    if (!confirm(`Xác nhận chốt lịch họp vào: ${finalTimeLabel}?`)) return;
 
     poll.status = 'FINALIZED';
-    poll.finalTime = finalTime;
+    poll.finalTime = finalTimeLabel;
+    poll.finalContent = finalContent;
+    poll.finalLocation = finalLocation;
+    poll.finalNote = finalNote;
 
     try {
-        showToast('Đang chốt lịch và đồng bộ...');
-        await syncToBackend('save_meeting_poll', poll);
+        const voters = getUniqueVoters(pollId);
+        showToast('Đang xử lý chốt lịch...');
+        // Parallel sync to backend for speed
+        await Promise.all([
+            syncToBackend('save_meeting_poll', poll),
+            syncToBackend('save_event', {
+                id: 'event_poll_' + poll.id,
+                eventName: `[LỊCH HỌP] ${poll.title}`,
+                eventNote: `${finalContent ? `📝 Nội dung: ${finalContent}\n` : ''}🕒 Lịch chốt: ${finalTimeLabel}\n📍 Địa điểm: ${finalLocation || 'Chưa cập nhật'}\n📝 Ghi chú: ${finalNote || 'Trống'}`,
+                eventDate: selectedRadio.value.split('_')[0],
+                eventLocation: finalLocation,
+                type: 'meeting',
+                attendees: voters.join(','),
+                term: state.currentTerm,
+                createdAt: new Date().toISOString()
+            })
+        ]);
         
-        // Add to Calendar
-        const eventId = 'event_poll_' + poll.id;
-        const voters = getUniqueVoters(poll.id);
-        const event = {
-            id: eventId,
-            title: `[LỊCH HỌP] ${poll.title}`,
-            desc: `Cuộc họp đã được chốt: ${finalTime}\nNội dung: ${poll.content || ''}`,
-            date: poll.startDate, // Use start date as reference or we could try to parse finalTime
+        // Add locally
+        state.clubEvents.push({
+            id: 'event_poll_' + poll.id,
+            eventName: `[LỊCH HỌP] ${poll.title}`,
+            eventDate: selectedRadio.value.split('_')[0],
+            eventLocation: finalLocation,
+            eventNote: `${finalContent ? `📝 Nội dung: ${finalContent}\n` : ''}🕒 Lịch chốt: ${finalTimeLabel}\n📍 Địa điểm: ${finalLocation || 'Chưa cập nhật'}\n📝 Ghi chú: ${finalNote || 'Trống'}`,
             type: 'meeting',
-            attendees: voters.join(','),
-            term: state.currentTerm,
-            createdAt: new Date().toISOString()
-        };
+            attendees: voters.join(',')
+        });
+
+        closeModal('finalize-poll-modal');
+        showToast('Đã chốt lịch thành công!', 'success');
         
-        await syncToBackend('save_event', event);
-        state.clubEvents.push(event);
+        // Prepare Notice Template
+        const msg = `📢 **THÔNG BÁO LỊCH HỌP: ${poll.title.toUpperCase()}**` +
+                    `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
+                    `\n🕒 Thời gian: ${finalTimeLabel}` +
+                    `\n📍 Địa điểm: ${finalLocation || 'Chưa cập nhật'}` +
+                    `${finalNote ? `\n📝 Ghi chú: ${finalNote}` : ''}` +
+                    `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
+                    `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
         
-        showToast('Đã chốt lịch và thêm vào lịch hoạt động!', 'success');
-        openPollDetail(pollId); // Refresh view
+        state.currentMeetingNotice = msg;
+        document.getElementById('meeting-notice-template-box').innerText = msg;
+        
+        const noticeTitle = document.querySelector('#meeting-notice-modal h3');
+        if (noticeTitle) noticeTitle.innerHTML = '<i class="fa-solid fa-calendar-check" style="color:var(--accent-green)"></i> Chốt lịch thành công!';
+        
+        openModal('meeting-notice-modal');
+
+        openPollDetail(pollId); 
         renderMeetingPolls();
         renderActivityCalendar();
     } catch (e) {
-        showToast('Lỗi khi chốt lịch: ' + e.message, 'error');
+        showToast('Lỗi khi chốt lịch.', 'error');
     }
+}
+
+function copyMeetingNotice() {
+    const text = state.currentMeetingNotice || '';
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Đã sao chép tin nhắn vào clipboard!', 'success');
+    });
 }
 
 function closePollDetail() {
@@ -8244,10 +8554,8 @@ function buildMyTimeGrid(poll) {
     const days = getDaysArray(poll.startDate, poll.endDate);
     const startHour = parseInt(poll.startHour) || 8;
     const endHour = parseInt(poll.endHour) || 22;
-    const hourCount = endHour - startHour;
-    const colCount = days.length + 1; // +1 for hour labels
-
-    gridEl.style.gridTemplateColumns = `60px repeat(${days.length}, minmax(52px, 1fr))`;
+    
+    gridEl.style.gridTemplateColumns = `60px repeat(${days.length}, minmax(60px, 1fr))`;
     gridEl.innerHTML = '';
 
     // Header row
@@ -8265,13 +8573,11 @@ function buildMyTimeGrid(poll) {
 
     // Time rows
     for (let h = startHour; h < endHour; h++) {
-        // Hour label
         const label = document.createElement('div');
         label.className = 'time-grid-hour-label';
         label.textContent = `${String(h).padStart(2, '0')}:00`;
         gridEl.appendChild(label);
 
-        // Day cells for this hour
         days.forEach(day => {
             const key = `${day}_${h}`;
             const cell = document.createElement('div');
@@ -8280,48 +8586,86 @@ function buildMyTimeGrid(poll) {
             if (state.myTimeSelections[key]) {
                 cell.classList.add('selected');
             }
-
-            // Mouse events
-            cell.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                msGridDragging = true;
-                msGridDragMode = cell.classList.contains('selected') ? 'deselect' : 'select';
-                toggleTimeCell(cell, key);
-            });
-            cell.addEventListener('mouseenter', () => {
-                if (msGridDragging) {
-                    toggleTimeCell(cell, key);
-                }
-            });
-
-            // Touch events
-            cell.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                msGridDragging = true;
-                msGridDragMode = cell.classList.contains('selected') ? 'deselect' : 'select';
-                toggleTimeCell(cell, key);
-            }, { passive: false });
-            cell.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (!msGridDragging) return;
-                const touch = e.touches[0];
-                const el = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (el && el.classList.contains('time-cell') && el.dataset.key) {
-                    toggleTimeCell(el, el.dataset.key);
-                }
-            }, { passive: false });
-
             gridEl.appendChild(cell);
         });
     }
 
-    // Global mouse/touch end
-    document.addEventListener('mouseup', () => { msGridDragging = false; });
-    document.addEventListener('touchend', () => { msGridDragging = false; });
+    // --- Bulletproof Pointer Interaction ---
+    const updateSelectionAt = (x, y) => {
+        if (!state.msGridDragging) return;
+        
+        // Find element at coordinates
+        const target = document.elementFromPoint(x, y);
+        if (!target) return;
+        
+        const cell = target.closest('.time-cell');
+        if (!cell) return;
+        
+        const key = cell.dataset.key;
+        if (key && key !== state.lastHandledKey) {
+            state.lastHandledKey = key;
+            toggleTimeCell(cell, key);
+            
+            // Visual feedback
+            cell.classList.add('cell-pulse');
+            setTimeout(() => cell.classList.remove('cell-pulse'), 150);
+        }
+    };
+
+    gridEl.style.touchAction = 'none'; 
+    gridEl.style.userSelect = 'none';
+
+    gridEl.onpointerdown = (e) => {
+        if (poll.status === 'FINALIZED') return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const cell = e.target.closest('.time-cell');
+        if (cell) {
+            state.msGridDragging = true;
+            state.lastHandledKey = cell.dataset.key;
+            state.msGridDragMode = cell.classList.contains('selected') ? 'deselect' : 'select';
+            
+            toggleTimeCell(cell, state.lastHandledKey);
+            cell.classList.add('cell-pulse');
+            
+            // Capture pointer for consistent tracking
+            try { gridEl.setPointerCapture(e.pointerId); } catch(err) {}
+        }
+    };
+
+    gridEl.onpointermove = (e) => {
+        if (state.msGridDragging) {
+            updateSelectionAt(e.clientX, e.clientY);
+        }
+    };
+
+    const endDrag = (e) => {
+        if (!state.msGridDragging) return;
+        state.msGridDragging = false;
+        state.lastHandledKey = null;
+        if (e && e.pointerId && gridEl.hasPointerCapture(e.pointerId)) {
+            try { gridEl.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+    };
+
+    gridEl.onpointerup = endDrag;
+    gridEl.onpointercancel = endDrag;
+
+    // Safety: Global events for when the pointer leaves the capture zone or browser
+    if (!window._msGridInited) {
+        window.addEventListener('blur', () => { state.msGridDragging = false; state.lastHandledKey = null; });
+        // Use capture phase for the global pointerup to ensure it fires
+        window.addEventListener('pointerup', (e) => {
+            if (state.msGridDragging) {
+                // If the event didn't happen on the grid, we still need to reset
+                if (!gridEl.contains(e.target)) endDrag(e);
+            }
+        }, true);
+        window._msGridInited = true;
+    }
 }
 
 function toggleTimeCell(cell, key) {
-    if (msGridDragMode === 'select') {
+    if (state.msGridDragMode === 'select') {
         cell.classList.add('selected');
         state.myTimeSelections[key] = true;
     } else {
@@ -8446,9 +8790,10 @@ function buildHeatmapGrid(poll) {
         if (allVoterNames.length === 0) {
             summaryEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Chưa có ai vote.</span>';
         } else {
-            summaryEl.innerHTML = allVoterNames.map(n =>
-                `<span class="voter-chip"><span class="voter-dot"></span> ${n}</span>`
-            ).join('');
+            summaryEl.innerHTML = allVoterNames.map(n => {
+                const initials = getInitials(n);
+                return `<span class="voter-chip"><span class="voter-avatar">${initials}</span> ${n}</span>`;
+            }).join('');
         }
     }
 
@@ -8483,24 +8828,9 @@ function buildHeatmapGrid(poll) {
 
             const cell = document.createElement('div');
             cell.className = `time-cell heat-${heatLevel} heat-count ${count > 0 ? 'has-voters' : ''}`;
-            cell.textContent = count > 0 ? count : '';
-            cell.style.position = 'relative';
-            cell.style.cursor = count > 0 ? 'pointer' : 'default';
+            cell.innerHTML = count > 0 ? `<span>${count}</span>` : '';
+            cell.dataset.key = key;
 
-            // Tooltip on hover
-            if (count > 0) {
-                cell.addEventListener('mouseenter', () => {
-                    const voters = cellVoters[key] || [];
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'heat-tooltip';
-                    tooltip.innerHTML = `<strong>${count} người rảnh</strong><br>${voters.join(', ')}`;
-                    cell.appendChild(tooltip);
-                });
-                cell.addEventListener('mouseleave', () => {
-                    const tt = cell.querySelector('.heat-tooltip');
-                    if (tt) tt.remove();
-                });
-            }
 
             gridEl.appendChild(cell);
 
@@ -8513,6 +8843,33 @@ function buildHeatmapGrid(poll) {
         });
     }
 
+    // --- Optimized Heatmap Tooltips (Delegation) ---
+    gridEl.onmouseover = (e) => {
+        const cell = e.target;
+        if (cell && cell.classList.contains('has-voters')) {
+            const key = cell.dataset.key;
+            if (!key) return;
+            const voters = cellVoters[key] || [];
+            
+            // Remove any existing tooltips if stuck
+            const old = cell.querySelector('.heat-tooltip');
+            if (old) old.remove();
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'heat-tooltip';
+            tooltip.innerHTML = `<strong>${cellCounts[key]} người rảnh</strong><br>${voters.join(', ')}`;
+            cell.appendChild(tooltip);
+        }
+    };
+
+    gridEl.onmouseout = (e) => {
+        const cell = e.target;
+        if (cell && cell.classList.contains('has-voters')) {
+            const tt = cell.querySelector('.heat-tooltip');
+            if (tt) tt.remove();
+        }
+    };
+
     // Optimal times
     if (optimalCard && optimalList) {
         if (allSlots.length === 0) {
@@ -8524,12 +8881,13 @@ function buildHeatmapGrid(poll) {
             const top = allSlots.slice(0, 5);
             optimalList.innerHTML = top.map((slot, i) => `
                 <div class="optimal-time-item">
-                    <div class="optimal-time-rank">${i + 1}</div>
-                    <div class="optimal-time-info">
-                        <div class="optimal-time-label">${formatDateFull(slot.day)} — ${String(slot.hour).padStart(2, '0')}:00 → ${String(slot.hour + 1).padStart(2, '0')}:00</div>
-                        <div class="optimal-time-voters">${slot.voters.join(', ')}</div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div class="ot-time">${formatDateFull(slot.day)}</div>
+                        <div style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">
+                            <i class="fa-solid fa-clock"></i> ${String(slot.hour).padStart(2, '0')}:00 — ${String(slot.hour + 1).padStart(2, '0')}:00
+                        </div>
                     </div>
-                    <div class="optimal-time-count">${slot.count} <span style="font-size:0.7rem;color:var(--text-muted)">người</span></div>
+                    <div class="ot-voters">${slot.count} người rảnh</div>
                 </div>
             `).join('');
         }
@@ -8613,7 +8971,15 @@ function renderActivityCalendar() {
         const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
         const dayEvents = state.clubEvents.filter(ev => {
             const evDate = new Date(ev.eventDate);
-            return evDate.getFullYear() === year && evDate.getMonth() === month && evDate.getDate() === d;
+            const isMatch = evDate.getFullYear() === year && evDate.getMonth() === month && evDate.getDate() === d;
+            if (!isMatch) return false;
+
+            // Meeting Filter: only show for attendees if not admin/BCN
+            if (ev.type === 'meeting' && state.userRole === 'user') {
+                const attendees = (ev.attendees || '').split(',');
+                if (state.currentUser && !attendees.includes(state.currentUser.id)) return false;
+            }
+            return true;
         });
 
         let eventsHtml = '';
