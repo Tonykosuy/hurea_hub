@@ -7130,7 +7130,7 @@ function applyPermissions(role) {
         navItems.forEach(item => {
             const target = item.getAttribute('data-target');
             // Members and Terms are Admin only
-            if (target === 'members-view' || target === 'terms-view' || target === 'eval-view') {
+            if (target === 'members-view' || target === 'terms-view') {
                 item.classList.add('nav-hidden');
             }
         });
