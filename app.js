@@ -7865,6 +7865,9 @@ function renderMeetingPolls() {
                 <button class="btn-lux-primary" onclick="openPollDetail('${poll.id}')" style="padding:10px 20px; font-size:0.85rem; background:${isFinalized ? 'var(--accent-green)' : ''}">
                     <i class="fa-solid fa-arrow-right"></i> ${isFinalized ? 'Xem kết quả' : (isExpired ? 'Xem kết quả' : 'Vào Vote')}
                 </button>
+                <button class="btn-secondary btn-sm" onclick="event.stopPropagation(); copyPollInvitationById('${poll.id}')" title="Sao chép tin nhắn mời" style="color:var(--primary);">
+                    <i class="fa-solid fa-share-nodes"></i>
+                </button>
                 <button class="btn-secondary btn-sm" onclick="event.stopPropagation(); copyPollShareLinkById('${poll.id}')" title="Sao chép link">
                     <i class="fa-solid fa-link"></i>
                 </button>
@@ -8284,6 +8287,13 @@ function openPollDetail(pollId) {
                 editBtn.innerHTML = '<i class="fa-solid fa-edit"></i> Sửa thông tin';
                 editBtn.onclick = () => editMeetingPoll(pollId);
                 actionsTop.appendChild(editBtn);
+
+                const inviteBtn = document.createElement('button');
+                inviteBtn.className = 'btn-premium-xs';
+                inviteBtn.style.background = 'var(--primary)';
+                inviteBtn.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Sao chép tin mời';
+                inviteBtn.onclick = () => copyPollInvitationById(pollId);
+                actionsTop.appendChild(inviteBtn);
             }
 
             if (poll.status === 'FINALIZED') {
@@ -8326,6 +8336,29 @@ function copyFinalizedNoticeById(pollId) {
         showToast('Đã copy tin nhắn thông báo!', 'success');
     }).catch(() => {
         showToast('Lỗi khi copy thông báo.', 'error');
+    });
+}
+
+function copyPollInvitationById(pollId) {
+    const poll = state.meetingPolls.find(p => String(p.id) === String(pollId));
+    if (!poll) return;
+
+    const url = `${window.location.origin}${window.location.pathname}#poll=${pollId}`;
+    const deadline = formatDateTimeVN(poll.deadline);
+    const range = `${formatDateVN(poll.startDate)} → ${formatDateVN(poll.endDate)}`;
+    
+    const msg = `📢 **MỜI VOTE LỊCH HỌP: ${poll.title.toUpperCase()}**` +
+                `${poll.content ? `\n\n📝 Nội dung: ${poll.content}` : ''}` +
+                `\n📅 Khoảng ngày: ${range}` +
+                `\n⏰ Deadline vote: ${deadline}` +
+                `\n\n👉 Mọi người vào vote tại đây nhé:` +
+                `\n🔗 ${url}` +
+                `\n\n*Trân trọng!* ✨`;
+
+    navigator.clipboard.writeText(msg).then(() => {
+        showToast('Đã copy tin nhắn mời vote!', 'success');
+    }).catch(() => {
+        showToast('Lỗi khi copy tin nhắn mời.', 'error');
     });
 }
 
