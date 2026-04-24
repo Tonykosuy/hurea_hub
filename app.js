@@ -1,5 +1,5 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbx002vezB-aD9o-czvnMURfqtCwP4l8rUCffrngZbT38ZSX8QZHvS3UF0n796UTYFoA/exec';
-let ADMIN_PASSWORD = '1'; // Loaded from API config
+let ADMIN_PASSWORD = '852007'; // Loaded from API config
 
 const state = {
     theme: localStorage.getItem('hurea-theme') || 'light',
@@ -222,8 +222,8 @@ async function renderAllViews() {
     ];
 
     for (const v of views) {
-        try { 
-            v.fn(); 
+        try {
+            v.fn();
             // Yield to main thread every few renders to prevent long task blocking
             await new Promise(r => setTimeout(r, 0));
         } catch (e) { console.error(`Render Error in ${v.name}:`, e); }
@@ -239,15 +239,15 @@ async function loadDataFromAPI() {
         // PHASE 1: Quick Auth Load (Members, Terms, Config)
         const authResp = await fetch(`${API_URL}?mode=auth`);
         const authData = await authResp.json();
-        
+
         if (authData.status === 'success') {
             state.terms = normalizeDataKeys(authData.terms || []);
             state.members = normalizeDataKeys(authData.members || []);
             state.userPasswords = normalizeDataKeys(authData.userPasswords || []);
             state.config = normalizeDataKeys(authData.config || {});
-            
+
             if (state.config.adminPassword) ADMIN_PASSWORD = String(state.config.adminPassword);
-            
+
             // Set current term from auth data
             if (state.terms && state.terms.length > 0) {
                 state.currentTerm = (state.config && state.config.currentTerm) ? state.config.currentTerm : state.terms[state.terms.length - 1].id;
@@ -287,7 +287,7 @@ async function loadFullDataInBackground() {
                 teamMessage: ev.teamMessage || '',
                 generalComment: ev.generalComment || ''
             }));
-            state.clubScores = normalizeDataKeys(d.clubScores || []); 
+            state.clubScores = normalizeDataKeys(d.clubScores || []);
             state.deptScores = normalizeDataKeys(d.deptScores || []).map(ds => ({
                 ...ds,
                 criteria: safeJsonParse(ds.criteria, null)
@@ -313,7 +313,7 @@ async function loadFullDataInBackground() {
             if (d.evidenceImages) {
                 state.evidenceImages = ensureArray(d.evidenceImages).map(normalizeDataKeys);
             }
-            
+
             // Diagnostic info
             console.log('--- FULL API SYNC COMPLETE ---');
             console.log('Projects:', state.projects.length);
@@ -496,10 +496,10 @@ function switchEvalTab(paneId) {
         const type = paneId.replace('eval-', '');
         const mInput = document.getElementById(`eval-${type}-member`);
         const mId = mInput ? mInput.value : '';
-        
+
         const methodSelection = document.getElementById(`${type}-method-selection`);
         const formContainer = document.getElementById(`${type}-form-container`);
-        
+
         if (methodSelection && formContainer) {
             if (!mId) {
                 methodSelection.style.display = 'grid';
@@ -527,7 +527,7 @@ function openModal(id, extra) {
             document.getElementById('ann-type').value = extra;
             document.getElementById('ann-modal-title').innerText = extra === 'GLOBAL' ? 'Đăng Tin Toàn CLB' : 'Đăng Tin Ban';
             document.getElementById('ann-dept-group').style.display = extra === 'DEPT' ? 'block' : 'none';
-            
+
             // If user is not admin/BCN, lock to their department
             if (extra === 'DEPT' && state.userRole !== 'admin' && state.userRole !== 'bcn' && state.currentUser && state.currentUser.dept) {
                 if (deptSelect) {
@@ -655,7 +655,7 @@ function _renderMembers() {
     const dept = document.getElementById('filter-dept')?.value || 'ALL';
 
     grid.innerHTML = '';
-    
+
     // Permission Filter: Heads only see their own department
     let filtered = state.members;
     if (state.userRole === 'head' && state.currentUser && state.currentUser.dept) {
@@ -777,18 +777,18 @@ function processBatchMembers() {
         const lastName = cols[0] ? cols[0].trim() : '';
         const firstName = cols[1] ? cols[1].trim() : '';
         const fullName = (lastName + ' ' + firstName).trim();
-        
+
         if (!fullName || fullName.toLowerCase().includes('họ và tên')) return; // Skip header
 
         // Duplicate check
         const isDupe = state.members.some(m => m.name.toLowerCase().trim() === fullName.toLowerCase().trim());
-        if (isDupe) { 
-            dupes.push(fullName); 
-            return; 
+        if (isDupe) {
+            dupes.push(fullName);
+            return;
         }
 
-        const m = { 
-            id: 'm_' + Date.now() + '_' + idx, 
+        const m = {
+            id: 'm_' + Date.now() + '_' + idx,
             lastName: lastName,
             firstName: firstName,
             name: fullName,
@@ -804,9 +804,9 @@ function processBatchMembers() {
             ethnicity: cols[11] ? cols[11].trim() : '',
             religion: cols[12] ? cols[12].trim() : '',
             hometown: cols[13] ? cols[13].trim() : '',
-            dept: cols[14] ? cols[14].trim() : '' 
+            dept: cols[14] ? cols[14].trim() : ''
         };
-        
+
         // If Dept is not explicitly provided, try to infer it from Title
         if (!m.dept) {
             const upTitle = m.title.toUpperCase();
@@ -830,7 +830,7 @@ function processBatchMembers() {
                 document.getElementById('bm-data').value = '';
                 closeModal('batch-member-modal');
                 renderMembers(); populateSelectDropdowns(); renderEvidenceFolders();
-                
+
                 let msg = `✅ Đã lưu thành công ${added.length} thành viên lên Google Sheets.`;
                 if (dupes.length > 0) msg += `\n⚠️ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`;
                 alert(msg);
@@ -847,11 +847,11 @@ function editMember(id) {
     const m = state.members.find(x => x.id === id);
     if (!m) return;
     document.getElementById('member-id').value = m.id;
-    
+
     // Support existing or lowercased properties from backend (handled by normalizeDataKeys, but fallbacks for safety)
     document.getElementById('m-lastName').value = m.lastName || m.lastname || '';
     document.getElementById('m-firstName').value = m.firstName || m.firstname || '';
-    
+
     // Auto-split if both are missing but full name exists
     if (!m.lastName && !m.firstName && m.name) {
         const parts = m.name.split(' ');
@@ -892,13 +892,13 @@ function openMemberDetail(mId) {
     document.getElementById('md-class-cohort').innerText = m.class || 'Chưa rõ';
     document.getElementById('md-faculty').innerText = m.major || m.faculty || 'Chưa rõ';
     document.getElementById('md-student-id').innerText = m.studentId || m.mssv || 'Chưa rõ';
-    
+
     document.getElementById('md-gender').innerText = m.gender || 'Chưa rõ';
     document.getElementById('md-dob').innerText = m.dob || 'Chưa rõ';
     document.getElementById('md-ethnicity').innerText = m.ethnicity || 'Chưa rõ';
     document.getElementById('md-religion').innerText = m.religion || 'Chưa rõ';
     document.getElementById('md-hometown').innerText = m.hometown || 'Chưa rõ';
-    
+
     document.getElementById('md-personal-email').innerText = m.personalEmail || m.emailpersonal || 'Chưa rõ';
     document.getElementById('md-club-email').innerText = m.clubEmail || m.emailclub || 'Chưa rõ';
     const tbody = document.getElementById('md-projects-tbody');
@@ -990,11 +990,11 @@ function _renderProjects() {
 
         const plIds = ensureArray(p.plIds || (p.plId ? [p.plId] : []));
         let plDisplayText = 'Chưa phân công';
-        
+
         if (plIds.length > 0) {
             const plNames = plIds.map(id => {
-               const m = state.members.find(x => x.id === id);
-               return m ? m.name : 'Unknown';
+                const m = state.members.find(x => x.id === id);
+                return m ? m.name : 'Unknown';
             });
             if (plNames.length <= 2) {
                 plDisplayText = plNames.join(', ');
@@ -1317,7 +1317,7 @@ function renderPLList() {
     listContainer.innerHTML = '';
 
     const plIds = state.activeProjectData.plIds || [];
-    
+
     if (plIds.length === 0) {
         listContainer.innerHTML = '<div class="pl-empty-hint">Chưa chọn PL</div>';
         return;
@@ -1550,7 +1550,7 @@ function renderMemberPicker() {
         const item = document.createElement('div');
         const initials = getInitials(m.name);
         const mDept = getMemberDept(m);
-        const isSelected = state.selectedPickerIds.includes(m.id) || 
+        const isSelected = state.selectedPickerIds.includes(m.id) ||
             (state.mpTarget.type === 'PL' && (state.activeProjectData.plIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'SUPPORT' && (state.activeProjectData.supportIds || []).includes(m.id)) ||
             (state.mpTarget.type === 'CARE' && (state.activeProjectData.careIds || []).includes(m.id)) ||
@@ -1593,7 +1593,7 @@ function confirmMemberSelection(memberId) {
 
     if (type === 'PL') {
         if (!state.activeProjectData.plIds) state.activeProjectData.plIds = [];
-        
+
         // Multi-select toggle for PLs
         const idx = state.activeProjectData.plIds.indexOf(memberId);
         if (idx > -1) {
@@ -1601,7 +1601,7 @@ function confirmMemberSelection(memberId) {
         } else {
             state.activeProjectData.plIds.push(memberId);
         }
-        
+
         renderPLList();
         renderMemberPicker(); // Keep picker open for multi-select, user can close manually or it closes automatically if single-select logic was there
         // closeModal('member-picker-modal'); // Don't close immediately to allow picking multiple
@@ -1639,17 +1639,17 @@ function confirmMemberSelection(memberId) {
         if (index > -1) {
             state.selectedPickerIds.splice(index, 1);
         } else if (type.startsWith('TERM_')) {
-        const roleKey = type.replace('TERM_', '');
-        if (!state.tempTermLeadership) state.tempTermLeadership = {};
-        if (!state.tempTermLeadership[roleKey]) state.tempTermLeadership[roleKey] = [];
-        
-        const idx = state.tempTermLeadership[roleKey].indexOf(memberId);
-        if (idx > -1) state.tempTermLeadership[roleKey].splice(idx, 1);
-        else state.tempTermLeadership[roleKey].push(memberId);
-        
-        renderLeaderTags(roleKey, `t-${roleKey.toLowerCase()}-list`);
-        renderMemberPicker();
-    } else {
+            const roleKey = type.replace('TERM_', '');
+            if (!state.tempTermLeadership) state.tempTermLeadership = {};
+            if (!state.tempTermLeadership[roleKey]) state.tempTermLeadership[roleKey] = [];
+
+            const idx = state.tempTermLeadership[roleKey].indexOf(memberId);
+            if (idx > -1) state.tempTermLeadership[roleKey].splice(idx, 1);
+            else state.tempTermLeadership[roleKey].push(memberId);
+
+            renderLeaderTags(roleKey, `t-${roleKey.toLowerCase()}-list`);
+            renderMemberPicker();
+        } else {
             state.selectedPickerIds.push(memberId);
         }
         updatePickerCount();
@@ -1858,7 +1858,7 @@ function renderTerms() {
     state.terms.forEach(t => {
         const isActive = t.id === state.currentTerm;
         const bcn = ensureObject(t.bcn);
-        
+
         // Helper to get names from IDs
         const getNames = (ids) => {
             const idList = ensureArray(ids);
@@ -1903,7 +1903,7 @@ function editTerm(id) {
     const bcn = ensureObject(t.bcn);
     document.getElementById('t-id').value = t.id;
     document.getElementById('t-name').value = t.name;
-    
+
     // Initialize temp leadership object
     state.tempTermLeadership = {
         PRES: ensureArray(bcn.presIds),
@@ -1969,8 +1969,8 @@ function saveTerm() {
             erIds: ld.ER,
             ebIds: ld.EB,
             // Keep legacy strings for simple display in some places
-            pres: ld.PRES.map(id => (state.members.find(m => m.id === id) || {name:'?'}).name).join(', '),
-            vp: ld.VP.map(id => (state.members.find(m => m.id === id) || {name:'?'}).name).join(', ')
+            pres: ld.PRES.map(id => (state.members.find(m => m.id === id) || { name: '?' }).name).join(', '),
+            vp: ld.VP.map(id => (state.members.find(m => m.id === id) || { name: '?' }).name).join(', ')
         }
     };
     if (id) state.terms = state.terms.map(x => x.id === id ? t : x);
@@ -1995,7 +1995,7 @@ function processBatchProjects() {
     }
 
     showToast(`Đang tạo ${names.length} dự án...`, 'info');
-    
+
     const newProjects = names.map((name, index) => ({
         id: 'p_' + Date.now() + '_' + index,
         name: name,
@@ -2034,10 +2034,10 @@ function processBatchTeamMembers() {
 
     lines.forEach(line => {
         const query = line.trim().toLowerCase();
-        
+
         // Find match by name or studentId
-        const match = state.members.find(m => 
-            m.name.toLowerCase() === query || 
+        const match = state.members.find(m =>
+            m.name.toLowerCase() === query ||
             (m.studentId && m.studentId.toString().toLowerCase() === query) ||
             (m.mssv && m.mssv.toString().toLowerCase() === query)
         );
@@ -2248,7 +2248,7 @@ function initDashboardCharts() {
         if (status === 'setup') status = 'Chưa chạy';
         if (status === 'running') status = 'Đang chạy';
         if (status === 'finish') status = 'Hoàn thành';
-        
+
         if (prjStatus[status] !== undefined) prjStatus[status]++;
         else {
             // If it's a dynamic status not in the default list, we still want to track it
@@ -2284,15 +2284,15 @@ function renderAnnouncements() {
     if (!gList || !dList) return;
 
     const globalAnns = (state.announcements || []).filter(a => a.type === 'GLOBAL' && a.term === state.currentTerm).reverse();
-    
+
     // Filtering Dept Announcements: Regular members only see their own department's news
     let deptAnns = (state.announcements || []).filter(a => a.type === 'DEPT' && a.term === state.currentTerm);
-    
+
     if (state.userRole !== 'admin' && state.userRole !== 'bcn') {
         const userDept = state.currentUser ? state.currentUser.dept : null;
         deptAnns = deptAnns.filter(a => a.dept === userDept);
     }
-    
+
     // Apply UI filter (ALL or specific dept pill)
     deptAnns = deptAnns.filter(a => (currentAnnDeptFilter === 'ALL' || a.dept === currentAnnDeptFilter)).reverse();
 
@@ -2457,8 +2457,8 @@ function calculateMemberProjectScore(mId) {
         const team = pt.teamName;
         const hasPL = participants.some(p => checkPL(p.role));
 
-        const evals = (state.evaluations || []).filter(e => 
-            String(e.prjId || e.prjid) === String(prj.id) && 
+        const evals = (state.evaluations || []).filter(e =>
+            String(e.prjId || e.prjid) === String(prj.id) &&
             String(e.targetId || e.targetid) === String(mId)
         );
 
@@ -2514,7 +2514,7 @@ function calculateMemberProjectScore(mId) {
             // Leader Score: (Self + Teammates + PL) or (Self + Teammates + Other Leaders)
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
-            
+
             if (hasPL) {
                 const plAvg = getAvg(plScores);
                 if (plAvg !== null) categories.push(plAvg);
@@ -2542,7 +2542,7 @@ function calculateMemberProjectScore(mId) {
 
 function calculateMemberClubScore(mId) {
     const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-    
+
     // a. Chấp hành kỷ luật, nội quy, văn hóa CLB (hệ số 0.3)
     let disc = 10;
     if (ce && ce.disciplinePoints !== undefined) {
@@ -2554,7 +2554,7 @@ function calculateMemberClubScore(mId) {
     let supportCount = 0;
     let coreteamCount = 0;
     let checkinCount = 0;
-    
+
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
@@ -2600,7 +2600,7 @@ function calculateFinalScores() {
     const tbody = document.getElementById('score-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    
+
     const searchTxt = (document.getElementById('search-score') ? document.getElementById('search-score').value : '').toLowerCase();
     const dFilter = state.scoreDeptFilter;
     const rangeFilter = document.getElementById('filter-score-range') ? document.getElementById('filter-score-range').value : 'ALL';
@@ -2647,7 +2647,7 @@ function calculateFinalScores() {
 
         const gradeColors = { 'Xuat Sac': '#f59e0b', 'Kha': '#10b981', 'Dat': '#0D8ABC', 'Can co gang': '#ef4444' };
         const gc = gradeColors[grade] || '#ef4444';
-        
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
@@ -2680,10 +2680,10 @@ function showScoreDetail(mId) {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
-        
+
         const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP';
         const isCheckin = pt.role === 'CHECKIN';
-        
+
         if (isSupport || isCheckin) {
             const roleLabel = isSupport ? '<span class="badge-internal">Hỗ trợ</span>' : '<span class="badge-running">Check-in</span>';
             prjRows += `<tr>
@@ -2838,7 +2838,7 @@ function showScoreDetail(mId) {
     const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
     // Unify discipline logic: 10 base, minus deductions if input as negative, or absolute score if 0-10
     let discVal = (ce && ce.disciplinePoints !== undefined) ? parseFloat(ce.disciplinePoints) : 10;
-    let disc = discVal; 
+    let disc = discVal;
     disc = Math.max(0, Math.min(10, disc));
     let supportCount = 0;
     let coreteamCount = 0;
@@ -2847,7 +2847,7 @@ function showScoreDetail(mId) {
         const participants = ensureArray(prj.participants);
         const pt = participants.find(p => p.memberId === mId);
         if (!pt) return;
-        
+
         if (pt.role === 'SUPPORT') {
             supportCount++;
         } else if (pt.role === 'CHECKIN') {
@@ -2856,7 +2856,7 @@ function showScoreDetail(mId) {
             coreteamCount++;
         }
     });
-    
+
     const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
     const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
     const supportScore = (sBase * 0.3) + (cBase * 0.7);
@@ -2870,7 +2870,7 @@ function showScoreDetail(mId) {
     const deptCri = de && de.criteria ? de.criteria : null;
     const deptRemarks = de && de.remarks ? de.remarks : '<i style="color:var(--text-muted)">Không có nhận xét từ Trưởng/Phó Ban</i>';
     let deptRows = '';
-    
+
     // Robust department matching (remove all spaces and convert to uppercase)
     const activeDept = (member.dept || '').replace(/\s+/g, '').toUpperCase();
     let criteriaList = null;
@@ -2886,7 +2886,7 @@ function showScoreDetail(mId) {
 
     if (criteriaList) {
         const theme = DEPT_THEMES[deptKeyFound || member.dept] || DEPT_THEMES['R&R'];
-        
+
         // Dynamic CSS injection for active theme
         let styleTag = document.getElementById('dept-theme-style');
         if (!styleTag) {
@@ -2926,7 +2926,7 @@ function showScoreDetail(mId) {
                 const val = deptCri ? parseFloat(deptCri[c.id] || 0) : null;
                 const scoreDisp = val !== null ? `${val}/10` : '---';
                 const weightedDisp = val !== null ? (val * c.weight).toFixed(2) : '---';
-                
+
                 tableHtml += `<tr>`;
                 if (idx === 0) {
                     tableHtml += `<td rowspan="${sec.items.length}" style="font-weight:800; background:rgba(0,0,0,0.02); vertical-align:middle; text-align:center; font-size:0.75rem; border-right:1px solid var(--border-color);">${sec.name}</td>`;
@@ -3068,67 +3068,67 @@ function showScoreDetail(mId) {
                             </thead>
                             <tbody>
                                 ${(() => {
-                                    let rows = '';
-                                    const termProjects = state.projects.filter(p => p.term === state.currentTerm);
-                                    termProjects.forEach(prj => {
-                                        const participants = ensureArray(prj.participants);
-                                        const pt = participants.find(p => p.memberId === mId);
-                                        if (!pt) return;
-                                        const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN';
-                                        if (isSupport) {
-                                            rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            let rows = '';
+            const termProjects = state.projects.filter(p => p.term === state.currentTerm);
+            termProjects.forEach(prj => {
+                const participants = ensureArray(prj.participants);
+                const pt = participants.find(p => p.memberId === mId);
+                if (!pt) return;
+                const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN';
+                if (isSupport) {
+                    rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
                                                 <td style="padding:10px; font-weight:600;">${prj.name}</td>
                                                 <td style="padding:10px; text-align:center;"><span class="badge-internal" style="font-size:0.7rem;">Hỗ trợ</span></td>
                                                 <td style="padding:10px; text-align:center; color:var(--text-muted); font-style:italic;">N/A</td>
                                             </tr>`;
-                                            return;
-                                        }
-                                        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
-                                        // Calculate catAvg logic (simplified for this summary table)
-                                        const role = pt.role || 'Thành viên';
-                                        const team = pt.teamName;
-                                        const checkPL = (r) => r === 'PL' || r === 'Project Leader';
-                                        const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
-                                        
-                                        let selfS = null, peers = [], myLeaders = [], otherLeaders = [], pls = [];
-                                        evals.forEach(e => {
-                                            const raterId = e.raterId || e.raterid;
-                                            if (String(raterId) === String(mId)) { selfS = e.score; return; }
-                                            const raterPt = participants.find(p => String(p.memberId) === String(raterId));
-                                            if (!raterPt) return;
-                                            const rRole = raterPt.role;
-                                            const rTeam = raterPt.teamName;
-                                            if (checkPL(rRole)) pls.push(e.score);
-                                            else if (checkLeader(rRole)) {
-                                                if (rTeam === team) myLeaders.push(e.score); else otherLeaders.push(e.score);
-                                            } else if (rTeam === team) peers.push(e.score);
-                                        });
+                    return;
+                }
+                const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
+                // Calculate catAvg logic (simplified for this summary table)
+                const role = pt.role || 'Thành viên';
+                const team = pt.teamName;
+                const checkPL = (r) => r === 'PL' || r === 'Project Leader';
+                const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
 
-                                        const getA = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-                                        let cats = [];
-                                        if (selfS !== null) cats.push(selfS);
-                                        if (checkPL(role)) {
-                                            const lAvg = getA([...myLeaders, ...otherLeaders]);
-                                            if (lAvg !== null) cats.push(lAvg);
-                                        } else if (checkLeader(role)) {
-                                            const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
-                                            const plAvg = getA(pls);
-                                            if (plAvg !== null) cats.push(plAvg);
-                                            else { const olAvg = getA(otherLeaders); if (olAvg !== null) cats.push(olAvg); }
-                                        } else {
-                                            const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
-                                            const mlAvg = getA(myLeaders); if (mlAvg !== null) cats.push(mlAvg);
-                                        }
-                                        const pCatAvg = cats.length > 0 ? (cats.reduce((a, b) => a + b, 0) / cats.length).toFixed(2) : '---';
+                let selfS = null, peers = [], myLeaders = [], otherLeaders = [], pls = [];
+                evals.forEach(e => {
+                    const raterId = e.raterId || e.raterid;
+                    if (String(raterId) === String(mId)) { selfS = e.score; return; }
+                    const raterPt = participants.find(p => String(p.memberId) === String(raterId));
+                    if (!raterPt) return;
+                    const rRole = raterPt.role;
+                    const rTeam = raterPt.teamName;
+                    if (checkPL(rRole)) pls.push(e.score);
+                    else if (checkLeader(rRole)) {
+                        if (rTeam === team) myLeaders.push(e.score); else otherLeaders.push(e.score);
+                    } else if (rTeam === team) peers.push(e.score);
+                });
 
-                                        rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                const getA = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+                let cats = [];
+                if (selfS !== null) cats.push(selfS);
+                if (checkPL(role)) {
+                    const lAvg = getA([...myLeaders, ...otherLeaders]);
+                    if (lAvg !== null) cats.push(lAvg);
+                } else if (checkLeader(role)) {
+                    const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
+                    const plAvg = getA(pls);
+                    if (plAvg !== null) cats.push(plAvg);
+                    else { const olAvg = getA(otherLeaders); if (olAvg !== null) cats.push(olAvg); }
+                } else {
+                    const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
+                    const mlAvg = getA(myLeaders); if (mlAvg !== null) cats.push(mlAvg);
+                }
+                const pCatAvg = cats.length > 0 ? (cats.reduce((a, b) => a + b, 0) / cats.length).toFixed(2) : '---';
+
+                rows += `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
                                             <td style="padding:10px; font-weight:600;">${prj.name}</td>
                                             <td style="padding:10px; text-align:center; font-size:0.8rem; color:var(--text-muted);">${role}</td>
                                             <td style="padding:10px; text-align:center;"><strong style="color:var(--primary);">${pCatAvg}</strong></td>
                                         </tr>`;
-                                    });
-                                    return rows || '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Không tham gia Project nào trong nhiệm kỳ</td></tr>';
-                                })()}
+            });
+            return rows || '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Không tham gia Project nào trong nhiệm kỳ</td></tr>';
+        })()}
                             </tbody>
                         </table>
                     </div>
@@ -3174,74 +3174,74 @@ function showScoreDetail(mId) {
         <div id="detail-tab-crosseval" class="detail-tab-pane" style="display:none;">
             <div class="cross-eval-container" style="display:flex; flex-direction:column; gap:20px;">
                 ${(() => {
-                    let crossHtml = '';
-                    termProjects.forEach(prj => {
-                        const participants = ensureArray(prj.participants);
-                        const pt = participants.find(p => p.memberId === mId);
-                        if (!pt || pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN') return;
+            let crossHtml = '';
+            termProjects.forEach(prj => {
+                const participants = ensureArray(prj.participants);
+                const pt = participants.find(p => p.memberId === mId);
+                if (!pt || pt.role === 'SUPPORT' || pt.role === 'SP' || pt.role === 'CHECKIN') return;
 
-                        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
-                        if (evals.length === 0) return;
+                const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
+                if (evals.length === 0) return;
 
-                        const checkPL = (r) => r === 'PL' || r === 'Project Leader';
-                        const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
-                        const role = pt.role || 'Thành viên';
-                        const team = pt.teamName;
+                const checkPL = (r) => r === 'PL' || r === 'Project Leader';
+                const checkLeader = (r) => r && r.toLowerCase().includes('leader') && !checkPL(r);
+                const role = pt.role || 'Thành viên';
+                const team = pt.teamName;
 
-                        let selfEval = null;
-                        let peerEvals = [];
-                        let leaderOfTeamEvals = [];
-                        let otherLeaderEvals = [];
-                        let plEvals = [];
+                let selfEval = null;
+                let peerEvals = [];
+                let leaderOfTeamEvals = [];
+                let otherLeaderEvals = [];
+                let plEvals = [];
 
-                        evals.forEach(e => {
-                            const raterId = e.raterId || e.raterid;
-                            const raterName = (() => {
-                                const m = state.members.find(x => String(x.id) === String(raterId));
-                                return m ? m.name : raterId;
-                            })();
-                            if (String(raterId) === String(mId)) {
-                                selfEval = { name: raterName, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
-                                return;
-                            }
-                            const raterPt = participants.find(p => String(p.memberId) === String(raterId));
-                            if (!raterPt) return;
-                            const rRole = raterPt.role;
-                            const rTeam = raterPt.teamName;
-                            const evalObj = { name: raterName, role: rRole, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
-                            if (checkPL(rRole)) plEvals.push(evalObj);
-                            else if (checkLeader(rRole)) {
-                                if (rTeam === team) leaderOfTeamEvals.push(evalObj);
-                                else otherLeaderEvals.push(evalObj);
-                            } else {
-                                if (rTeam === team) peerEvals.push(evalObj);
-                            }
-                        });
+                evals.forEach(e => {
+                    const raterId = e.raterId || e.raterid;
+                    const raterName = (() => {
+                        const m = state.members.find(x => String(x.id) === String(raterId));
+                        return m ? m.name : raterId;
+                    })();
+                    if (String(raterId) === String(mId)) {
+                        selfEval = { name: raterName, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+                        return;
+                    }
+                    const raterPt = participants.find(p => String(p.memberId) === String(raterId));
+                    if (!raterPt) return;
+                    const rRole = raterPt.role;
+                    const rTeam = raterPt.teamName;
+                    const evalObj = { name: raterName, role: rRole, score: e.score, c1: e.c1, c2: e.c2, c4: e.c4 };
+                    if (checkPL(rRole)) plEvals.push(evalObj);
+                    else if (checkLeader(rRole)) {
+                        if (rTeam === team) leaderOfTeamEvals.push(evalObj);
+                        else otherLeaderEvals.push(evalObj);
+                    } else {
+                        if (rTeam === team) peerEvals.push(evalObj);
+                    }
+                });
 
-                        const getAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-                        let categories = [];
-                        if (selfEval) categories.push(selfEval.score);
-                        if (checkPL(role)) {
-                            const leadersAvg = getAvg([...leaderOfTeamEvals, ...otherLeaderEvals].map(e => e.score));
-                            if (leadersAvg !== null) categories.push(leadersAvg);
-                        } else if (checkLeader(role)) {
-                            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
-                            if (teammatesAvg !== null) categories.push(teammatesAvg);
-                            const hasPL = participants.some(p => checkPL(p.role));
-                            if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
-                            else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
-                        } else {
-                            const teammatesAvg = getAvg(peerEvals.map(e => e.score));
-                            if (teammatesAvg !== null) categories.push(teammatesAvg);
-                            const myLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
-                            if (myLeaderAvg !== null) categories.push(myLeaderAvg);
-                        }
-                        const catAvg = categories.length > 0 ? (categories.reduce((a, b) => a + b, 0) / categories.length).toFixed(2) : '---';
+                const getAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+                let categories = [];
+                if (selfEval) categories.push(selfEval.score);
+                if (checkPL(role)) {
+                    const leadersAvg = getAvg([...leaderOfTeamEvals, ...otherLeaderEvals].map(e => e.score));
+                    if (leadersAvg !== null) categories.push(leadersAvg);
+                } else if (checkLeader(role)) {
+                    const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+                    if (teammatesAvg !== null) categories.push(teammatesAvg);
+                    const hasPL = participants.some(p => checkPL(p.role));
+                    if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
+                    else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
+                } else {
+                    const teammatesAvg = getAvg(peerEvals.map(e => e.score));
+                    if (teammatesAvg !== null) categories.push(teammatesAvg);
+                    const myLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
+                    if (myLeaderAvg !== null) categories.push(myLeaderAvg);
+                }
+                const catAvg = categories.length > 0 ? (categories.reduce((a, b) => a + b, 0) / categories.length).toFixed(2) : '---';
 
-                        const renderEvalRow = (label, color, items) => {
-                            if (items.length === 0) return '';
-                            const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
-                            const rows = items.map(e => `
+                const renderEvalRow = (label, color, items) => {
+                    if (items.length === 0) return '';
+                    const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
+                    const rows = items.map(e => `
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-bottom:1px solid var(--border-color); font-size:0.82rem;">
                                     <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${e.name} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
                                     <div style="display:flex; gap:16px; align-items:center;">
@@ -3251,7 +3251,7 @@ function showScoreDetail(mId) {
                                         <strong style="color:${color}; min-width:40px; text-align:right;">${(e.score || 0).toFixed(2)}</strong>
                                     </div>
                                 </div>`).join('');
-                            return `
+                    return `
                                 <div style="margin-bottom:12px;">
                                     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:${color}11; border-radius:10px; margin-bottom:4px;">
                                         <span style="font-weight:700; font-size:0.85rem; color:${color};"><i class="fa-solid fa-tag" style="margin-right:6px;"></i>${label} (${items.length})</span>
@@ -3259,9 +3259,9 @@ function showScoreDetail(mId) {
                                     </div>
                                     ${rows}
                                 </div>`;
-                        };
+                };
 
-                        crossHtml += `
+                crossHtml += `
                         <div style="padding:16px 20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:3px solid var(--primary); border-radius:12px; margin-bottom:20px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                                 <div style="font-weight:800; font-size:1.1rem; color:var(--primary);"><i class="fa-solid fa-chart-pie" style="margin-right:8px;"></i>${prj.name}</div>
@@ -3297,9 +3297,9 @@ function showScoreDetail(mId) {
                                 </div>
                             </div>
                         </div>`;
-                    });
-                    return crossHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Không có dữ liệu đánh giá chéo cho nhiệm kỳ này.</div>';
-                })()}
+            });
+            return crossHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Không có dữ liệu đánh giá chéo cho nhiệm kỳ này.</div>';
+        })()}
             </div>
         </div>
 
@@ -3335,16 +3335,16 @@ function showScoreDetail(mId) {
         <div id="detail-tab-feedback" class="detail-tab-pane" style="display:none;">
             <div class="feedback-container" style="display:flex; flex-direction:column; gap:20px;">
                 ${(() => {
-                    let fbHtml = '';
-                    termProjects.forEach(prj => {
-                        const evalRecord = state.evaluations.find(e => 
-                            (e.prjId || e.prjid) === prj.id && 
-                            (e.raterId || e.raterid) === mId && 
-                            (e.targetId || e.targetid) === mId
-                        );
-                        if (!evalRecord) return;
+            let fbHtml = '';
+            termProjects.forEach(prj => {
+                const evalRecord = state.evaluations.find(e =>
+                    (e.prjId || e.prjid) === prj.id &&
+                    (e.raterId || e.raterid) === mId &&
+                    (e.targetId || e.targetid) === mId
+                );
+                if (!evalRecord) return;
 
-                        fbHtml += `
+                fbHtml += `
                             <div style="padding:20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:3px solid #8b5cf6; border-radius:12px;">
                                 <div style="font-weight:800; font-size:1.1rem; color:#8b5cf6; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
                                     <i class="fa-solid fa-message"></i> ${prj.name} — Báo cáo cá nhân
@@ -3380,9 +3380,9 @@ function showScoreDetail(mId) {
                                             ${Object.keys(evalRecord.careMessages || {}).length > 0 ? `
                                                 <ul style="margin:5px 0; padding-left:18px; font-size:0.85rem; line-height:1.4;">
                                                     ${Object.entries(evalRecord.careMessages).map(([cid, msg]) => {
-                                                        const m = state.members.find(x => x.id === cid);
-                                                        return `<li style="margin-bottom:4px;"><strong>${m ? m.name : cid}:</strong> ${msg}</li>`;
-                                                    }).join('')}
+                    const m = state.members.find(x => x.id === cid);
+                    return `<li style="margin-bottom:4px;"><strong>${m ? m.name : cid}:</strong> ${msg}</li>`;
+                }).join('')}
                                                 </ul>
                                             ` : '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic; margin-top:4px;">Không có tin nhắn</div>'}
                                         </div>
@@ -3391,9 +3391,9 @@ function showScoreDetail(mId) {
                                             ${Object.keys(evalRecord.mentorMessages || {}).length > 0 ? `
                                                 <ul style="margin:5px 0; padding-left:18px; font-size:0.85rem; line-height:1.4;">
                                                     ${Object.entries(evalRecord.mentorMessages).map(([mid, msg]) => {
-                                                        const m = state.members.find(x => x.id === mid);
-                                                        return `<li style="margin-bottom:4px;"><strong>${m ? m.name : mid}:</strong> ${msg}</li>`;
-                                                    }).join('')}
+                    const m = state.members.find(x => x.id === mid);
+                    return `<li style="margin-bottom:4px;"><strong>${m ? m.name : mid}:</strong> ${msg}</li>`;
+                }).join('')}
                                                 </ul>
                                             ` : '<div style="font-size:0.85rem; color:var(--text-muted); font-style:italic; margin-top:4px;">Không có tin nhắn</div>'}
                                         </div>
@@ -3401,9 +3401,9 @@ function showScoreDetail(mId) {
                                 </div>
                             </div>
                         `;
-                    });
-                    return fbHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Thành viên này chưa để lại góp ý nào trong nhiệm kỳ.</div>';
-                })()}
+            });
+            return fbHtml || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">Thành viên này chưa để lại góp ý nào trong nhiệm kỳ.</div>';
+        })()}
             </div>
         </div>
         
@@ -3413,20 +3413,20 @@ function showScoreDetail(mId) {
                     <thead><tr><th>Ngày gửi</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
                     <tbody>
                         ${(() => {
-                            const appeals = state.bugReports.filter(b => b.memberId === mId && b.area === 'PHÚC KHẢO');
-                            if (appeals.length === 0) return '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có yêu cầu phúc khảo nào</td></tr>';
-                            return appeals.slice().reverse().map(a => {
-                                let stLabel = 'Chờ xử lý', stColor = 'var(--text-muted)';
-                                if (a.status === 'IN_PROGRESS') { stLabel = 'Đang xử lý'; stColor = '#f59e0b'; }
-                                else if (a.status === 'RESOLVED' || a.status === 'CLOSED') { stLabel = 'Đã xong'; stColor = '#10b981'; }
-                                return `<tr>
+            const appeals = state.bugReports.filter(b => b.memberId === mId && b.area === 'PHÚC KHẢO');
+            if (appeals.length === 0) return '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có yêu cầu phúc khảo nào</td></tr>';
+            return appeals.slice().reverse().map(a => {
+                let stLabel = 'Chờ xử lý', stColor = 'var(--text-muted)';
+                if (a.status === 'IN_PROGRESS') { stLabel = 'Đang xử lý'; stColor = '#f59e0b'; }
+                else if (a.status === 'RESOLVED' || a.status === 'CLOSED') { stLabel = 'Đã xong'; stColor = '#10b981'; }
+                return `<tr>
                                     <td>${a.createdAt}</td>
                                     <td style="font-weight:600;">${a.title}</td>
                                     <td style="color:${stColor}; font-weight:800;">${stLabel}</td>
                                     <td><button class="btn-text" style="color:var(--primary); font-weight:700;" onclick="openBugDetail('${a.id}')"><i class="fa-solid fa-eye"></i> Chi tiết</button></td>
                                 </tr>`;
-                            }).join('');
-                        })()}
+            }).join('');
+        })()}
                     </tbody>
                 </table>
             </div>
@@ -3532,7 +3532,7 @@ async function downloadPDF(mId) {
             const participants = ensureArray(prj.participants);
             const pt = participants.find(p => p.memberId === mId);
             if (!pt) return;
-            
+
             if (pt.role === 'SUPPORT') {
                 supportCount++;
             } else if (pt.role === 'CHECKIN') {
@@ -3548,7 +3548,7 @@ async function downloadPDF(mId) {
 
         const inScore = internalCheckinCount >= 3 ? 10 : (internalCheckinCount === 2 ? 9 : (internalCheckinCount === 1 ? 8 : 7));
         const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
-        
+
         let disc = 10;
         if (ce && ce.disciplinePoints !== undefined) {
             disc = parseFloat(ce.disciplinePoints);
@@ -3769,25 +3769,25 @@ async function downloadPDF(mId) {
                             </thead>
                             <tbody>
                                 ${(() => {
-                                    const dept = (member.dept || '').trim();
-                                    const criteriaList = DEPT_EVAL_CONFIG[dept];
-                                    if (!criteriaList || !deptCri) return '<tr><td colspan="4" style="text-align:center; padding: 15px;">Chưa có đánh giá Ban.</td></tr>';
-                                    
-                                    try {
-                                        let rows = criteriaList.map(c => {
-                                            const val = parseFloat(deptCri[c.id] || 0);
-                                            return `<tr><td colspan="2" class="text-left">${c.label}</td><td>${c.weight}</td><td>${val.toFixed(2)}</td></tr>`;
-                                        }).join('');
-                                        
-                                        const bVal = parseFloat(de.bonusScore || (deptCri ? deptCri.bonus : 0) || 0);
-                                        if (bVal !== 0) {
-                                            rows += `<tr><td colspan="2" class="text-left">Điểm cộng đóng góp</td><td>-</td><td>${bVal.toFixed(2)}</td></tr>`;
-                                        }
-                                        return rows;
-                                    } catch (e) {
-                                        return '<tr><td colspan="4">Lỗi hiển thị tiêu chí.</td></tr>';
-                                    }
-                                })()}
+                const dept = (member.dept || '').trim();
+                const criteriaList = DEPT_EVAL_CONFIG[dept];
+                if (!criteriaList || !deptCri) return '<tr><td colspan="4" style="text-align:center; padding: 15px;">Chưa có đánh giá Ban.</td></tr>';
+
+                try {
+                    let rows = criteriaList.map(c => {
+                        const val = parseFloat(deptCri[c.id] || 0);
+                        return `<tr><td colspan="2" class="text-left">${c.label}</td><td>${c.weight}</td><td>${val.toFixed(2)}</td></tr>`;
+                    }).join('');
+
+                    const bVal = parseFloat(de.bonusScore || (deptCri ? deptCri.bonus : 0) || 0);
+                    if (bVal !== 0) {
+                        rows += `<tr><td colspan="2" class="text-left">Điểm cộng đóng góp</td><td>-</td><td>${bVal.toFixed(2)}</td></tr>`;
+                    }
+                    return rows;
+                } catch (e) {
+                    return '<tr><td colspan="4">Lỗi hiển thị tiêu chí.</td></tr>';
+                }
+            })()}
                                 <tr class="row-total">
                                     <td colspan="2">ĐIỂM TRUNG BÌNH</td>
                                     <td colspan="2" class="score-red">${deptScore.toFixed(2)}</td>
@@ -3907,7 +3907,7 @@ function selectEvalMethod(type, method) {
 function backToMethodSelection(type) {
     document.getElementById(`${type}-method-selection`).style.display = 'grid';
     document.getElementById(`${type}-form-container`).style.display = 'none';
-    
+
     // Clear current selection
     const hiddenInput = document.getElementById(`eval-${type}-member`);
     if (hiddenInput) {
@@ -3925,52 +3925,52 @@ let isEditingEval = { club: false, dept: false };
 
 const DEPT_THEMES = {
     'R&R': { main: '#f59e0b', light: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.2)', text: '#92400e' },
-    'EB':  { main: '#10b981', light: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.2)', text: '#065f46' },
-    'ER':  { main: '#0ea5e9', light: 'rgba(14, 165, 233, 0.1)', border: 'rgba(14, 165, 233, 0.2)', text: '#075985' },
-    'L&D': { main: '#ef4444', light: 'rgba(239, 68, 68, 0.1)',  border: 'rgba(239, 68, 68, 0.2)',  text: '#991b1b' }
+    'EB': { main: '#10b981', light: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.2)', text: '#065f46' },
+    'ER': { main: '#0ea5e9', light: 'rgba(14, 165, 233, 0.1)', border: 'rgba(14, 165, 233, 0.2)', text: '#075985' },
+    'L&D': { main: '#ef4444', light: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.2)', text: '#991b1b' }
 };
 
 const DEPT_EVAL_CONFIG = {
     'R&R': [
         { id: 'rr_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy bộ phận', weight: 0.1 },
         { id: 'rr_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
-        { id: 'rr_mem',  cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
-        { id: 'rr_sup',  cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Tham gia đóng góp, hỗ trợ tích cực các hoạt động, chương trình của team khác trong ban', weight: 0.2 },
-        { id: 'rr_tb',   cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Teambuilding', weight: 0.1 },
-        { id: 'rr_tt',   cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tình nguyện trung thu HureAMour', weight: 0.2 },
-        { id: 'rr_ctv',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tìm kiếm CTV tháng 10/2025', weight: 0.2 }
+        { id: 'rr_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
+        { id: 'rr_sup', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Tham gia đóng góp, hỗ trợ tích cực các hoạt động, chương trình của team khác trong ban', weight: 0.2 },
+        { id: 'rr_tb', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Teambuilding', weight: 0.1 },
+        { id: 'rr_tt', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tình nguyện trung thu HureAMour', weight: 0.2 },
+        { id: 'rr_ctv', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tìm kiếm CTV tháng 10/2025', weight: 0.2 }
     ],
     'ER': [
         { id: 'er_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy ban', weight: 0.1 },
         { id: 'er_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
-        { id: 'er_mem',  cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
+        { id: 'er_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
         { id: 'er_mail', cat: 'CÔNG VIỆC', label: 'Viết mail', weight: 0.1 },
-        { id: 'er_tt',   cat: 'CÔNG VIỆC', label: 'Hỗ trợ truyền thông', weight: 0.1 },
-        { id: 'er_dg',   cat: 'CÔNG VIỆC', label: 'Tìm diễn giả', weight: 0.1 },
-        { id: 'er_ds',   cat: 'CÔNG VIỆC', label: 'Design proposal', weight: 0.1 },
-        { id: 'er_tn',   cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Vận động tài trợ', weight: 0.2 },
-        { id: 'er_img',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Xây dựng hình ảnh ra sinh viên', weight: 0.1 }
+        { id: 'er_tt', cat: 'CÔNG VIỆC', label: 'Hỗ trợ truyền thông', weight: 0.1 },
+        { id: 'er_dg', cat: 'CÔNG VIỆC', label: 'Tìm diễn giả', weight: 0.1 },
+        { id: 'er_ds', cat: 'CÔNG VIỆC', label: 'Design proposal', weight: 0.1 },
+        { id: 'er_tn', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Vận động tài trợ', weight: 0.2 },
+        { id: 'er_img', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Xây dựng hình ảnh ra sinh viên', weight: 0.1 }
     ],
     'EB': [
         { id: 'eb_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy bộ phận', weight: 0.1 },
         { id: 'eb_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
-        { id: 'eb_mem',  cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
-        { id: 'eb_tto',  cat: 'TRUYỀN THÔNG VÀ TƯƠNG TÁC', label: 'Truyền thông online', weight: 0.1 },
+        { id: 'eb_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
+        { id: 'eb_tto', cat: 'TRUYỀN THÔNG VÀ TƯƠNG TÁC', label: 'Truyền thông online', weight: 0.1 },
         { id: 'eb_ttnb', cat: 'TRUYỀN THÔNG VÀ TƯƠNG TÁC', label: 'Truyền thông nội bộ', weight: 0.05 },
-        { id: 'eb_tt',   cat: 'TRUYỀN THÔNG VÀ TƯƠNG TÁC', label: 'Tương tác trong các group UEH, CLB đội nhóm', weight: 0.1 },
-        { id: 'eb_ct1',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Content (Lên ý tưởng)', weight: 0.1 },
-        { id: 'eb_ct2',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Content (Viết content)', weight: 0.1 },
-        { id: 'eb_ds1',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Design (Thiết kế BND)', weight: 0.05 },
-        { id: 'eb_ds2',  cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Design (Thiết kế hình ảnh)', weight: 0.1 },
-        { id: 'eb_cr',   cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Creative (Đóng góp ý tưởng, xây dựng fanpage)', weight: 0.1 }
+        { id: 'eb_tt', cat: 'TRUYỀN THÔNG VÀ TƯƠNG TÁC', label: 'Tương tác trong các group UEH, CLB đội nhóm', weight: 0.1 },
+        { id: 'eb_ct1', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Content (Lên ý tưởng)', weight: 0.1 },
+        { id: 'eb_ct2', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Content (Viết content)', weight: 0.1 },
+        { id: 'eb_ds1', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Design (Thiết kế BND)', weight: 0.05 },
+        { id: 'eb_ds2', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Design (Thiết kế hình ảnh)', weight: 0.1 },
+        { id: 'eb_cr', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Creative (Đóng góp ý tưởng, xây dựng fanpage)', weight: 0.1 }
     ],
     'L&D': [
         { id: 'ld_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy ban', weight: 0.1 },
         { id: 'ld_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
-        { id: 'ld_mem',  cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
+        { id: 'ld_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
         { id: 'ld_idea', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Đóng góp ý kiến, xây dựng ý tưởng project', weight: 0.15 },
-        { id: 'ld_pro',  cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Chủ động tham gia Project, xung phong đảm nhận', weight: 0.15 },
-        { id: 'ld_sup',  cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Nhiệt tình, chủ động hỗ trợ các thành viên khác', weight: 0.1 },
+        { id: 'ld_pro', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Chủ động tham gia Project, xung phong đảm nhận', weight: 0.15 },
+        { id: 'ld_sup', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Nhiệt tình, chủ động hỗ trợ các thành viên khác', weight: 0.1 },
         { id: 'ld_qlct', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Chất lượng chương trình tổ chức', weight: 0.15 },
         { id: 'ld_thct', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Thực hiện công tác tổ chức, quản lý chương trình', weight: 0.15 }
     ]
@@ -3979,10 +3979,10 @@ const DEPT_EVAL_CONFIG = {
 function renderDeptEvalForm(deptName) {
     const container = document.getElementById('dynamic-dept-criteria');
     if (!container) return;
-    
+
     const criteriaList = DEPT_EVAL_CONFIG[deptName];
     const theme = DEPT_THEMES[deptName] || DEPT_THEMES['R&R'];
-    
+
     if (!criteriaList) {
         container.innerHTML = `<p style="color:var(--text-muted); font-style:italic; padding: 12px 0;">Ban '${deptName}' chưa có cấu hình tiêu chí đánh giá.</p>`;
         return;
@@ -4097,7 +4097,7 @@ function editEval(type) {
     if (!mId) return;
 
     isEditingEval[type] = true;
-    
+
     // Populate form with existing data
     if (type === 'club') {
         const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
@@ -4153,11 +4153,11 @@ async function deleteEvalRecord(type) {
         }
 
         showToast('Xóa đánh giá thành công!', 'success');
-        
+
         isEditingEval[type] = false;
         if (document.getElementById(`btn-cancel-${type}-edit`)) document.getElementById(`btn-cancel-${type}-edit`).style.display = 'none';
         if (document.getElementById(`btn-delete-${type}-edit`)) document.getElementById(`btn-delete-${type}-edit`).style.display = 'none';
-        
+
         // Reset inputs
         if (type === 'club') {
             document.getElementById('club-discipline-score').value = '';
@@ -4170,7 +4170,7 @@ async function deleteEvalRecord(type) {
             document.getElementById('dept-bonus-score').value = '';
             document.getElementById('dept-comment').value = '';
         }
-        
+
         checkExistingScore(type, mId);
     } catch (err) {
         showToast('Lỗi khi xóa dữ liệu!', 'error');
@@ -4216,14 +4216,14 @@ async function saveClubEval() {
     try {
         let entry = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
         if (!entry) {
-            entry = { 
-                id: 'cs' + Date.now(), 
-                memberId: mId, 
-                term: state.currentTerm, 
-                disciplinePoints: dScore, 
-                brandScore: bScore, 
+            entry = {
+                id: 'cs' + Date.now(),
+                memberId: mId,
+                term: state.currentTerm,
+                disciplinePoints: dScore,
+                brandScore: bScore,
                 bonusScore: bonusScore,
-                reasons: [] 
+                reasons: []
             };
         } else {
             entry.disciplinePoints = dScore;
@@ -4250,11 +4250,11 @@ async function saveClubEval() {
         isEditingEval.club = false;
         document.getElementById('btn-cancel-club-edit').style.display = 'none';
         document.getElementById('btn-delete-club-edit').style.display = 'none';
-        
+
         // Reset discipline inputs
         document.getElementById('club-discipline-score').value = '';
         document.getElementById('club-discipline-reason').value = '';
-        
+
         checkExistingScore('club', mId);
     } catch (err) {
         showToast('Lỗi khi lưu dữ liệu!', 'error');
@@ -4267,7 +4267,7 @@ async function saveClubEval() {
 async function saveDeptEval() {
     const mId = document.getElementById('eval-dept-member').value;
     if (!mId) return alert('Chưa chọn thành viên');
-    
+
     // Admin or Board Member check
     if (state.userRole !== 'admin' && !isBoardMember()) {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
@@ -4291,7 +4291,7 @@ async function saveDeptEval() {
 
     const bonus = parseFloat(document.getElementById('dept-bonus-score') ? document.getElementById('dept-bonus-score').value : 0) || 0;
     totalScore += bonus;
-    
+
     // Giới hạn điểm ban ở mức tối đa 10
     if (totalScore > 10) totalScore = 10;
 
@@ -4304,19 +4304,19 @@ async function saveDeptEval() {
 
     try {
         state.deptScores = state.deptScores.filter(x => !(x.memberId === mId && x.term === state.currentTerm));
-        const entry = { 
-            memberId: mId, 
-            term: state.currentTerm, 
-            totalScore, 
+        const entry = {
+            memberId: mId,
+            term: state.currentTerm,
+            totalScore,
             remarks,
             bonusScore: bonus,
-            criteria: JSON.stringify(criteriaObj) 
+            criteria: JSON.stringify(criteriaObj)
         };
         state.deptScores.push({ ...entry, criteria: criteriaObj });
-        
+
         await syncToBackend('save_score_dept', entry);
         showToast('Lưu điểm Ban thành công: ' + totalScore.toFixed(2), 'success');
-        
+
         isEditingEval.dept = false;
         document.getElementById('btn-cancel-dept-edit').style.display = 'none';
         document.getElementById('btn-delete-dept-edit').style.display = 'none';
@@ -4338,7 +4338,7 @@ function openBatchEvalModal(type) {
     currentBatchType = type;
     document.getElementById('batch-eval-title').innerText = type === 'club' ? 'Nhập Đánh giá CLB hàng loạt' : 'Nhập Đánh giá Ban hàng loạt';
     document.getElementById('batch-paste-area').value = '';
-    
+
     // Clear errors
     const errorLog = document.getElementById('batch-paste-errors');
     if (errorLog) errorLog.style.display = 'none';
@@ -4352,9 +4352,9 @@ function openBatchEvalModal(type) {
 function renderEvalGrid(type) {
     const table = document.getElementById('batch-eval-table');
     const members = state.members.filter(m => state.scoreDeptFilter === 'ALL' || m.dept === state.scoreDeptFilter);
-    
+
     let html = '<thead><tr><th>#</th><th>Thành viên</th>';
-    
+
     if (type === 'club') {
         html += '<th>Kỷ luật (+/-)</th><th>Lý do</th><th>Hình ảnh (0-10)</th></tr></thead><tbody>';
     } else {
@@ -4364,11 +4364,11 @@ function renderEvalGrid(type) {
     members.forEach((m, idx) => {
         const ce = state.clubScores.find(x => x.memberId === m.id && x.term === state.currentTerm);
         const de = state.deptScores.find(x => x.memberId === m.id && x.term === state.currentTerm);
-        
+
         html += `<tr data-mid="${m.id}">
             <td>${idx + 1}</td>
             <td><strong>${m.name}</strong><br><small style="color:var(--text-muted)">Ban ${m.dept}</small></td>`;
-        
+
         if (type === 'club') {
             const clubBrand = (ce && ce.brandScore !== undefined) ? ce.brandScore : '';
             html += `
@@ -4389,7 +4389,7 @@ function renderEvalGrid(type) {
         }
         html += '</tr>';
     });
-    
+
     html += '</tbody>';
     table.innerHTML = html;
     document.getElementById('batch-row-count').innerText = members.length;
@@ -4403,13 +4403,13 @@ function handleBatchPaste(e) {
     const clipboardData = e.clipboardData || window.clipboardData;
     const pastedData = clipboardData.getData('text');
     if (!pastedData) return;
-    
+
     // Split into rows
     const rows = pastedData.split(/\r?\n/).filter(r => r.trim() !== '');
     const gridRows = document.querySelectorAll('#batch-eval-table tbody tr');
-    
+
     document.getElementById('batch-grid-loading').style.display = 'flex';
-    
+
     // Clear errors
     const errorList = document.getElementById('batch-error-list');
     const errorLog = document.getElementById('batch-paste-errors');
@@ -4478,7 +4478,7 @@ function handleBatchPaste(e) {
                 });
                 // Visual feedback
                 targetTr.classList.remove('row-highlight');
-                void targetTr.offsetWidth; 
+                void targetTr.offsetWidth;
                 targetTr.classList.add('row-highlight');
             } else {
                 // REPORT AS ERROR: No member matched this row
@@ -4508,30 +4508,30 @@ async function saveBatchEval() {
     const type = currentBatchType;
     const rows = document.querySelectorAll('#batch-eval-table tbody tr');
     const records = [];
-    
+
     rows.forEach(tr => {
         const mId = tr.getAttribute('data-mid');
         const inputs = tr.querySelectorAll('.grid-input');
-        
+
         if (type === 'club') {
             const dScore = parseFloat(inputs[0].value || 0);
             const dReason = inputs[1].value;
             const bScore = parseFloat(inputs[2].value);
-            
+
             // Only save if there's actual data input
             if (dScore !== 0 || !isNaN(bScore)) {
                 let entry = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
                 if (!entry) {
                     entry = { id: 'cs' + Date.now(), memberId: mId, term: state.currentTerm, disciplinePoints: 0, brandScore: 7, reasons: [] };
                 }
-                
+
                 if (dScore !== 0) {
                     entry.disciplinePoints += dScore;
                     if (dReason) entry.reasons.push((dScore >= 0 ? '+' : '') + dScore + ': ' + dReason);
                     else entry.reasons.push((dScore >= 0 ? '+' : '') + dScore + ': Điều chỉnh điểm kỷ luật');
                 }
                 if (!isNaN(bScore)) entry.brandScore = bScore;
-                
+
                 records.push(entry);
             }
         } else {
@@ -4543,12 +4543,12 @@ async function saveBatchEval() {
             const q2 = parseFloat(inputs[5].value);
             const q3 = parseFloat(inputs[6].value);
             const remarks = inputs[7].value;
-            
+
             if (!isNaN(rule) || !isNaN(hRel) || remarks) {
                 const bonus = 0; // Default in batch for now
                 let totalScore = 0.1 * ((rule || 0) + (hRel || 0) + (mRel || 0) + (q1 || 0)) + 0.2 * ((sup || 0) + (q2 || 0) + (q3 || 0)) + bonus;
                 if (totalScore > 10) totalScore = 10;
-                
+
                 records.push({
                     memberId: mId,
                     term: state.currentTerm,
@@ -4559,18 +4559,18 @@ async function saveBatchEval() {
             }
         }
     });
-    
+
     if (records.length === 0) return alert('Không có dữ liệu mới để lưu!');
-    
+
     const btn = document.getElementById('btn-save-batch-eval');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang đồng bộ...';
     btn.disabled = true;
-    
+
     try {
         const sheetName = type === 'club' ? 'ScoreClub' : 'ScoreDept';
         await syncToBackend('save_score_batch', { type: sheetName, records });
-        
+
         // Update local state
         if (type === 'club') {
             records.forEach(r => {
@@ -4584,13 +4584,13 @@ async function saveBatchEval() {
                 state.deptScores.push(r);
             });
         }
-        
+
         showToast(`Đã lưu thành công ${records.length} đánh giá!`, 'success');
         closeModal('batch-eval-modal');
         // Refresh detail history if needed
         const currentMid = document.getElementById(`eval-${type}-member`).value;
         if (currentMid) checkExistingScore(type, currentMid);
-        
+
     } catch (err) {
         showToast('Lỗi khi lưu hàng loạt!', 'error');
     } finally {
@@ -4822,11 +4822,11 @@ function renderFeedbacks() {
     grid.innerHTML = '';
     let fbEvals = state.evaluations.filter(e => e.term === state.currentTerm && e.feedback && String(e.feedback).trim() !== '');
     if (filterPrj !== 'ALL') fbEvals = fbEvals.filter(e => e.prjId === filterPrj);
-    if (fbEvals.length === 0) { 
+    if (fbEvals.length === 0) {
         empty.innerHTML = 'Chưa có phản hồi nào';
-        empty.style.display = 'flex'; 
-        grid.style.display = 'none'; 
-        return; 
+        empty.style.display = 'flex';
+        grid.style.display = 'none';
+        return;
     }
     empty.style.display = 'none';
     grid.style.display = 'grid';
@@ -4857,11 +4857,11 @@ function renderFeedbacks() {
 function openFeedbackDetail(evalId) {
     const ev = state.evaluations.find(e => e.id === evalId);
     if (!ev) return;
-    
+
     const prj = state.projects.find(p => p.id === ev.prjId);
     const sender = state.members.find(m => m.id === ev.raterId);
     const body = document.getElementById('fb-detail-body');
-    
+
     let careTable = '';
     if (ev.careMessages && Object.keys(ev.careMessages).length > 0) {
         careTable = `
@@ -4869,9 +4869,9 @@ function openFeedbackDetail(evalId) {
                 <div class="fb-detail-title">Nhắn nhủ Care Project</div>
                 <div class="fb-detail-list">
                     ${Object.keys(ev.careMessages).map(cid => {
-                        const m = state.members.find(x => x.id === cid);
-                        return `<div class="fb-detail-item"><strong>${m ? m.name : cid}:</strong> ${ev.careMessages[cid]}</div>`;
-                    }).join('')}
+            const m = state.members.find(x => x.id === cid);
+            return `<div class="fb-detail-item"><strong>${m ? m.name : cid}:</strong> ${ev.careMessages[cid]}</div>`;
+        }).join('')}
                 </div>
             </div>
         `;
@@ -4940,14 +4940,14 @@ function openFeedbackDetail(evalId) {
 function submitConfession() {
     const txt = document.getElementById('confession-text').value.trim();
     if (!txt) return alert('Hãy viết gì đó trước khi gửi!');
-    
+
     // New status: 'pending' requires approval by Admin/BCN/Heads
-    const c = { 
-        id: 'cf_' + Date.now(), 
-        text: txt, 
-        term: state.currentTerm, 
+    const c = {
+        id: 'cf_' + Date.now(),
+        text: txt,
+        term: state.currentTerm,
         status: 'pending',
-        createdAt: new Date().toLocaleDateString('vi-VN') 
+        createdAt: new Date().toLocaleDateString('vi-VN')
     };
     state.confessions.push(c);
     syncToBackend('save_confession', c);
@@ -4961,27 +4961,27 @@ function renderConfessions() {
     const grid = document.getElementById('confession-grid');
     const empty = document.getElementById('confession-empty');
     if (!grid || !empty) return;
-    
+
     grid.innerHTML = '';
     const isManager = ['admin', 'bcn', 'head'].includes(state.userRole);
-    
+
     // Regular users ONLY see approved confessions. Managers see everything.
     let list = state.confessions.filter(c => !c.term || c.term === state.currentTerm);
     if (!isManager) {
         list = list.filter(c => c.status === 'approved');
     }
-    
+
     if (list.length === 0) { empty.style.display = 'flex'; return; }
     empty.style.display = 'none';
-    
+
     list.slice().reverse().forEach(c => {
         const isPending = c.status === 'pending';
         const delBtn = state.userRole === 'admin' ? `<button class="conf-del-btn" onclick="deleteSyncedConfession('${c.id}')" title="Xóa"><i class="fa-solid fa-trash-can"></i></button>` : '';
-        
+
         // Approval button for managers if pending
-        const approveBtn = (isManager && isPending) ? 
+        const approveBtn = (isManager && isPending) ?
             `<button class="conf-approve-btn" onclick="approveConfession('${c.id}')"><i class="fa-solid fa-check"></i> Duyệt ngay</button>` : '';
-            
+
         const pendingBadge = isPending ? `<span class="pending-badge">Đang chờ duyệt</span>` : '';
         const cardClass = isPending ? 'confession-card pending' : 'confession-card';
 
@@ -5004,7 +5004,7 @@ function renderConfessions() {
 function approveConfession(id) {
     const conf = state.confessions.find(c => c.id === id);
     if (!conf) return;
-    
+
     conf.status = 'approved';
     showToast('Đang duyệt confession...');
     syncToBackend('save_confession', conf); // Reuse save_confession to update
@@ -5056,13 +5056,13 @@ function openMemberSelectModal(targetTeam = null) {
     document.getElementById('ms-title').innerText = targetTeam ? 'Chon Nhan Su Team: ' + targetTeam : 'Chon Nhan Su Tham Gia';
     document.getElementById('ms-search').value = '';
     renderMsGrid();
-    
+
     if (state._meetingMemberPickerCallback) {
         document.getElementById('ms-next-btn').innerText = 'Xác nhận';
     } else {
         document.getElementById('ms-next-btn').innerText = 'Tiếp theo';
     }
-    
+
     openModal('member-select-modal');
 }
 
@@ -5508,9 +5508,9 @@ function exportEvidenceVisualReport() {
 
     const folder = state.commonFolders.find(f => f.id === folderId);
     const folderName = folder ? folder.name : 'Folder';
-    
+
     const photos = (state.evidenceImages || []).filter(img => img.folderId === folderId);
-    
+
     if (photos.length === 0) {
         return showToast('Không có dữ liệu minh chứng để xuất!', 'warning');
     }
@@ -5523,7 +5523,7 @@ function exportEvidenceVisualReport() {
         const name = member ? member.name : (img.filename ? img.filename.split('_')[0] : 'Không rõ');
         const dept = member ? member.dept : (img.filename ? img.filename.split('_')[1] : 'N/A');
         const date = formatDateTimeVN(img.createdAt);
-        
+
         // Escape image data for JS if needed, but here we can just pass it directly in a function call
         // Note: We use a simple button with onclick
         tableRows += `
@@ -5635,14 +5635,14 @@ function exportEvidenceVisualReport() {
         const link = document.createElement('a');
         const timestamp = new Date().getTime();
         const filename = `HuReA_DanhSach_MinhChung_${folderName.replace(/\s+/g, '_')}_${timestamp}.html`;
-        
+
         link.setAttribute('href', url);
         link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         showToast('Đã xuất danh sách minh chứng thành công!', 'success');
     } catch (e) {
         showToast('Lỗi khi xuất danh sách!', 'error');
@@ -5934,7 +5934,7 @@ function startCinematicEvaluation(prjId) {
     const participants = ensureArray(prj.participants);
     const raterId = state.currentUser.id;
     const raterPt = participants.find(pt => String(pt.memberId) === String(raterId));
-    
+
     if (!raterPt) {
         alert('Bạn không có tên trong danh sách tham gia dự án này!');
         return;
@@ -5942,11 +5942,11 @@ function startCinematicEvaluation(prjId) {
 
     const raterTeam = raterPt.teamName;
     const raterRole = raterPt.role || 'Thành viên';
-    
+
     if (['SP', 'SUPPORT', 'CHECKIN'].includes(raterRole)) {
         return alert('Nhân sự Hỗ trợ và Check-in không tham gia đánh giá chéo!');
     }
-    
+
     const checkPL = (r) => {
         if (!r) return false;
         const lower = r.toLowerCase().trim();
@@ -5988,9 +5988,9 @@ function startCinematicEvaluation(prjId) {
             const isMyLeader = pt.teamName === raterTeam && checkLeader(pt.role);
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && pt.memberId !== raterId;
             const isPL = checkPL(pt.role);
-            
+
             // Core Team evaluates themselves, their team leader, and teammates (not PL)
-            return (isSelf || isMyLeader || isTeammate) && !isPL; 
+            return (isSelf || isMyLeader || isTeammate) && !isPL;
         });
     }
 
@@ -5999,7 +5999,7 @@ function startCinematicEvaluation(prjId) {
     if (cine_targets.length === 0) return alert('Không có ai để đánh giá trong dự án này!');
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
     cine_currentStep = 1;
-    
+
     // Total steps: Targets + Work/Team Msg + Care/Mentor Msg (Always) + Program Eval + Feelings
     cine_totalSteps = cine_targets.length + 4;
 
@@ -6093,13 +6093,13 @@ function renderCineSteps() {
     // STEP N+2: Care & Mentor Messages (Always)
     const prj = state.projects.find(x => x.id === prjId);
     const participants = ensureArray(prj?.participants);
-    
+
     // Attempt to get IDs from explicit arrays, fallback to participants list
     let careIds = ensureArray(prj?.careIds);
     if (careIds.length === 0) {
         careIds = participants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
     }
-    
+
     let mentorIds = ensureArray(prj?.mentorIds);
     if (mentorIds.length === 0) {
         mentorIds = participants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
@@ -6215,14 +6215,14 @@ function renderCineSteps() {
 function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
     const val5 = Math.max(1, Math.min(5, Math.round(initialValue / 2)));
     const name = `target_${stepNum}_${critKey}`;
-    
+
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
             <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
         </div>
         <div class="rating-group">`;
-        
+
     for (let i = 1; i <= 5; i++) {
         const checked = i === val5 ? 'checked' : '';
         html += `
@@ -6233,7 +6233,7 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
                 </label>
             </div>`;
     }
-    
+
     html += `</div></div>`;
     return html;
 }
@@ -6241,25 +6241,25 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
 function renderProgramEvalItem(id, label, initialValue = 3) {
     const name = `program_${id}`;
     const labels = ['Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
-    
+
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
             <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
         </div>
         <div class="rating-group" style="flex-wrap: wrap; gap: 8px;">`;
-        
+
     for (let i = 1; i <= 5; i++) {
         const checked = i === parseInt(initialValue) ? 'checked' : '';
         html += `
             <div class="rating-opt-text" style="flex: 1; min-width: 80px;">
                 <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked} style="display:none;">
                 <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: #ffffff;">
-                    ${labels[i-1]}
+                    ${labels[i - 1]}
                 </label>
             </div>`;
     }
-    
+
     html += `</div></div>`;
     return html;
 }
@@ -6350,7 +6350,7 @@ async function submitCinematicEvaluation() {
         const c6 = getVal('c6');
         const c7 = getVal('c7');
         const score = (c1 + c2 + c3 + c4 + c5 + c6 + c7) / 7;
-        
+
         const isSelfVal = String(pt.memberId) === String(raterId);
 
         const record = {
@@ -6531,11 +6531,11 @@ function renderBugReports(adminMode = 'SYSTEM') {
     // Filter reports based on role and mode
     state.currentAdminBugMode = adminMode;
     let filtered = state.bugReports.slice().reverse();
-    
+
     if (isAdmin) {
         // Admin sees either SYSTEM bugs or ALL appeals depending on the tab
         filtered = filtered.filter(b => adminMode === 'APPEAL' ? b.area === 'PHÚC KHẢO' : b.area !== 'PHÚC KHẢO');
-        
+
         // Apply secondary status filter
         if (state.adminBugStatusFilter !== 'ALL') {
             filtered = filtered.filter(b => {
@@ -6619,10 +6619,10 @@ function renderBugReports(adminMode = 'SYSTEM') {
 function switchAdminBugTab(mode) {
     const tabs = document.querySelectorAll('.admin-tab');
     tabs.forEach(t => t.classList.remove('active'));
-    
+
     const target = (mode === 'SYSTEM') ? tabs[0] : tabs[1];
     if (target) target.classList.add('active');
-    
+
     state.currentAdminBugMode = mode;
     renderBugReports(mode);
 }
@@ -6640,11 +6640,11 @@ function setAdminBugStatusFilter(btn, status) {
 function openScoreAppealModal(mId, mName) {
     const modal = document.getElementById('score-appeal-modal');
     if (!modal) return;
-    
+
     document.getElementById('appeal-member-name').value = mName;
     document.getElementById('appeal-title').value = '';
     document.getElementById('appeal-desc').value = '';
-    
+
     state.currentAppealMemberId = mId;
     openModal('score-appeal-modal');
 }
@@ -6676,12 +6676,12 @@ function submitScoreAppeal() {
 
     showToast('Yêu cầu phúc khảo của bạn đã được gửi thành công!', 'success');
     closeModal('score-appeal-modal');
-    
+
     // Reset form
     document.getElementById('appeal-title').value = '';
     document.getElementById('appeal-desc').value = '';
     removeImagePreview('appeal-preview', 'appeal-screenshot');
-    
+
     renderBugReports();
 }
 
@@ -6766,7 +6766,7 @@ function openBugDetail(bugId) {
 function saveBugUpdate(bugId, newStatus = null) {
     const select = document.getElementById('update-bug-status');
     const status = newStatus || (select ? select.value : 'RESOLVED');
-    
+
     const bug = state.bugReports.find(b => b.id === bugId);
     if (!bug) return;
 
@@ -6966,24 +6966,24 @@ function handleLogin() {
     // Success - Identify Role
     const member = state.members.find(m => m.id === memberId);
     state.currentUser = member;
-    
+
     // Role Detection
     const activeTermObj = state.terms.find(t => t.id === state.currentTerm);
     let role = 'user';
-    
+
     if (activeTermObj && activeTermObj.bcn) {
         const bcn = activeTermObj.bcn;
         const isPres = ensureArray(bcn.presIds).includes(memberId);
         const isVp = ensureArray(bcn.vpIds).includes(memberId);
         const isHead = [bcn.ldIds, bcn.rrIds, bcn.erIds, bcn.ebIds].some(ids => ensureArray(ids).includes(memberId));
-        
+
         if (isPres || isVp) {
             role = 'bcn'; // BCN has near-admin rights
         } else if (isHead) {
             role = 'head'; // Department Head
         }
     }
-    
+
     state.userRole = role;
     completeLogin();
 }
@@ -7637,7 +7637,7 @@ async function exportIncompleteEvaluationsPDF() {
     projects.forEach(p => {
         const prjId = String(p.id).trim();
         const participants = ensureArray(p.participants);
-        
+
         // Find unique raters for this project
         const submittedRaters = new Set();
         evaluations.forEach(ev => {
@@ -7776,26 +7776,26 @@ function renderMeetingPolls() {
     const userId = state.currentUser ? state.currentUser.id : null;
     const userRole = state.userRole || 'user';
     const userDept = (state.currentUser ? state.currentUser.dept : '') || '';
-    
+
     polls = polls.filter(p => {
         // Admins and BCN see everything
         if (userRole === 'admin' || userRole === 'bcn') return true;
         // Creator sees their own poll
         if (p.creatorId === userId) return true;
-        
+
         const vision = p.visibility || 'public';
         if (vision === 'public') return true;
-        
+
         if (vision === 'dept') {
             return userDept === p.targetDept;
         }
-        
+
         if (vision === 'project') {
             const prj = state.projects.find(x => x.id === p.targetProjectId);
             if (!prj || !prj.participants) return false;
             return prj.participants.some(pt => pt.memberId === userId);
         }
-        
+
         if (vision === 'team') {
             const prj = state.projects.find(x => x.id === p.targetProjectId);
             if (!prj || !prj.participants) return false;
@@ -7807,7 +7807,7 @@ function renderMeetingPolls() {
             const ids = String(p.targetMemberIds).split(',');
             return ids.includes(String(userId));
         }
-        
+
         return false;
     });
 
@@ -7832,7 +7832,7 @@ function renderMeetingPolls() {
         const card = document.createElement('div');
         card.className = `poll-card ${isExpired ? 'expired' : ''} ${poll.status === 'FINALIZED' ? 'finalized' : ''}`;
         card.style.animationDelay = `${idx * 0.08}s`;
-        
+
         let visBadge = '';
         const vision = poll.visibility || 'public';
         if (vision === 'dept') visBadge = `<span class="poll-vis-badge dept"><i class="fa-solid fa-layer-group"></i> ${poll.targetDept}</span>`;
@@ -7916,13 +7916,13 @@ function formatDateFull(dateStr) {
 // ==========================================
 function handlePollVisibilityChange() {
     const visibility = document.getElementById('poll-visibility').value;
-    
+
     // Hide all
     document.getElementById('poll-dept-target').style.display = 'none';
     document.getElementById('poll-project-target').style.display = 'none';
     document.getElementById('poll-team-target').style.display = 'none';
     document.getElementById('poll-member-target').style.display = 'none';
-    
+
     if (visibility === 'dept') {
         document.getElementById('poll-dept-target').style.display = 'block';
     } else if (visibility === 'project') {
@@ -7944,10 +7944,10 @@ function openMeetingMemberPicker() {
         const input = document.getElementById('poll-target-member-ids');
         const count = document.getElementById('poll-member-count');
         const preview = document.getElementById('poll-selected-members-preview');
-        
+
         input.value = selectedIds.join(',');
         count.innerText = selectedIds.length;
-        
+
         // Render preview tags
         preview.innerHTML = '';
         selectedIds.forEach(id => {
@@ -7960,7 +7960,7 @@ function openMeetingMemberPicker() {
             }
         });
     };
-    
+
     // We might need to adjust openMemberSelectModal to support this callback
     // Or just manually open the modal and handle it.
     // For now, let's assume we can trigger it.
@@ -7978,10 +7978,10 @@ function removeMeetingMember(id) {
 function populatePollProjectSelections() {
     const projectSelect = document.getElementById('poll-target-project');
     const activeTerm = state.currentTerm || '';
-    
+
     // Only show projects in current term
     const projects = state.projects.filter(p => p.term === activeTerm);
-    
+
     let html = '<option value="">-- Chọn Chương trình --</option>';
     projects.forEach(p => {
         html += `<option value="${p.id}">${p.name}</option>`;
@@ -7994,20 +7994,20 @@ function handlePollProjectChange() {
     const projectId = document.getElementById('poll-target-project').value;
     const teamSelect = document.getElementById('poll-target-team');
     const visibility = document.getElementById('poll-visibility').value;
-    
+
     if (visibility !== 'team') return;
-    
+
     if (!projectId) {
         teamSelect.innerHTML = '<option value="">-- Chọn Team --</option>';
         return;
     }
-    
+
     const project = state.projects.find(p => p.id === projectId);
     if (!project || !project.teams) {
         teamSelect.innerHTML = '<option value="">-- Không có team --</option>';
         return;
     }
-    
+
     let html = '<option value="">-- Chọn Team --</option>';
     project.teams.forEach(t => {
         html += `<option value="${t.name}">${t.name}</option>`;
@@ -8037,7 +8037,7 @@ function openCreatePollModal() {
     document.getElementById('poll-end-date').value = weekLater.toISOString().slice(0, 10);
     document.getElementById('poll-start-hour').value = '8';
     document.getElementById('poll-end-hour').value = '22';
-    
+
     // Reset visibility fields
     document.getElementById('poll-visibility').value = 'public';
     document.getElementById('poll-dept-target').style.display = 'none';
@@ -8047,7 +8047,7 @@ function openCreatePollModal() {
     document.getElementById('poll-target-member-ids').value = '';
     document.getElementById('poll-member-count').innerText = '0';
     document.getElementById('poll-selected-members-preview').innerHTML = '';
-    
+
     openModal('create-poll-modal');
 }
 
@@ -8130,24 +8130,24 @@ async function saveMeetingPoll() {
     try {
         await syncToBackend('save_meeting_poll', poll);
         showToast(editId ? 'Đã cập nhật thông tin thành công!' : 'Đã tạo vote lịch họp thành công!', 'success');
-        
+
         if (!editId) {
             // SHOW INVITE TEMPLATE
             const shareUrl = `${window.location.origin}${window.location.pathname}#poll=${pollId}`;
             const inviteMsg = `🗓️ **MỜI VOTE LỊCH HỌP: ${poll.title.toUpperCase()}**` +
-                              `\n\n📝 Nội dung: ${poll.content || 'Họp định kỳ'}` +
-                              `\n🕒 Khoảng thời gian: ${formatDateVN(poll.startDate)} ➔ ${formatDateVN(poll.endDate)}` +
-                              `\n⏰ Hạn chốt vote: ${formatDateTimeVN(poll.deadline)}` +
-                              `\n\n👉 **Vui lòng vào link sau để báo giờ rảnh:**` +
-                              `\n${shareUrl}` +
-                              `\n\n📌 *Các thành viên chủ động cập nhật lịch để ban/chương trình chốt lịch sớm nhất!*`;
-            
+                `\n\n📝 Nội dung: ${poll.content || 'Họp định kỳ'}` +
+                `\n🕒 Khoảng thời gian: ${formatDateVN(poll.startDate)} ➔ ${formatDateVN(poll.endDate)}` +
+                `\n⏰ Hạn chốt vote: ${formatDateTimeVN(poll.deadline)}` +
+                `\n\n👉 **Vui lòng vào link sau để báo giờ rảnh:**` +
+                `\n${shareUrl}` +
+                `\n\n📌 *Các thành viên chủ động cập nhật lịch để ban/chương trình chốt lịch sớm nhất!*`;
+
             state.currentMeetingNotice = inviteMsg;
             document.getElementById('meeting-notice-template-box').innerText = inviteMsg;
-            
+
             const noticeTitle = document.querySelector('#meeting-notice-modal h3');
             if (noticeTitle) noticeTitle.innerHTML = '<i class="fa-solid fa-bullhorn"></i> Mời thành viên Vote';
-            
+
             openModal('meeting-notice-modal');
         }
     } catch (e) {
@@ -8156,7 +8156,7 @@ async function saveMeetingPoll() {
 
     closeModal('create-poll-modal');
     renderMeetingPolls();
-    if (editId) openPollDetail(editId); 
+    if (editId) openPollDetail(editId);
 }
 
 function editMeetingPoll(pollId) {
@@ -8176,7 +8176,7 @@ function editMeetingPoll(pollId) {
     document.getElementById('poll-end-date').value = poll.endDate || '';
     document.getElementById('poll-start-hour').value = poll.startHour || '8';
     document.getElementById('poll-end-hour').value = poll.endHour || '22';
-    
+
     document.getElementById('poll-visibility').value = poll.visibility || 'public';
     handlePollVisibilityChange(); // Show/hide relevant fields
 
@@ -8193,18 +8193,18 @@ function editMeetingPoll(pollId) {
         document.getElementById('poll-target-member-ids').value = ids;
         const idArr = ids ? ids.split(',') : [];
         document.getElementById('poll-member-count').innerText = idArr.length;
-        
+
         // Render preview
         const preview = document.getElementById('poll-selected-members-preview');
         preview.innerHTML = '';
         idArr.forEach(mid => {
-           const m = state.members.find(u => String(u.id) === String(mid));
-           if (m) {
-               const tag = document.createElement('span');
-               tag.className = 'member-mini-tag';
-               tag.innerHTML = `${m.name} <i class="fa-solid fa-xmark" onclick="removeMeetingMember('${m.id}')"></i>`;
-               preview.appendChild(tag);
-           }
+            const m = state.members.find(u => String(u.id) === String(mid));
+            if (m) {
+                const tag = document.createElement('span');
+                tag.className = 'member-mini-tag';
+                tag.innerHTML = `${m.name} <i class="fa-solid fa-xmark" onclick="removeMeetingMember('${m.id}')"></i>`;
+                preview.appendChild(tag);
+            }
         });
     }
 
@@ -8272,7 +8272,7 @@ function openPollDetail(pollId) {
             const actionsTop = document.createElement('div');
             actionsTop.style.display = 'flex';
             actionsTop.style.gap = '12px';
-            
+
             if (poll.status !== 'FINALIZED') {
                 const finalizeBtn = document.createElement('button');
                 finalizeBtn.className = 'btn-premium-xs';
@@ -8325,12 +8325,12 @@ function copyFinalizedNoticeById(pollId) {
     const voters = getUniqueVoters(poll.id);
     const finalContent = poll.finalContent || poll.finalcontent || poll.content || '';
     const msg = `📢 **THÔNG BÁO LỊCH HỌP: ${poll.title.toUpperCase()}**` +
-                `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
-                `\n🕒 Thời gian: ${poll.finalTime || poll.finaltime}` +
-                `\n📍 Địa điểm: ${poll.finalLocation || poll.finallocation || 'Chưa cập nhật'}` +
-                `${(poll.finalNote || poll.finalnote) ? `\n📝 Ghi chú: ${poll.finalNote || poll.finalnote}` : ''}` +
-                `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
-                `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
+        `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
+        `\n🕒 Thời gian: ${poll.finalTime || poll.finaltime}` +
+        `\n📍 Địa điểm: ${poll.finalLocation || poll.finallocation || 'Chưa cập nhật'}` +
+        `${(poll.finalNote || poll.finalnote) ? `\n📝 Ghi chú: ${poll.finalNote || poll.finalnote}` : ''}` +
+        `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
+        `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
 
     navigator.clipboard.writeText(msg).then(() => {
         showToast('Đã copy tin nhắn thông báo!', 'success');
@@ -8346,14 +8346,14 @@ function copyPollInvitationById(pollId) {
     const url = `${window.location.origin}${window.location.pathname}#poll=${pollId}`;
     const deadline = formatDateTimeVN(poll.deadline);
     const range = `${formatDateVN(poll.startDate)} → ${formatDateVN(poll.endDate)}`;
-    
+
     const msg = `📢 **MỜI VOTE LỊCH HỌP: ${poll.title.toUpperCase()}**` +
-                `${poll.content ? `\n\n📝 Nội dung: ${poll.content}` : ''}` +
-                `\n📅 Khoảng ngày: ${range}` +
-                `\n⏰ Deadline vote: ${deadline}` +
-                `\n\n👉 Mọi người vào vote tại đây nhé:` +
-                `\n🔗 ${url}` +
-                `\n\n*Trân trọng!* ✨`;
+        `${poll.content ? `\n\n📝 Nội dung: ${poll.content}` : ''}` +
+        `\n📅 Khoảng ngày: ${range}` +
+        `\n⏰ Deadline vote: ${deadline}` +
+        `\n\n👉 Mọi người vào vote tại đây nhé:` +
+        `\n🔗 ${url}` +
+        `\n\n*Trân trọng!* ✨`;
 
     navigator.clipboard.writeText(msg).then(() => {
         showToast('Đã copy tin nhắn mời vote!', 'success');
@@ -8475,7 +8475,7 @@ async function confirmFinalizeMeeting() {
                 createdAt: new Date().toISOString()
             })
         ]);
-        
+
         // Add locally
         state.clubEvents.push({
             id: 'event_poll_' + poll.id,
@@ -8489,25 +8489,25 @@ async function confirmFinalizeMeeting() {
 
         closeModal('finalize-poll-modal');
         showToast('Đã chốt lịch thành công!', 'success');
-        
+
         // Prepare Notice Template
         const msg = `📢 **THÔNG BÁO LỊCH HỌP: ${poll.title.toUpperCase()}**` +
-                    `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
-                    `\n🕒 Thời gian: ${finalTimeLabel}` +
-                    `\n📍 Địa điểm: ${finalLocation || 'Chưa cập nhật'}` +
-                    `${finalNote ? `\n📝 Ghi chú: ${finalNote}` : ''}` +
-                    `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
-                    `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
-        
+            `${finalContent ? `\n\n📝 Nội dung: ${finalContent}` : ''}` +
+            `\n🕒 Thời gian: ${finalTimeLabel}` +
+            `\n📍 Địa điểm: ${finalLocation || 'Chưa cập nhật'}` +
+            `${finalNote ? `\n📝 Ghi chú: ${finalNote}` : ''}` +
+            `\n\nTổng số thành viên tham gia: ${voters.length} người.` +
+            `\n\n📌 *Lưu ý: Các thành viên chủ động sắp xếp thời gian để tham gia đầy đủ.*`;
+
         state.currentMeetingNotice = msg;
         document.getElementById('meeting-notice-template-box').innerText = msg;
-        
+
         const noticeTitle = document.querySelector('#meeting-notice-modal h3');
         if (noticeTitle) noticeTitle.innerHTML = '<i class="fa-solid fa-calendar-check" style="color:var(--accent-green)"></i> Chốt lịch thành công!';
-        
+
         openModal('meeting-notice-modal');
 
-        openPollDetail(pollId); 
+        openPollDetail(pollId);
         renderMeetingPolls();
         renderActivityCalendar();
     } catch (e) {
@@ -8540,7 +8540,7 @@ async function deleteMeetingPoll(id) {
         await syncToBackend('delete_meeting_poll', { id });
         state.meetingPolls = state.meetingPolls.filter(p => String(p.id) !== String(id));
         showToast('Đã xóa cuộc họp thành công!', 'success');
-        
+
         if (state.activePollId === id) {
             closePollDetail();
         }
@@ -8587,7 +8587,7 @@ function buildMyTimeGrid(poll) {
     const days = getDaysArray(poll.startDate, poll.endDate);
     const startHour = parseInt(poll.startHour) || 8;
     const endHour = parseInt(poll.endHour) || 22;
-    
+
     gridEl.style.gridTemplateColumns = `60px repeat(${days.length}, minmax(60px, 1fr))`;
     gridEl.innerHTML = '';
 
@@ -8626,26 +8626,26 @@ function buildMyTimeGrid(poll) {
     // --- Bulletproof Pointer Interaction ---
     const updateSelectionAt = (x, y) => {
         if (!state.msGridDragging) return;
-        
+
         // Find element at coordinates
         const target = document.elementFromPoint(x, y);
         if (!target) return;
-        
+
         const cell = target.closest('.time-cell');
         if (!cell) return;
-        
+
         const key = cell.dataset.key;
         if (key && key !== state.lastHandledKey) {
             state.lastHandledKey = key;
             toggleTimeCell(cell, key);
-            
+
             // Visual feedback
             cell.classList.add('cell-pulse');
             setTimeout(() => cell.classList.remove('cell-pulse'), 150);
         }
     };
 
-    gridEl.style.touchAction = 'none'; 
+    gridEl.style.touchAction = 'none';
     gridEl.style.userSelect = 'none';
 
     gridEl.onpointerdown = (e) => {
@@ -8656,12 +8656,12 @@ function buildMyTimeGrid(poll) {
             state.msGridDragging = true;
             state.lastHandledKey = cell.dataset.key;
             state.msGridDragMode = cell.classList.contains('selected') ? 'deselect' : 'select';
-            
+
             toggleTimeCell(cell, state.lastHandledKey);
             cell.classList.add('cell-pulse');
-            
+
             // Capture pointer for consistent tracking
-            try { gridEl.setPointerCapture(e.pointerId); } catch(err) {}
+            try { gridEl.setPointerCapture(e.pointerId); } catch (err) { }
         }
     };
 
@@ -8676,7 +8676,7 @@ function buildMyTimeGrid(poll) {
         state.msGridDragging = false;
         state.lastHandledKey = null;
         if (e && e.pointerId && gridEl.hasPointerCapture(e.pointerId)) {
-            try { gridEl.releasePointerCapture(e.pointerId); } catch(err) {}
+            try { gridEl.releasePointerCapture(e.pointerId); } catch (err) { }
         }
     };
 
@@ -8883,7 +8883,7 @@ function buildHeatmapGrid(poll) {
             const key = cell.dataset.key;
             if (!key) return;
             const voters = cellVoters[key] || [];
-            
+
             // Remove any existing tooltips if stuck
             const old = cell.querySelector('.heat-tooltip');
             if (old) old.remove();
@@ -8947,7 +8947,7 @@ function copyPollShareLink() {
 
 // Patch completeLogin to handle deep link after auth
 const _originalCompleteLoginForMeeting = completeLogin;
-completeLogin = function() {
+completeLogin = function () {
     _originalCompleteLoginForMeeting.apply(this, arguments);
     setTimeout(handlePendingPollDeepLink, 500);
 };
@@ -8970,10 +8970,10 @@ function renderActivityCalendar() {
     // Calculate grid
     const firstDay = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     // Clear and build grid
     container.innerHTML = '';
-    
+
     // Add DOW Headers
     const dows = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
     dows.forEach(d => {
@@ -9091,7 +9091,7 @@ function showEventDayDetail(dateStr, events) {
             <button class="btn-secondary" onclick="closeModal('event-detail-modal')">Đóng</button>
         `;
     }
-    
+
     document.getElementById('event-detail-body').innerHTML = content || '<p style="text-align:center; color:var(--text-muted);">Không có sự kiện nào.</p>';
     openModal('event-detail-modal');
 }
@@ -9138,7 +9138,7 @@ async function saveEvent() {
         const idx = state.clubEvents.findIndex(x => x.id === id);
         if (idx > -1) state.clubEvents[idx] = payload;
         else state.clubEvents.push(payload);
-        
+
         closeModal('event-modal');
         showToast('Đã lưu sự kiện thành công!', 'success');
         renderActivityCalendar();

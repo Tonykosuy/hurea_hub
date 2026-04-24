@@ -16,7 +16,7 @@
           data.members = getSheetData(ss, 'Members');
           data.userPasswords = getSheetData(ss, 'UserAuth');
           data.terms = getSheetData(ss, 'Terms');
-          data.config = configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' };
+          data.config = configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '852007' };
         } else {
           data = {
             status: 'success',
@@ -36,7 +36,7 @@
             meetingPolls: getSheetData(ss, 'MeetingPolls'),
             meetingVotes: getSheetData(ss, 'MeetingVotes'),
             events: getSheetData(ss, 'Events'),
-            config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '1' }
+            config: configData.length > 0 ? configData[0] : { currentTerm: '', adminPassword: '852007' }
           };
         }
         
