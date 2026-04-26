@@ -886,59 +886,7 @@
                                 <input type="hidden" id="eval-prj-id">
                                 <input type="hidden" id="eval-prj-rater">
                             </div>
-                            <!-- Cinematic inline -->
-                            <div id="cinematic-eval-inline"
-                                style="display:none;position:relative;border-radius:24px;overflow:hidden;margin-top:24px;padding:40px;background:#05070a;color:#f8fafc;font-family:'Inter',sans-serif;">
-                                <div class="lux-progress-container" style="position:absolute;top:0;left:0;width:100%;">
-                                    <div class="lux-progress-bar" id="lux-progress-bar"></div>
-                                </div>
-                                <div class="lux-step-indicator" id="lux-step-indicator"
-                                    style="position:absolute;top:20px;right:40px;">BƯỚC 1 / X</div>
-                                <button class="lux-close-btn" style="position:absolute;top:20px;left:20px;"
-                                    onclick="closeCinematicEval()"><i class="fa-solid fa-xmark"></i></button>
-                                <div class="cinematic-bg" style="position:absolute;">
-                                    <div class="cine-orb cine-orb-1"></div>
-                                    <div class="cine-orb cine-orb-2"></div>
-                                </div>
-                                <main class="cine-container" style="max-width:800px;margin:40px auto 0;">
-                                    <header class="cine-header" style="margin-bottom:32px;">
-                                        <h1 class="cine-title" style="font-size:2.5rem;">Club Peer Review</h1>
-                                        <p class="cine-subtitle" id="cine-project-name">Đánh giá chéo dự án</p>
-                                    </header>
 
-                                    <div class="cine-scoring-guide">
-                                        <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM
-                                            KHẢO</div>
-                                        <div class="guide-grid">
-                                            <div class="guide-cell"><strong>5:</strong> Xuất sắc (Lan tỏa, vượt mong
-                                                đợi)</div>
-                                            <div class="guide-cell"><strong>4:</strong> Khá / Tốt (Chủ động, đúng tiến
-                                                độ)</div>
-                                            <div class="guide-cell"><strong>3:</strong> Đạt (Làm tròn vai, cơ bản)</div>
-                                            <div class="guide-cell"><strong>2:</strong> Kém (Trễ hạn, cần nhắc nhở)
-                                            </div>
-                                            <div class="guide-cell"><strong>1:</strong> Rất kém (Thiếu trách nhiệm / Vi
-                                                phạm)</div>
-                                        </div>
-                                    </div>
-
-                                    <form id="multiStepForm">
-                                        <div id="cine-form-steps-container"></div>
-                                    </form>
-                                    <div id="cine-success-overlay" class="cine-success-overlay"
-                                        style="position:absolute;inset:0;z-index:100;border-radius:0;">
-                                        <div class="cine-success-card">
-                                            <i class="fa-solid fa-circle-check checkmark-icon"></i>
-                                            <h2>Đã hoàn thành!</h2>
-                                            <p>Cảm ơn bạn đã thực hiện đánh giá.</p>
-                                            <button class="btn-secondary" style="margin-top:24px;"
-                                                onclick="closeCinematicEval()">Hoàn tất &amp; Đóng</button>
-                                        </div>
-                                    </div>
-                                </main>
-                            </div>
-                        </div>
-                    </div>
                 </section>
 
                 <!-- VIEW: FEEDBACK & CONFESSION -->
@@ -2792,6 +2740,57 @@
             <span>Thêm</span>
         </a>
     </nav>
+    <!-- Cinematic inline -->
+    <div id="cinematic-eval-inline"
+        style="display:none;position:fixed;inset:0;z-index:99999;border-radius:0;overflow-y:auto;background:#05070a;color:#f8fafc;font-family:'Inter',sans-serif;padding:40px;">
+        <div class="lux-progress-container" style="position:absolute;top:0;left:0;width:100%;">
+            <div class="lux-progress-bar" id="lux-progress-bar"></div>
+        </div>
+        <div class="lux-step-indicator" id="lux-step-indicator"
+            style="position:absolute;top:20px;right:40px;">BƯỚC 1 / X</div>
+        <button class="lux-close-btn" style="position:absolute;top:20px;left:20px;"
+            onclick="closeCinematicEval()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="cinematic-bg" style="position:absolute;">
+            <div class="cine-orb cine-orb-1"></div>
+            <div class="cine-orb cine-orb-2"></div>
+        </div>
+        <main class="cine-container" style="max-width:800px;margin:40px auto 0;">
+            <header class="cine-header" style="margin-bottom:32px;">
+                <h1 class="cine-title" style="font-size:2.5rem;">Club Peer Review</h1>
+                <h2 class="cine-subtitle" id="cine-project-name">Đánh giá dự án</h2>
+            </header>
+
+            <div class="cine-scoring-guide">
+                <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM
+                    KHẢO</div>
+                <div class="guide-grid">
+                    <div class="guide-cell"><strong>5:</strong> Xuất sắc (Lan tỏa, vượt mong
+                        đợi)</div>
+                    <div class="guide-cell"><strong>4:</strong> Khá / Tốt (Chủ động, đúng tiến
+                        độ)</div>
+                    <div class="guide-cell"><strong>3:</strong> Đạt (Làm tròn vai, cơ bản)</div>
+                    <div class="guide-cell"><strong>2:</strong> Kém (Trễ hạn, cần nhắc nhở)
+                    </div>
+                    <div class="guide-cell"><strong>1:</strong> Rất kém (Thiếu trách nhiệm / Vi
+                        phạm)</div>
+                </div>
+            </div>
+
+            <form id="multiStepForm">
+                <div id="cine-form-steps-container"></div>
+            </form>
+            <div id="cine-success-overlay" class="cine-success-overlay"
+                style="position:absolute;inset:0;z-index:100;border-radius:0;">
+                <div class="cine-success-card">
+                    <i class="fa-solid fa-circle-check checkmark-icon"></i>
+                    <h2>Đã hoàn thành!</h2>
+                    <p>Cảm ơn bạn đã thực hiện đánh giá.</p>
+                    <button class="btn-secondary" style="margin-top:24px;"
+                        onclick="closeCinematicEval()">Hoàn tất &amp; Đóng</button>
+                </div>
+            </div>
+        </main>
+    </div>
 </body>
 
 </html>

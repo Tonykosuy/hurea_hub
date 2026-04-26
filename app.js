@@ -7074,7 +7074,7 @@ function updateHeaderUser() {
     // Update version badge
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) {
-        versionBadge.innerText = state.userRole === 'admin' ? 'Admin V19' : 'Member';
+        versionBadge.innerText = state.userRole === 'admin' ? 'Admin V20' : 'Member';
     }
 }
 
