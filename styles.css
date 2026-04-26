@@ -8860,7 +8860,7 @@ body.is-user-role #dashboard-charts-row {
         padding: 20px !important;
         border-radius: 0 !important;
         overflow-y: auto !important;
-        display: flex !important;
+
         flex-direction: column !important;
         background: #05070a !important; /* Ensure solid background on mobile */
     }
@@ -9075,4 +9075,18 @@ body.is-user-role #dashboard-charts-row {
 /* Fix background-clip warning */
 .header-main h2 {
     background-clip: text !important;
+}
+
+/* Cinematic Eval Visibility Control */
+#cinematic-eval-inline.active {
+    display: flex !important;
+}
+
+@media (max-width: 850px) {
+    #cinematic-eval-inline {
+        display: none; /* Force hide by default on mobile */
+    }
+    #cinematic-eval-inline.active {
+        display: flex !important;
+    }
 }

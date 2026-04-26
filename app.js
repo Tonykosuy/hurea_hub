@@ -5979,20 +5979,28 @@ function startCinematicEvaluation(prjId) {
 
     // Total steps: Targets + Work/Team Msg + Care/Mentor Msg (Always) + Program Eval + Feelings
     cine_totalSteps = cine_targets.length + 4;
-
+async function openCinematicEval(prjId, raterId) {
+    const overlay = document.getElementById('cinematic-eval-inline');
+    overlay.classList.add('active');
+    overlay.style.display = 'flex'; 
+    document.body.style.overflow = 'hidden'; // Lock scroll
+    
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
-    document.getElementById('cinematic-eval-inline').style.display = 'block';
     updateCineUI();
 }
 
 function closeCinematicEval() {
-    document.getElementById('cinematic-eval-inline').style.display = 'none';
+    const overlay = document.getElementById('cinematic-eval-inline');
+    overlay.classList.remove('active');
+    overlay.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scroll
     document.getElementById('eval-project-setup-view').style.display = 'block';
     document.getElementById('cine-success-overlay').style.display = 'none';
 }
 
 function renderCineSteps() {
+
     const c = document.getElementById('cine-form-steps-container');
     c.innerHTML = '';
     cine_targets.forEach((pt, idx) => {
