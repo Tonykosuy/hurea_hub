@@ -9430,7 +9430,7 @@ body.is-user-role #dashboard-charts-row {
     opacity: 1 !important;
 }
 
-.selector-header .header-main h2 {
+#login-selector-overlay > div > div.selector-header > div.header-main > h2 {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
 }
