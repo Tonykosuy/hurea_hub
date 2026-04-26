@@ -9090,3 +9090,74 @@ body.is-user-role #dashboard-charts-row {
         display: flex !important;
     }
 }
+
+/* ==========================================
+   WHITE THEME FOR CINEMATIC EVALUATION
+   ========================================== */
+
+#cinematic-eval-inline {
+    background: #ffffff !important;
+    color: #1e293b !important;
+}
+
+#cinematic-eval-inline .cine-sec-title,
+#cinematic-eval-inline .cine-label-text,
+#cinematic-eval-inline .cine-step-badge,
+#cinematic-eval-inline .cine-title {
+    color: #0f172a !important;
+}
+
+#cinematic-eval-inline .cine-section {
+    background: #f8fafc !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+}
+
+#cinematic-eval-inline .cine-sec-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+#cinematic-eval-inline .cine-step-badge {
+    background: rgba(13, 138, 188, 0.1) !important;
+    color: var(--primary) !important;
+}
+
+#cinematic-eval-inline .lux-range-item {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+#cinematic-eval-inline .cine-label-text {
+    color: #475569 !important;
+}
+
+#cinematic-eval-inline textarea {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #1e293b !important;
+}
+
+#cinematic-eval-inline textarea:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(13, 138, 188, 0.1) !important;
+}
+
+#cinematic-eval-inline .cine-btn-secondary {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+}
+
+#cinematic-eval-inline .cine-btn-secondary:hover {
+    background: #e2e8f0 !important;
+}
+
+#cinematic-eval-inline .lux-close-btn {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #1e293b !important;
+}
+
+/* Fix background-clip warning */
+.header-main h2 {
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+}

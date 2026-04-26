@@ -6011,18 +6011,18 @@ function renderCineSteps() {
         const targetLabel = isSelf ? `<span style="color:#10b981">Bản thân (Self-Eval)</span>` : `<span style="color:#f59e0b">${name}</span>`;
 
         // Find existing evaluation for this target in this project
-        const prjId = document.getElementById('eval-prj-id').value;
-        const raterId = document.getElementById('eval-prj-rater').value;
+        const innerPrjId = document.getElementById('eval-prj-id').value;
+        const innerRaterId = document.getElementById('eval-prj-rater').value;
         const existing = (state.evaluations || []).find(ev =>
-            String(ev.prjId || ev.prjid).trim() === String(prjId).trim() &&
-            String(ev.raterId || ev.raterid).trim() === String(raterId).trim() &&
+            String(ev.prjId || ev.prjid).trim() === String(innerPrjId).trim() &&
+            String(ev.raterId || ev.raterid).trim() === String(innerRaterId).trim() &&
             String(ev.targetId || ev.targetid).trim() === String(pt.memberId).trim()
         );
 
         c.innerHTML += `<section class="cine-section" data-step="${stepNum}">
             <div class="cine-sec-header">
                 <span class="cine-step-badge">${stepNum}</span>
-                <h2 class="cine-sec-title">Đánh giá: ${targetLabel} <span style="font-size:1rem;color:#ffffff">(${pt.role})</span></h2>
+                <h2 class="cine-sec-title">Đánh giá: ${targetLabel} <span style="font-size:1rem;color:var(--text-muted)">(${pt.role})</span></h2>
             </div>
             <input type="hidden" name="targetId_${stepNum}" value="${pt.memberId}">
             <div class="cine-eval-loop">
@@ -6047,12 +6047,12 @@ function renderCineSteps() {
     });
 
     // STEP N+1: Work Done & Team Message
-    const prjId = document.getElementById('eval-prj-id').value;
-    const raterId = document.getElementById('eval-prj-rater').value;
-    const existing = (state.evaluations || []).find(ev =>
-        String(ev.prjId || ev.prjid).trim() === String(prjId).trim() &&
-        String(ev.raterId || ev.raterid).trim() === String(raterId).trim() &&
-        String(ev.targetId || ev.targetid).trim() === String(raterId).trim() // Use self-eval for global info
+    const globalPrjId = document.getElementById('eval-prj-id').value;
+    const globalRaterId = document.getElementById('eval-prj-rater').value;
+    const globalExisting = (state.evaluations || []).find(ev =>
+        String(ev.prjId || ev.prjid).trim() === String(globalPrjId).trim() &&
+        String(ev.raterId || ev.raterid).trim() === String(globalRaterId).trim() &&
+        String(ev.targetId || ev.targetid).trim() === String(globalRaterId).trim() // Use self-eval for global info
     );
 
     let currentIdx = cine_targets.length + 1;
@@ -6063,11 +6063,11 @@ function renderCineSteps() {
         </div>
         <div class="lux-form-group" style="margin-bottom:20px;">
             <label class="cine-label-text">Các công việc đã làm trong Project</label>
-            <textarea id="cine-work-done" rows="4" placeholder="Liệt kê các đầu việc bạn đã thực hiện...">${existing?.workDone || ''}</textarea>
+            <textarea id="cine-work-done" rows="4" placeholder="Liệt kê các đầu việc bạn đã thực hiện...">${globalExisting?.workDone || ''}</textarea>
         </div>
         <div class="lux-form-group">
             <label class="cine-label-text">Gửi lời nhắn nhủ của bạn đến các thành viên của Team</label>
-            <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn gửi đến những người đồng đội...">${existing?.teamMessage || ''}</textarea>
+            <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn gửi đến những người đồng đội...">${globalExisting?.teamMessage || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
             <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
@@ -6076,18 +6076,18 @@ function renderCineSteps() {
     </section>`;
 
     // STEP N+2: Care & Mentor Messages (Always)
-    const prj = state.projects.find(x => x.id === prjId);
-    const participants = ensureArray(prj?.participants);
+    const extraPrj = state.projects.find(x => x.id === globalPrjId);
+    const extraParticipants = ensureArray(extraPrj?.participants);
 
     // Attempt to get IDs from explicit arrays, fallback to participants list
-    let careIds = ensureArray(prj?.careIds);
+    let careIds = ensureArray(extraPrj?.careIds);
     if (careIds.length === 0) {
-        careIds = participants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
+        careIds = extraParticipants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
     }
 
-    let mentorIds = ensureArray(prj?.mentorIds);
+    let mentorIds = ensureArray(extraPrj?.mentorIds);
     if (mentorIds.length === 0) {
-        mentorIds = participants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
+        mentorIds = extraParticipants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
     }
 
     currentIdx++;
@@ -6098,7 +6098,7 @@ function renderCineSteps() {
         careIds.forEach(cid => {
             const m = state.members.find(x => x.id === cid);
             const careName = m ? m.name : 'Care Team';
-            const careMsg = existing?.careMessages && existing.careMessages[cid] ? existing.careMessages[cid] : '';
+            const careMsg = globalExisting?.careMessages && globalExisting.careMessages[cid] ? globalExisting.careMessages[cid] : '';
             extraHtml += `
                 <div class="lux-form-group" style="margin-bottom:16px;">
                     <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${careName}</strong> (Care Team)</label>
@@ -6111,7 +6111,7 @@ function renderCineSteps() {
         mentorIds.forEach(mid => {
             const m = state.members.find(x => x.id === mid);
             const mentorName = m ? m.name : 'Mentor';
-            const mentorMsg = (existing?.mentorMessages && existing.mentorMessages[mid]) ? existing.mentorMessages[mid] : '';
+            const mentorMsg = (globalExisting?.mentorMessages && globalExisting.mentorMessages[mid]) ? globalExisting.mentorMessages[mid] : '';
             extraHtml += `
                 <div class="lux-form-group" style="margin-bottom:16px;">
                     <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${mentorName}</strong> (Mentor)</label>
@@ -6121,11 +6121,11 @@ function renderCineSteps() {
         });
     } else {
         extraHtml = `
-            <div style="padding:40px; text-align:center; background:rgba(255,255,255,0.03); border-radius:24px; border:1px dashed rgba(255,255,255,0.1); margin: 20px 0;">
+            <div style="padding:40px; text-align:center; background:rgba(0,0,0,0.02); border-radius:24px; border:1px dashed rgba(0,0,0,0.1); margin: 20px 0;">
                 <i class="fa-solid fa-circle-info" style="font-size:2.5rem; color:var(--primary); margin-bottom:20px; display:block;"></i>
-                <p style="color:#ffffff; font-size:1.15rem; line-height:1.6; font-weight:500;">
+                <p style="color:#1e293b; font-size:1.15rem; line-height:1.6; font-weight:500;">
                     Chương trình này không có Care Team và Mentor.<br>
-                    <span style="font-size:0.9rem; opacity:0.7; color:#ffffff;">Vui lòng bấm <strong>Tiếp tục</strong> để chuyển sang bước kế tiếp.</span>
+                    <span style="font-size:0.9rem; opacity:0.7; color:#475569;">Vui lòng bấm <strong>Tiếp tục</strong> để chuyển sang bước kế tiếp.</span>
                 </p>
             </div>
         `;
@@ -6147,7 +6147,7 @@ function renderCineSteps() {
 
     // STEP N+3: Program Evaluation
     currentIdx++;
-    const progEval = existing?.programEval || {};
+    const progEval = globalExisting?.programEval || {};
     c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
         <div class="cine-sec-header">
             <span class="cine-step-badge">${currentIdx}</span>
@@ -6175,19 +6175,19 @@ function renderCineSteps() {
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
             <label class="cine-label-text">Mực độ cảm nhận / Kết quả đạt được của bản thân</label>
-            <textarea id="cine-feelings" rows="3" placeholder="Bạn cảm thấy thế nào sau dự án?">${existing?.feelings || ''}</textarea>
+            <textarea id="cine-feelings" rows="3" placeholder="Bạn cảm thấy thế nào sau dự án?">${globalExisting?.feelings || ''}</textarea>
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
             <label class="cine-label-text">Đề xuất / Mong muốn cho các dự án sau</label>
-            <textarea id="cine-proposals" rows="3" placeholder="Bạn mong muốn điều gì ở dự án tới?">${existing?.proposals || ''}</textarea>
+            <textarea id="cine-proposals" rows="3" placeholder="Bạn mong muốn điều gì ở dự án tới?">${globalExisting?.proposals || ''}</textarea>
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
             <label class="cine-label-text">Nhận xét chung cho dự án / BTC (Công khai)</label>
-            <textarea id="cine-general-comment" rows="3" placeholder="Lời chia sẻ công khai...">${existing?.generalComment || ''}</textarea>
+            <textarea id="cine-general-comment" rows="3" placeholder="Lời chia sẻ công khai...">${globalExisting?.generalComment || ''}</textarea>
         </div>
         <div style="margin-bottom:32px;">
             <label class="cine-label-text">Góp ý ẩn danh (cho BTC / Ban / Dự án)</label>
-            <textarea id="cine-final-feedback" rows="2" placeholder="Những suy nghĩ thầm kín... Sẽ hoàn toàn ẩn danh.">${existing?.feedback || ''}</textarea>
+            <textarea id="cine-final-feedback" rows="2" placeholder="Những suy nghĩ thầm kín... Sẽ hoàn toàn ẩn danh.">${globalExisting?.feedback || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
             <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
