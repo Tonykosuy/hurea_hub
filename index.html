@@ -6,10 +6,14 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>HuReA | Dashboard Quản Trị Thành Viên</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script defer src="app.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
@@ -25,10 +29,7 @@
     </div>
     <!-- ===== LOGIN OVERLAY ===== -->
     <div id="login-overlay" class="login-overlay">
-        <div class="login-mesh-bg">
-            <div class="login-blob lb-1"></div>
-            <div class="login-blob lb-2"></div>
-        </div>
+
         <div class="login-card" id="login-card">
             <!-- Header -->
             <div class="login-header">
@@ -151,11 +152,7 @@
         </div>
     </div>
 
-    <div class="mesh-background">
-        <div class="blob color-1"></div>
-        <div class="blob color-2"></div>
-        <div class="blob color-3"></div>
-    </div>
+
 
     <!-- API Global Loader -->
     <div id="global-loader"
@@ -235,9 +232,7 @@
                         <span id="header-username">Admin</span>
                         <span id="header-role-badge" class="header-role-badge">Admin</span>
                     </div>
-                    <button class="btn-theme" id="theme-btn" onclick="toggleTheme()" title="Chuyển chế độ tối/sáng">
-                        <i class="fa-solid fa-moon"></i>
-                    </button>
+
                     <button class="btn-logout" id="btn-logout" onclick="logout()" title="Đăng xuất">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
@@ -285,7 +280,7 @@
                         </div>
 
                         <!-- Visual Analytics Row -->
-                        <div class="dashboard-charts-row">
+                        <div class="dashboard-charts-row" id="dashboard-charts-row">
                             <!-- Chart 1: Multi-Dept Radar -->
                             <div class="chart-card large-chart">
                                 <h4><i class="fa-solid fa-crosshairs"></i> So sánh Năng lực đa Ban (Inter-Dept Radar)
@@ -382,8 +377,7 @@
                     </div>
 
                     <!-- VIEW SECTION: ACTIVITY CALENDAR -->
-                    <div class="dashboard-calendar-card glass-panel"
-                        style="margin-top:2%; padding-left: 5%; padding-right: 5%;">
+                    <div class="dashboard-calendar-card glass-panel">
                         <div class="column-header">
                             <div class="header-main">
                                 <span class="icon-orb orb-yellow"><i class="fa-solid fa-calendar-alt"></i></span>
@@ -410,6 +404,7 @@
                                 </button>
                             </div>
                         </div>
+                        <div id="monthly-activities-list" class="monthly-activities-list"></div>
                         <div id="activity-calendar-container" class="calendar-grid-wrapper">
                             <div class="calendar-grid" id="calendar-grid-view">
                                 <!-- Grid injected by JS -->
@@ -1022,7 +1017,7 @@
                 <section id="meeting-scheduler-view" class="view-section">
                     <div class="module-header" style="margin-bottom:24px;">
                         <div class="module-title">
-                            <h2 style="font-size:1.8rem; display:flex; align-items:center; gap:12px;">
+                            <h2 style="font-size:1.8rem; display:flex; align-items:center; gap:12px; color: #000000;">
                                 <i class="fa-solid fa-calendar-days" style="color:var(--primary);"></i> Xếp Lịch Họp
                             </h2>
                             <p style="color:var(--text-muted);">Tạo vote lịch họp, chọn khung giờ rảnh — hệ thống tự tìm
@@ -2779,7 +2774,24 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <nav class="mobile-bottom-nav">
+        <a href="#" class="bottom-nav-item active" data-target="dashboard-view">
+            <i class="fa-solid fa-house"></i>
+            <span>Trang chủ</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-target="members-view">
+            <i class="fa-solid fa-users"></i>
+            <span>Nhân sự</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-target="projects-view">
+            <i class="fa-solid fa-diagram-project"></i>
+            <span>Dự án</span>
+        </a>
+        <a href="#" class="bottom-nav-item" onclick="toggleMobileSidebar()">
+            <i class="fa-solid fa-bars"></i>
+            <span>Thêm</span>
+        </a>
+    </nav>
 </body>
 
 </html>

@@ -2,7 +2,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx002vezB-aD9o-czvnMURf
 let ADMIN_PASSWORD = '852007'; // Loaded from API config
 
 const state = {
-    theme: localStorage.getItem('hurea-theme') || 'light',
     currentTerm: null,
     terms: [], members: [], projects: [],
     evaluations: [], clubScores: [], deptScores: [],
@@ -196,7 +195,7 @@ function normalizeDataKeys(data) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    initTheme(); setupNavigation(); setupEvalTabs(); setupSearchableDropdowns();
+    setupNavigation(); setupEvalTabs(); setupSearchableDropdowns();
     initToast();
     if (API_URL) { await loadDataFromAPI(); } else { seedMockData(); }
     initMeetingScheduler();
@@ -382,35 +381,6 @@ function showToast(msg, type = 'success') {
     }, 3000);
 }
 
-// THEME
-function initTheme() {
-    const savedTheme = localStorage.getItem('hurea-theme') || 'light';
-    state.theme = savedTheme;
-    document.documentElement.setAttribute('data-theme', state.theme);
-    updateThemeIcon();
-}
-
-function toggleTheme() {
-    state.theme = state.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', state.theme);
-    localStorage.setItem('hurea-theme', state.theme);
-    updateThemeIcon();
-
-    // Refresh charts to update colors for the new theme
-    if (typeof updateDashboardStats === 'function') {
-        // Delay slightly to let CSS variables transition if any
-        setTimeout(updateDashboardStats, 100);
-    }
-}
-
-function updateThemeIcon() {
-    const btn = document.getElementById('theme-btn');
-    if (!btn) return;
-    btn.innerHTML = state.theme === 'dark'
-        ? '<i class="fa-solid fa-sun"></i>'
-        : '<i class="fa-solid fa-moon"></i>';
-}
-
 // VIEW SWITCHERS
 function toggleMemberView(mode) {
     state.memberViewMode = mode;
@@ -426,14 +396,27 @@ function togglePickerView(mode) {
 
 // NAVIGATION
 function setupNavigation() {
-    document.querySelectorAll('.nav-item').forEach(item => {
+    const allNavItems = document.querySelectorAll('.nav-item, .bottom-nav-item');
+    allNavItems.forEach(item => {
         item.addEventListener('click', e => {
-            e.preventDefault();
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-            item.classList.add('active');
             const targetId = item.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
+            if (!targetId) return; // "More" button uses direct onclick
+
+            e.preventDefault();
+            
+            // Sync active state across sidebar and bottom bar
+            allNavItems.forEach(n => {
+                if (n.getAttribute('data-target') === targetId) {
+                    n.classList.add('active');
+                } else {
+                    n.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            const targetView = document.getElementById(targetId);
+            if (targetView) targetView.classList.add('active');
+
             if (targetId === 'eval-view') calculateFinalScores();
             if (targetId === 'dashboard-view') updateDashboardStats();
             if (targetId === 'feedback-view') { renderFeedbacks(); renderConfessions(); }
@@ -442,7 +425,6 @@ function setupNavigation() {
             if (targetId === 'bug-report-view') renderBugReports();
             if (targetId === 'pin-management-view') renderPinManagement();
 
-            // Auto-close sidebar on mobile after navigation
             if (window.innerWidth <= 850) {
                 closeMobileSidebar();
             }
@@ -948,7 +930,6 @@ function _renderProjects() {
     const curTerm = String(state.currentTerm || '').substring(0, 10);
     const termProjects = state.projects.filter(p => String(p.term || '').substring(0, 10) === curTerm);
 
-
     const list = termProjects.filter(p => {
         const matchesSearch = (p.name || '').toLowerCase().includes(txt);
         const matchesType = state.projectTypeFilter === 'ALL' || p.type === state.projectTypeFilter;
@@ -1062,7 +1043,6 @@ function updateProjectDashboardStats(termProjects) {
     runningEl.innerText = running;
     finishEl.innerText = finish;
 }
-
 
 // Project Modal V2 Logic
 function openCreateProjectModal() {
@@ -1298,7 +1278,6 @@ function removeMentorMember(id) {
     state.activeProjectData.mentorIds = state.activeProjectData.mentorIds.filter(x => x !== id);
     renderMentorList();
 }
-
 
 function togglePLSection() {
     const hasPL = document.getElementById('p-has-pl').checked;
@@ -1751,7 +1730,6 @@ function saveSelectedRole() {
     showToast('Đã thêm nhân sự vào team!', 'success');
 }
 
-
 async function saveProjectV2() {
     if (state.userRole !== 'admin') return alert('Bạn không có quyền thực hiện thao tác này.');
     const p = state.activeProjectData;
@@ -1846,7 +1824,6 @@ function deleteProject(id) {
         renderProjects(); updateDashboardStats(); populateSelectDropdowns();
     }
 }
-
 
 // ==========================================
 // TERMS MODULE
@@ -2081,7 +2058,14 @@ function updateDashboardStats() {
     document.getElementById('stat-total-projects').innerText = state.projects.filter(p => p.term === state.currentTerm).length;
     document.getElementById('stat-evaluated').innerText = state.evaluations.filter(e => e.term === state.currentTerm).length;
     renderAnnouncements();
-    initDashboardCharts();
+
+    const chartRow = document.getElementById('dashboard-charts-row');
+    if (state.userRole === 'admin') {
+        if (chartRow) chartRow.style.display = '';
+        initDashboardCharts();
+    } else {
+        if (chartRow) chartRow.style.display = 'none';
+    }
 }
 
 function initDashboardCharts() {
@@ -2420,7 +2404,6 @@ function deleteAnnouncement(id) {
         renderAnnouncements();
     }
 }
-
 
 // ==========================================
 // SCORE FILTER
@@ -2801,7 +2784,7 @@ function showScoreDetail(mId) {
             <td colspan="7" style="padding:0; border-top:none;">
                 <div style="padding:16px 20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-top:2px solid var(--primary); border-radius:0 0 12px 12px; margin:-1px 0 8px 0;">
                     <div style="font-weight:800; font-size:0.9rem; margin-bottom:12px; color:var(--primary);"><i class="fa-solid fa-chart-pie" style="margin-right:6px;"></i>Chi tiết Đánh giá chéo — ${prj.name}</div>
-                    
+
                     ${selfEval ? `
                     <div style="margin-bottom:12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(139, 92, 246, 0.08); border-radius:10px; margin-bottom:4px;">
@@ -3006,7 +2989,7 @@ function showScoreDetail(mId) {
                     </div>
                 </div>
             </div>
-            
+
             <div style="background: var(--bg-sidebar); padding: 24px; border-radius: 24px; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; box-shadow: var(--shadow-sm); position: relative;">
                 <div style="position:absolute; top:12px; left:20px; font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Biểu đồ năng lực</div>
                 <canvas id="member-radar-chart" style="max-height: 240px; width: 100%;"></canvas>
@@ -3045,7 +3028,7 @@ function showScoreDetail(mId) {
         <div id="detail-tab-explanation" class="detail-tab-pane" style="display:none;">
             <div class="score-formula-box" style="padding:20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:16px;">
                 <h4 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-calculator"></i> Công thức & Giải trình chi tiết</h4>
-                
+
                 <div class="formula-item" style="margin-bottom:20px;">
                     <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">1. Điểm Tổng Kết (Hệ số 1/3 mỗi đầu điểm)</div>
                     <div style="background:rgba(14, 165, 233, 0.1); padding:12px; border-radius:12px; font-family:monospace; font-size:1.1rem; text-align:center;">
@@ -3267,7 +3250,7 @@ function showScoreDetail(mId) {
                                 <div style="font-weight:800; font-size:1.1rem; color:var(--primary);"><i class="fa-solid fa-chart-pie" style="margin-right:8px;"></i>${prj.name}</div>
                                 <div style="font-size:0.85rem; font-weight:700; background:var(--primary); color:white; padding:4px 12px; border-radius:12px;">Điểm dự án: ${catAvg}</div>
                             </div>
-                            
+
                             ${selfEval ? `
                             <div style="margin-bottom:12px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(139, 92, 246, 0.08); border-radius:10px; margin-bottom:4px;">
@@ -3349,7 +3332,7 @@ function showScoreDetail(mId) {
                                 <div style="font-weight:800; font-size:1.1rem; color:#8b5cf6; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
                                     <i class="fa-solid fa-message"></i> ${prj.name} — Báo cáo cá nhân
                                 </div>
-                                
+
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
                                     <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
                                         <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Công việc đã thực hiện</div>
@@ -3360,7 +3343,7 @@ function showScoreDetail(mId) {
                                         <div style="font-size:0.9rem; line-height:1.6; font-style:italic; white-space:pre-wrap;">"${evalRecord.teamMessage || '---'}"</div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
                                     <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
                                         <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Cảm nghĩ cá nhân</div>
@@ -3406,7 +3389,7 @@ function showScoreDetail(mId) {
         })()}
             </div>
         </div>
-        
+
         <div id="detail-tab-appeal-hist" class="detail-tab-pane" style="display:none;">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
                 <table class="data-table">
@@ -3890,10 +3873,6 @@ function switchDetailTab(btn, paneId) {
     modal.querySelectorAll('.detail-tab-pane').forEach(p => p.style.display = 'none');
     modal.querySelector(`#detail-tab-${paneId}`).style.display = 'block';
 }
-
-
-
-
 
 function selectEvalMethod(type, method) {
     if (method === 'form') {
@@ -4761,7 +4740,7 @@ async function exportScoreboardToPDF() {
                 <strong>Ban Chủ Nhiệm</strong>
             </div>
         </div>
-        
+
         <div style="margin-top: 40px; text-align: center; font-size: 10px; font-family:'Times New Roman', serif; color: var(--text-muted); border-top: 1px solid #f1f5f9; padding-top: 10px;">
             Hệ thống Quản trị HuReA Hub • Báo cáo tự động được bảo mật
         </div>
@@ -4955,7 +4934,6 @@ function submitConfession() {
     renderConfessions();
     alert('Da gui Confession! Cam on ban da chia se.');
 }
-
 
 function renderConfessions() {
     const grid = document.getElementById('confession-grid');
@@ -5174,8 +5152,8 @@ function confirmMsSelection() {
         // Find existing data if any (only to potentially keep role if not overriding)
         const existing = state.activeProjectParticipantsSetup.find(p => p.memberId === mId);
 
-        // Team assignment logic: 
-        // If we came from a target team, it IS that team. 
+        // Team assignment logic:
+        // If we came from a target team, it IS that team.
         // Otherwise, it's what they had or unassigned.
         let teamName = state.activeProjectTargetTeam !== null ? state.activeProjectTargetTeam : (existing ? existing.teamName : '');
 
@@ -5559,7 +5537,7 @@ function exportEvidenceVisualReport() {
             tr:hover { background: #f1f5f9; }
             .link-btn { display: inline-block; padding: 6px 12px; background: #0ea5e9; color: white; border: none; cursor:pointer; border-radius: 6px; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; font-family: 'Montserrat', sans-serif;}
             .link-btn:hover { background: #0284c7; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-            
+
             /* POPUP STYLES */
             .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
             .popup-card { position: relative; max-width: 90%; max-height: 90%; display: flex; flex-direction: column; background: white; border-radius: 12px; overflow: hidden; }
@@ -5832,7 +5810,6 @@ function renderEvaluationTasks() {
 
     const exportBtn = document.getElementById('btn-export-incomplete-evals');
     if (exportBtn) exportBtn.style.display = isAdmin ? 'block' : 'none';
-
 
     const myId = String(state.currentUser.id).trim();
 
@@ -6600,7 +6577,7 @@ function renderBugReports(adminMode = 'SYSTEM') {
                 </div>
 
                 <p class="bug-item-desc">${bug.desc}</p>
-                
+
                 ${bug.screenshot ? `
                     <div style="margin-top:8px; border-radius:12px; overflow:hidden; border:1px solid var(--border-color); width:120px; height:80px;">
                         <img src="${bug.screenshot}" style="width:100%; height:100%; object-fit:cover;">
@@ -6732,7 +6709,7 @@ function openBugDetail(bugId) {
                 </h4>
                 <p style="white-space:pre-wrap; line-height:1.7; color:var(--text-main); font-size:1rem;">${bug.desc}</p>
             </div>
-            
+
             ${bug.screenshot ? `
             <h4 style="margin-top:32px; margin-bottom:16px; color:var(--text-main); font-size:1.1rem; display:flex; align-items:center; gap:10px;">
                 <i class="fa-solid fa-image" style="color:var(--primary);"></i> Ảnh minh chứng đính kèm
@@ -7102,10 +7079,20 @@ function updateHeaderUser() {
 }
 
 function applyPermissions(role) {
-    const isAdmin = role === 'admin'; // Only admin has system rights now
-    const isHead = role === 'head'; // Should be false for non-admins now
+    const isAdmin = role === 'admin';
+    const isHead = role === 'head';
+
+    // Add role class to body for CSS targeting
+    document.body.classList.toggle('is-user-role', role === 'user');
+    document.body.classList.toggle('is-admin-role', isAdmin);
+
     const fbAdmin = document.getElementById('feedback-admin-actions');
     if (fbAdmin) fbAdmin.style.display = isAdmin ? 'block' : 'none';
+
+    // Hide score filter bar for users
+    const scoreFilter = document.querySelector('.score-filter-bar');
+    if (scoreFilter) scoreFilter.style.display = isAdmin ? 'flex' : 'none';
+
 
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
@@ -7129,9 +7116,16 @@ function applyPermissions(role) {
 
         navItems.forEach(item => {
             const target = item.getAttribute('data-target');
-            // Members and Terms are Admin only
-            if (target === 'members-view' || target === 'terms-view') {
+            if (target === 'members-view' || target === 'terms-view' || target === 'terms-view') {
                 item.classList.add('nav-hidden');
+            }
+        });
+
+        // Hide from bottom nav too
+        document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            const target = item.getAttribute('data-target');
+            if (target === 'members-view' || target === 'terms-view') {
+                item.style.display = 'none';
             }
         });
 
@@ -7242,7 +7236,6 @@ function logout() {
 
     showLoginScreen();
 }
-
 
 // ==========================================
 // FINAL SCORES
@@ -7436,7 +7429,6 @@ async function saveUserPasswordAdmin() {
         btn.disabled = false;
     }
 }
-
 
 /**
  * GENERATE PDF REPORT
@@ -8525,7 +8517,7 @@ async function deleteMeetingPoll(id) {
         state.meetingPolls = state.meetingPolls.filter(p => String(p.id) !== String(id));
         // Also remove associated votes from local state
         state.meetingVotes = (state.meetingVotes || []).filter(v => String(v.pollId || v.pollid) !== String(id));
-        
+
         showToast('Đã xóa cuộc họp thành công!', 'success');
 
         if (state.activePollId === id) {
@@ -8769,7 +8761,7 @@ async function submitMeetingVote() {
 }
 
 // ==========================================
-// HEATMAP 
+// HEATMAP
 // ==========================================
 function buildHeatmapGrid(poll) {
     const gridEl = document.getElementById('heatmap-time-grid');
@@ -8850,7 +8842,6 @@ function buildHeatmapGrid(poll) {
             cell.className = `time-cell heat-${heatLevel} heat-count ${count > 0 ? 'has-voters' : ''}`;
             cell.innerHTML = count > 0 ? `<span>${count}</span>` : '';
             cell.dataset.key = key;
-
 
             gridEl.appendChild(cell);
 
@@ -8945,6 +8936,7 @@ completeLogin = function () {
 function renderActivityCalendar() {
     const container = document.getElementById('calendar-grid-view');
     const label = document.getElementById('current-month-label');
+    const monthlyList = document.getElementById('monthly-activities-list');
     if (!container || !label) return;
 
     const date = state.currentCalendarDate || new Date();
@@ -8982,6 +8974,8 @@ function renderActivityCalendar() {
     const today = new Date();
     const isThisMonth = today.getFullYear() === year && today.getMonth() === month;
 
+    const allMonthlyEvents = [];
+
     for (let d = 1; d <= daysInMonth; d++) {
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
@@ -9001,6 +8995,8 @@ function renderActivityCalendar() {
             }
             return true;
         });
+
+        allMonthlyEvents.push(...dayEvents);
 
         let eventsHtml = '';
         if (dayEvents.length > 0) {
@@ -9022,6 +9018,25 @@ function renderActivityCalendar() {
             ${eventsHtml}
         `;
         container.appendChild(dayDiv);
+    }
+
+    // Render monthly activity list
+    if (monthlyList) {
+        if (allMonthlyEvents.length === 0) {
+            monthlyList.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; padding:10px;">Không có hoạt động nào trong tháng này.</div>';
+        } else {
+            // Sort by date
+            allMonthlyEvents.sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
+            monthlyList.innerHTML = allMonthlyEvents.map(ev => {
+                const d = new Date(ev.eventDate).getDate();
+                return `
+                    <div class="monthly-activity-item" onclick="showEventDayDetail('${ev.eventDate}', [${JSON.stringify(ev).replace(/"/g, '&quot;')}])">
+                        <span class="monthly-activity-date">${d}/${month + 1}</span>
+                        <span>${ev.eventName}</span>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 }
 
@@ -9145,5 +9160,4 @@ async function deleteEvent(id) {
         showToast('Lỗi khi xóa sự kiện.', 'error');
     }
 }
-
 
