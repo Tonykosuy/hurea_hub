@@ -91,7 +91,7 @@ h1, h2, h3, h4, h5, h6 {
     font-family: 'Montserrat', sans-serif;
     font-weight: 800;
     letter-spacing: -0.01em;
-    color: var(--text-main);
+    color: #000000 !important;
     line-height: 1.2;
 }
 
@@ -259,7 +259,7 @@ h3 { font-size: 1.25rem; font-weight: 800; }
     flex: 1;
     height: 100vh;
     overflow-y: auto;
-    padding: 20px; /* Thu gá»n padding */
+    padding: 20px; /* Thu gá» n padding */
     scroll-behavior: smooth;
     display: flex;
     flex-direction: column;
@@ -277,14 +277,14 @@ h3 { font-size: 1.25rem; font-weight: 800; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 20px; /* Thu gá»n header */
+    padding: 12px 20px; /* Thu gá» n header */
     border-radius: var(--radius-lg);
 }
 
 .header-title h1 {
     font-size: 2rem;
     font-weight: 900;
-    color: var(--text-main);
+    color: #000000 !important;
     background: var(--lux-gradient);
     -webkit-background-clip: text;
     background-clip: text;
@@ -2364,7 +2364,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     color: var(--accent-yellow);
 }
 
-.header-text h2 { font-size: 1.25rem; color: #000 !important; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
+.header-text h2 { font-size: 1.25rem; color: #000000 !important; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
 [data-theme="dark"] .header-text h2 { color: #fff; }
 .header-text p { font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0; font-weight: 500; }
 
@@ -4450,11 +4450,198 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     text-transform: uppercase;
 }
 
-/* Section removed to avoid conflict with Lux V3 design */
+/* Evaluation Task Grid Redesign */
+.eval-task-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 8px 0;
+}
 
-/* ==========================================
-   PERSONNEL LIST (MEMBERS) PREMIUM REDESIGN
-   ========================================== */
+.eval-task-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    min-height: 200px;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+[data-theme='light'] .eval-task-card {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+}
+
+.eval-task-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    background: var(--lux-gradient);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.eval-task-card:hover {
+    transform: translateY(-8px);
+    border-color: var(--primary);
+    box-shadow: 0 20px 40px -15px rgba(13, 138, 188, 0.25);
+}
+
+.eval-task-card:hover::before {
+    opacity: 1;
+}
+
+.task-info {
+    margin-bottom: 24px;
+}
+
+.task-project-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+}
+
+.task-status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+
+.pending .task-status-tag {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.admin-monitor .task-status-tag {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0ea5e9;
+    border-color: rgba(14, 165, 233, 0.2);
+}
+
+/* Admin Progress Bar Enhancement */
+.eval-progress-container {
+    margin-top: 20px;
+}
+
+.eval-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.eval-progress-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.eval-progress-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.eval-progress-bar-bg {
+    height: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+[data-theme='light'] .eval-progress-bar-bg {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.eval-progress-bar-fill {
+    height: 100%;
+    background: var(--lux-gradient);
+    box-shadow: 0 0 15px var(--primary);
+    border-radius: 10px;
+    transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* History Items Harmony */
+.history-item {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+[data-theme='light'] .history-item {
+    background: #ffffff;
+    border-color: #f1f5f9;
+}
+
+.history-item:hover {
+    transform: scale(1.01) translateX(4px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+}
+
+.history-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.history-status-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.history-project-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.history-date {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* PERSONNEL LIST (MEMBERS) PREMIUM REDESIGN */
 
 #members-view .table-container {
     background: var(--bg-panel);
@@ -4746,9 +4933,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     to { opacity: 1; transform: translateX(0); }
 }
 
-/* ==========================================
-   HUReA HUB: PERSONNEL CARD LIST REDESIGN
-   ========================================== */
+/* HUReA HUB: PERSONNEL CARD LIST REDESIGN */
 
 .members-grid-v2 {
     display: grid;
@@ -4934,45 +5119,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     border-color: rgba(255, 255, 255, 0.05);
 }
 
-/* ==========================================
-   HUReA HUB: ULTRA-PREMIUM PROJECT MANAGEMENT OVERHAUL
-   ========================================== */
-
-#projects-view .module-header {
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 24px;
-    margin-bottom: 48px;
-}
-
-#projects-view .stat-mini-card {
-    border-radius: 28px;
-    padding: 28px;
-    background: #ffffff;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] #projects-view .stat-mini-card {
-    background: #ffffff;
-}
-
-#projects-view .stat-mini-icon {
-    width: 64px; height: 64px;
-    border-radius: 20px;
-    font-size: 1.8rem;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.stat-mini-val {
-    font-size: 2.2rem;
-    letter-spacing: -1px;
-}
-
-/* Removed duplicate Project Card styles */
-
-/* ==========================================
-   HUReA HUB: MEMBER PICKER CARD GRID
-   ========================================== */
+/* HUReA HUB: MEMBER PICKER CARD GRID */
 
 .picker-grid {
     display: grid;
@@ -5048,9 +5195,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
     bottom: 0;
 }
 
-/* ==========================================
-   LIST VIEW OVERRIDES (LUX V3)
-   ========================================== */
+/* LIST VIEW OVERRIDES (LUX V3) */
 
 /* Personnel List (Member List View) */
 .members-list-v2-container {
@@ -5252,7 +5397,7 @@ input[type=range]:focus { outline: none; box-shadow: none; border:none;}
 /* MODERATION & UI FIXES */
 .dashboard-announcements .column-header .header-text h2,
 .dashboard-calendar-card .column-header .header-text h2 {
-    color: var(--text-main) !important;
+    color: #000000 !important;
 }
 
 .conf-actions-top {

@@ -5820,10 +5820,8 @@ function renderEvaluationTasks() {
         if (isAdmin) {
             // Admin View: Monitoring Progress
             const participants = ensureArray(p.participants);
-            // Filter out non-evaluating roles for progress count
             const totalRequired = participants.filter(pt => !['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)).length;
 
-            // Count unique raters who have submitted at least one record (usually self-eval) for this project
             const submittedRaters = new Set();
             (state.evaluations || []).forEach(ev => {
                 const evPrj = String(ev.prjId || ev.prjid).trim();
@@ -5832,22 +5830,24 @@ function renderEvaluationTasks() {
                 }
             });
             const doneCount = submittedRaters.size;
+            const progressPercent = totalRequired > 0 ? (doneCount / totalRequired) * 100 : 0;
 
             const card = document.createElement('div');
             card.className = 'eval-task-card admin-monitor';
             card.innerHTML = `
                 <div class="task-info">
                     <div class="task-project-name">${p.name}</div>
-                    <div class="task-status-tag" style="background:rgba(14,165,233,0.1); color:#0ea5e9;">
-                        <i class="fa-solid fa-users"></i> Theo dõi tiến độ
+                    <div class="task-status-tag">
+                        <i class="fa-solid fa-chart-line"></i> Admin Monitoring
                     </div>
-                    <div style="margin-top:16px; font-size:0.95rem;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span class="eval-progress-label">Đã hoàn thành:</span>
-                            <span class="eval-progress-val">${doneCount} / ${totalRequired}</span>
+                    
+                    <div class="eval-progress-container">
+                        <div class="eval-progress-header">
+                            <span class="eval-progress-label">Tiến độ hoàn thành</span>
+                            <span class="eval-progress-val">${doneCount}/${totalRequired}</span>
                         </div>
-                        <div style="height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
-                            <div style="width:${totalRequired > 0 ? (doneCount / totalRequired) * 100 : 0}%; height:100%; background:var(--primary); transition:width 1s ease;"></div>
+                        <div class="eval-progress-bar-bg">
+                            <div class="eval-progress-bar-fill" style="width: ${progressPercent}%"></div>
                         </div>
                     </div>
                 </div>
@@ -5866,10 +5866,12 @@ function renderEvaluationTasks() {
                 card.innerHTML = `
                     <div class="task-info">
                         <div class="task-project-name">${p.name}</div>
-                        <div class="task-status-tag"><i class="fa-solid fa-rocket"></i> Sẵn sàng</div>
+                        <div class="task-status-tag">
+                            <i class="fa-solid fa-clock"></i> Đang chờ đánh giá
+                        </div>
                     </div>
                     <button class="btn-primary" onclick="startCinematicEvaluation('${p.id}')">
-                        Bắt đầu đánh giá
+                        <i class="fa-solid fa-play" style="margin-right: 8px;"></i> Bắt đầu ngay
                     </button>
                 `;
                 pendingList.appendChild(card);
@@ -5878,15 +5880,17 @@ function renderEvaluationTasks() {
                 row.className = 'history-item';
                 row.innerHTML = `
                     <div class="history-info">
-                        <div class="task-status-tag completed"><i class="fa-solid fa-check-circle"></i></div>
+                        <div class="history-status-icon">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
                         <div>
                             <div class="history-project-name">${p.name}</div>
-                            <div class="history-date">Hoàn thành: ${new Date(evalRecord.createdAt).toLocaleDateString()}</div>
+                            <div class="history-date">Hoàn thành lúc: ${new Date(evalRecord.createdAt).toLocaleDateString('vi-VN')}</div>
                         </div>
                     </div>
                     <div class="history-actions">
                         <button class="btn-lux-secondary" onclick="startCinematicEvaluation('${p.id}')">
-                            <i class="fa-solid fa-pen-to-square"></i> Xem / Sửa
+                            <i class="fa-solid fa-eye"></i> Xem lại
                         </button>
                     </div>
                 `;
