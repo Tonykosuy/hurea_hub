@@ -1639,13 +1639,6 @@ input:focus, select:focus, textarea:focus {
     margin: 0 auto;
 }
 
-/* Scoring Guide Minimal */
-.cine-scoring-guide {
-    position: sticky;
-    top: -32px;
-    background: #ffffff;
-    padding: 24px 0;
-    border-bottom: 1px solid #000000;
     margin-bottom: 48px;
     z-index: 5;
 }
@@ -9355,12 +9348,15 @@ body.is-user-role #dashboard-charts-row {
 }
 
 .header-main h2 {
-    font-size: 1.8rem !important;
+    font-size: 1.5rem !important;
     font-weight: 800 !important;
-    background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    background: #000000 !important;
+    color: #ffffff !important;
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background-clip: border-box !important;
+    -webkit-background-clip: border-box !important;
 }
 
 .btn-back {
@@ -9560,3 +9556,8 @@ body.is-user-role #dashboard-charts-row {
 .cinematic-window .close-btn { color: #000000 !important; }
 .cinematic-window .icon-orb.orb-primary { background: #000000 !important; color: #ffffff !important; }
 .cinematic-window .header-text p { color: #475569 !important; }
+
+.login-header h1 {
+    color: #ffffff !important;
+}
+
