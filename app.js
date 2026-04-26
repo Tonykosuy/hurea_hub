@@ -9157,10 +9157,10 @@ async function deleteEvent(id) {
 }
 
 async function backupDatabase() {
-    showToast('Đang khởi tạo bản sao lưu toàn hệ thống...', 'info');
+    showToast('Đang khởi tạo bản sao lưu và gửi mail...', 'info');
     
     try {
-        // 1. Prepare Data (Full System State)
+        // 1. Prepare Data for Local Download (JSON for full restore)
         const backupData = {
             version: '2.0.0',
             timestamp: new Date().toISOString(),
@@ -9175,8 +9175,6 @@ async function backupDatabase() {
         };
 
         const jsonString = JSON.stringify(backupData, null, 2);
-        
-        // 2. Trigger Download (JSON for full restore)
         const blobJson = new Blob([jsonString], { type: 'application/json' });
         const urlJson = URL.createObjectURL(blobJson);
         const link = document.createElement('a');
@@ -9192,13 +9190,20 @@ async function backupDatabase() {
             URL.revokeObjectURL(urlJson);
         }, 100);
 
-        // 3. Simulated Email / Alert
-        // Note: Client-side JS cannot send emails with attachments directly without a backend API.
-        // We log the intent and notify the user.
-        console.log('Backup ready. Sending notification to pn852007@gmail.com...');
-        
-        showToast('Sao lưu thành công! File đã được tải xuống.', 'success');
-        alert('Dữ liệu đã được sao lưu thành công và tải xuống máy của bạn. Thông báo đã được gửi về mail: pn852007@gmail.com');
+        // 2. Trigger Google Apps Script to send the Spreadsheet via Email
+        // This requires the doPost function in your Google Apps Script to handle 'backup_email'
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Standard for GAS simple POST
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                action: 'backup_email', 
+                recipient: 'pn852007@gmail.com' 
+            })
+        });
+
+        showToast('Sao lưu thành công! Đang gửi mail...', 'success');
+        alert('Dữ liệu đã được tải xuống máy của bạn. Hệ thống đang tự động gửi file Google Sheet đính kèm tới email: pn852007@gmail.com. Vui lòng kiểm tra hộp thư sau 1-2 phút.');
 
     } catch (err) {
         console.error('Backup Error:', err);
