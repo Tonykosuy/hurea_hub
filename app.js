@@ -6027,7 +6027,7 @@ function renderCineSteps() {
 
     let stepCounter = 0;
 
-    // Phase 1: Member Evaluations (Criteria one-by-one)
+    // Phase 1: Member Evaluations (All 7 criteria on one page per person)
     cine_targets.forEach((pt, idx) => {
         const targetMember = state.members.find(m => m.id === pt.memberId);
         const targetName = targetMember ? targetMember.name : 'Thành viên';
@@ -6040,22 +6040,25 @@ function renderCineSteps() {
             String(ev.targetId || ev.targetid).trim() === String(pt.memberId).trim()
         );
 
+        stepCounter++;
+        let personCriteriaHtml = '';
         criteria.forEach((crit) => {
-            stepCounter++;
-            c.innerHTML += `
-            <section class="cine-section" data-step="${stepCounter}">
-                <div class="cine-sec-header">
-                    <h2 class="cine-sec-title">Đánh giá: ${subTitle} <span>(${pt.role})</span></h2>
-                </div>
-                <div class="cine-eval-loop">
-                    ${renderRangeItem(idx + 1, crit.key, crit.label, existing ? existing[crit.key] : 5)}
-                </div>
-                <div class="cine-footer-nav">
-                    ${stepCounter > 1 ? `<button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>` : '<div></div>'}
-                    <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
-                </div>
-            </section>`;
+            personCriteriaHtml += renderRangeItem(idx + 1, crit.key, crit.label, existing ? existing[crit.key] : 5);
         });
+
+        c.innerHTML += `
+        <section class="cine-section" data-step="${stepCounter}">
+            <div class="cine-sec-header">
+                <h2 class="cine-sec-title">Đánh giá: ${subTitle} <span>(${pt.role})</span></h2>
+            </div>
+            <div class="cine-eval-loop">
+                ${personCriteriaHtml}
+            </div>
+            <div class="cine-footer-nav">
+                ${stepCounter > 1 ? `<button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>` : '<div></div>'}
+                <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
+            </div>
+        </section>`;
     });
 
     // Global Existing check
