@@ -5979,7 +5979,17 @@ function startCinematicEvaluation(prjId) {
 
     // Total steps: Targets + Work/Team Msg + Care/Mentor Msg (Always) + Program Eval + Feelings
     cine_totalSteps = cine_targets.length + 4;
-async function openCinematicEval(prjId, raterId) {
+
+    renderCineSteps();
+    document.getElementById('eval-project-setup-view').style.display = 'none';
+    const overlay = document.getElementById('cinematic-eval-inline');
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    updateCineUI();
+}
+
+function openCinematicEval(prjId, raterId) {
     const overlay = document.getElementById('cinematic-eval-inline');
     overlay.classList.add('active');
     overlay.style.display = 'flex'; 
