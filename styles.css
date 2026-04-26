@@ -9421,13 +9421,18 @@ body.is-user-role #dashboard-charts-row {
 }
 
 /* Force black color for specific headers */
-.header-text h2 {
+.header-main h2, .header-text h2 {
     color: #000000 !important;
+    background: transparent !important;
+    background-clip: border-box !important;
+    -webkit-background-clip: border-box !important;
+    -webkit-text-fill-color: #000000 !important;
+    opacity: 1 !important;
 }
 
-/* Fix background-clip warning */
-.header-main h2 {
-    background-clip: text !important;
+.header-text p {
+    color: #475569 !important;
+    opacity: 1 !important;
 }
 
 /* Cinematic Eval Visibility Control */

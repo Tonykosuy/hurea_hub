@@ -5975,7 +5975,17 @@ function startCinematicEvaluation(prjId) {
         });
     }
 
-    cine_targets = targets;
+    // Filter out duplicates to prevent double self-eval or double peer-eval
+    const uniqueTargets = [];
+    const seenIds = new Set();
+    targets.forEach(t => {
+        if (!seenIds.has(t.memberId)) {
+            seenIds.add(t.memberId);
+            uniqueTargets.push(t);
+        }
+    });
+
+    cine_targets = uniqueTargets;
 
     if (cine_targets.length === 0) return alert('Không có ai để đánh giá trong dự án này!');
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
