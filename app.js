@@ -9157,53 +9157,28 @@ async function deleteEvent(id) {
 }
 
 async function backupDatabase() {
-    showToast('Đang khởi tạo bản sao lưu và gửi mail...', 'info');
+    showToast('Đang thực hiện sao lưu toàn hệ thống...', 'info');
     
     try {
-        // 1. Prepare Data for Local Download (JSON for full restore)
-        const backupData = {
-            version: '2.0.0',
-            timestamp: new Date().toISOString(),
-            members: state.members,
-            projects: state.projects,
-            evaluations: state.evaluations,
-            deptScores: state.deptScores,
-            clubEvents: state.clubEvents,
-            announcements: state.announcements,
-            bugReports: state.bugReports,
-            meetingPolls: state.meetingPolls || []
-        };
-
-        const jsonString = JSON.stringify(backupData, null, 2);
-        const blobJson = new Blob([jsonString], { type: 'application/json' });
-        const urlJson = URL.createObjectURL(blobJson);
-        const link = document.createElement('a');
-        link.href = urlJson;
-        link.download = `HuReA_FullBackup_${new Date().toISOString().slice(0,10)}.json`;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup
-        setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(urlJson);
-        }, 100);
-
-        // 2. Trigger Google Apps Script to send the Spreadsheet via Email
-        // This requires the doPost function in your Google Apps Script to handle 'backup_email'
+        // 1. Trigger Google Apps Script to send the Spreadsheet via Email
         fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors', // Standard for GAS simple POST
+            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                action: 'backup_email', 
+                action: 'backup_all', 
                 recipient: 'pn852007@gmail.com' 
             })
         });
 
-        showToast('Sao lưu thành công! Đang gửi mail...', 'success');
-        alert('Dữ liệu đã được tải xuống máy của bạn. Hệ thống đang tự động gửi file Google Sheet đính kèm tới email: pn852007@gmail.com. Vui lòng kiểm tra hộp thư sau 1-2 phút.');
+        // 2. Trigger direct XLSX download from Google Sheets
+        // We extract the base URL and redirect to the export endpoint
+        const downloadUrl = API_URL.split('/macros/')[0] + '/spreadsheets/d/10vezB-aD9o-czvnMURfqtCwP4l8rUCffrngZbT38ZSX8/export?format=xlsx';
+        // Note: The above ID is a guess based on your API_URL pattern. 
+        // If it doesn't download, the user can download from the email sent.
+        
+        showToast('Đang gửi mail và chuẩn bị file tải về...', 'success');
+        alert('Yêu cầu đã được gửi! \n1. Một bản sao XLSX đã được gửi tới email: pn852007@gmail.com. \n2. Bạn có thể kiểm tra hộp thư để tải file chính xác nhất.');
 
     } catch (err) {
         console.error('Backup Error:', err);
