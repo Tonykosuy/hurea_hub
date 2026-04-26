@@ -6488,6 +6488,7 @@ function renderBugReports(adminMode = 'SYSTEM') {
 
     if (formColumn) {
         formColumn.style.display = isAdmin ? 'none' : 'block';
+        const layout = document.querySelector('.bug-report-layout');
         if (layout && window.innerWidth > 850) {
             layout.style.gridTemplateColumns = isAdmin ? '1fr' : '1.2fr 1fr';
         } else if (layout) {
