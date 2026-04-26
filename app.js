@@ -5979,11 +5979,7 @@ function startCinematicEvaluation(prjId) {
 
     if (cine_targets.length === 0) return alert('Không có ai để đánh giá trong dự án này!');
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
-    cine_currentStep = 1;
-
-    // Total steps: Targets + Work/Team Msg + Care/Mentor Msg (Always) + Program Eval + Feelings
-    cine_totalSteps = cine_targets.length + 4;
-
+    
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
     const overlay = document.getElementById('cinematic-eval-inline');
@@ -6014,74 +6010,74 @@ function closeCinematicEval() {
 }
 
 function renderCineSteps() {
-
     const c = document.getElementById('cine-form-steps-container');
+    const raterId = document.getElementById('eval-prj-rater').value;
+    const prjId = document.getElementById('eval-prj-id').value;
     c.innerHTML = '';
-    cine_targets.forEach((pt, idx) => {
-        const m = state.members.find(x => x.id === pt.memberId);
-        const name = m ? m.name : 'Unknown';
-        const stepNum = idx + 1;
-        const isSelf = pt.memberId === document.getElementById('eval-prj-rater').value;
-        const targetLabel = isSelf ? `<span style="color:#10b981">Bản thân (Self-Eval)</span>` : `<span style="color:#f59e0b">${name}</span>`;
 
-        // Find existing evaluation for this target in this project
-        const innerPrjId = document.getElementById('eval-prj-id').value;
-        const innerRaterId = document.getElementById('eval-prj-rater').value;
+    const criteria = [
+        { key: 'c1', label: 'Nhiệt tình, chủ động trong công việc' },
+        { key: 'c2', label: 'Trách nhiệm, đúng deadline' },
+        { key: 'c3', label: 'Tư duy tích cực, đề xuất ý kiến' },
+        { key: 'c4', label: 'Trình độ, chuyên môn' },
+        { key: 'c5', label: 'Đầu tư nghiên cứu, học hỏi' },
+        { key: 'c6', label: 'Mức độ hoàn thành công việc' },
+        { key: 'c7', label: 'Quan hệ với Care/Leader/Thành viên CT' }
+    ];
+
+    let stepCounter = 0;
+
+    // Phase 1: Member Evaluations (Criteria one-by-one)
+    cine_targets.forEach((pt, idx) => {
+        const targetMember = state.members.find(m => m.id === pt.memberId);
+        const targetName = targetMember ? targetMember.name : 'Thành viên';
+        const isSelf = String(pt.memberId) === String(raterId);
+        const subTitle = isSelf ? 'Bản thân (Self-Eval)' : targetName;
+
         const existing = (state.evaluations || []).find(ev =>
-            String(ev.prjId || ev.prjid).trim() === String(innerPrjId).trim() &&
-            String(ev.raterId || ev.raterid).trim() === String(innerRaterId).trim() &&
+            String(ev.prjId || ev.prjid).trim() === String(prjId).trim() &&
+            String(ev.raterId || ev.raterid).trim() === String(raterId).trim() &&
             String(ev.targetId || ev.targetid).trim() === String(pt.memberId).trim()
         );
 
-        c.innerHTML += `<section class="cine-section" data-step="${stepNum}">
-            <div class="cine-sec-header">
-                <span class="cine-step-badge">${stepNum}</span>
-                <h2 class="cine-sec-title">Đánh giá: ${targetLabel} <span style="font-size:1rem;color:var(--text-muted)">(${pt.role})</span></h2>
-            </div>
-            <input type="hidden" name="targetId_${stepNum}" value="${pt.memberId}">
-            <div class="cine-eval-loop">
-                ${renderRangeItem(stepNum, 'c1', 'Nhiệt tình, chủ động trong công việc', existing?.c1 || 5)}
-                ${renderRangeItem(stepNum, 'c2', 'Trách nhiệm, đúng deadline', existing?.c2 || 5)}
-                ${renderRangeItem(stepNum, 'c3', 'Tư duy tích cực, đề xuất ý kiến', existing?.c3 || 5)}
-                ${renderRangeItem(stepNum, 'c4', 'Trình độ, chuyên môn', existing?.c4 || 5)}
-                ${renderRangeItem(stepNum, 'c5', 'Đầu tư nghiên cứu, học hỏi', existing?.c5 || 5)}
-                ${renderRangeItem(stepNum, 'c6', 'Mức độ hoàn thành công việc', existing?.c6 || 5)}
-                ${renderRangeItem(stepNum, 'c7', 'Quan hệ với Care/Leader/Thành viên CT', existing?.c7 || 5)}
-            </div>
-            <div class="cine-footer-nav">
-                ${stepNum > 1 ? '<button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>' : '<div></div>'}
-                <button type="button" class="min-btn-black" onclick="cineNext(${stepNum})">Tiếp theo</button>
-            </div>
-        </section>`;
-
-        // If first step (self evaluation), we also care about general feedback
-        if (idx === 0) {
-            cine_prefilled_feedback = existing?.feedback || '';
-        }
+        criteria.forEach((crit) => {
+            stepCounter++;
+            c.innerHTML += `
+            <section class="cine-section" data-step="${stepCounter}">
+                <div class="cine-sec-header">
+                    <h2 class="cine-sec-title">Đánh giá: ${subTitle} <span>(${pt.role})</span></h2>
+                </div>
+                <div class="cine-eval-loop">
+                    ${renderRangeItem(idx + 1, crit.key, crit.label, existing ? existing[crit.key] : 5)}
+                </div>
+                <div class="cine-footer-nav">
+                    ${stepCounter > 1 ? `<button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>` : '<div></div>'}
+                    <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
+                </div>
+            </section>`;
+        });
     });
 
-    // STEP N+1: Work Done & Team Message
-    const globalPrjId = document.getElementById('eval-prj-id').value;
-    const globalRaterId = document.getElementById('eval-prj-rater').value;
+    // Global Existing check
     const globalExisting = (state.evaluations || []).find(ev =>
-        String(ev.prjId || ev.prjid).trim() === String(globalPrjId).trim() &&
-        String(ev.raterId || ev.raterid).trim() === String(globalRaterId).trim() &&
-        String(ev.targetId || ev.targetid).trim() === String(globalRaterId).trim() // Use self-eval for global info
+        String(ev.prjId || ev.prjid).trim() === String(prjId).trim() &&
+        String(ev.raterId || ev.raterid).trim() === String(raterId).trim() &&
+        String(ev.targetId || ev.targetid).trim() === String(raterId).trim()
     );
 
-    let currentIdx = cine_targets.length + 1;
-    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+    // STEP: Work Done
+    stepCounter++;
+    c.innerHTML += `<section class="cine-section" data-step="${stepCounter}">
         <div class="cine-sec-header">
-            <span class="cine-step-badge">${currentIdx}</span>
             <h2 class="cine-sec-title">Công việc & Nhắn nhủ Team</h2>
         </div>
-        <div class="lux-form-group" style="margin-bottom:20px;">
+        <div class="lux-form-group" style="margin-bottom:24px;">
             <label class="cine-label-text">Các công việc đã làm trong Project</label>
-            <textarea id="cine-work-done" rows="4" placeholder="Liệt kê các đầu việc bạn đã thực hiện...">${globalExisting?.workDone || ''}</textarea>
+            <textarea id="cine-work-done" rows="4" placeholder="Liệt kê...">${globalExisting?.workDone || ''}</textarea>
         </div>
         <div class="lux-form-group">
-            <label class="cine-label-text">Gửi lời nhắn nhủ của bạn đến các thành viên của Team</label>
-            <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn gửi đến những người đồng đội...">${globalExisting?.teamMessage || ''}</textarea>
+            <label class="cine-label-text">Gửi lời nhắn nhủ đến Team</label>
+            <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn...">${globalExisting?.teamMessage || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
             <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
@@ -6089,82 +6085,45 @@ function renderCineSteps() {
         </div>
     </section>`;
 
-    // STEP N+2: Care & Mentor Messages (Always)
-    const extraPrj = state.projects.find(x => x.id === globalPrjId);
+    // STEP: Care & Mentor
+    const extraPrj = state.projects.find(x => x.id === prjId);
     const extraParticipants = ensureArray(extraPrj?.participants);
-
-    // Attempt to get IDs from explicit arrays, fallback to participants list
-    let careIds = ensureArray(extraPrj?.careIds);
-    if (careIds.length === 0) {
-        careIds = extraParticipants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
-    }
-
-    let mentorIds = ensureArray(extraPrj?.mentorIds);
-    if (mentorIds.length === 0) {
-        mentorIds = extraParticipants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
-    }
-
-    currentIdx++;
+    let careIds = ensureArray(extraPrj?.careIds).length ? extraPrj.careIds : extraParticipants.filter(pt => pt.role === 'CARE').map(pt => pt.memberId);
+    let mentorIds = ensureArray(extraPrj?.mentorIds).length ? extraPrj.mentorIds : extraParticipants.filter(pt => pt.role === 'MENTOR').map(pt => pt.memberId);
 
     let extraHtml = '';
     if (careIds.length > 0 || mentorIds.length > 0) {
-        // Render Care Boxes
         careIds.forEach(cid => {
             const m = state.members.find(x => x.id === cid);
-            const careName = m ? m.name : 'Care Team';
-            const careMsg = globalExisting?.careMessages && globalExisting.careMessages[cid] ? globalExisting.careMessages[cid] : '';
-            extraHtml += `
-                <div class="lux-form-group" style="margin-bottom:16px;">
-                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${careName}</strong> (Care Team)</label>
-                    <textarea class="cine-care-msg cine-extra-msg" data-member-id="${cid}" rows="2" placeholder="Lời nhắn cho care...">${careMsg}</textarea>
-                </div>
-            `;
+            const careMsg = globalExisting?.careMessages?.[cid] || '';
+            extraHtml += `<div class="lux-form-group" style="margin-bottom:20px;"><label class="cine-label-text">Nhắn cho <strong>${m?.name || 'Care'}</strong> (Care)</label><textarea class="cine-care-msg" data-member-id="${cid}" rows="2">${careMsg}</textarea></div>`;
         });
-
-        // Render Mentor Boxes
         mentorIds.forEach(mid => {
             const m = state.members.find(x => x.id === mid);
-            const mentorName = m ? m.name : 'Mentor';
-            const mentorMsg = (globalExisting?.mentorMessages && globalExisting.mentorMessages[mid]) ? globalExisting.mentorMessages[mid] : '';
-            extraHtml += `
-                <div class="lux-form-group" style="margin-bottom:16px;">
-                    <label class="cine-label-text">Gửi lời nhắn nhủ đến <strong>${mentorName}</strong> (Mentor)</label>
-                    <textarea class="cine-mentor-msg cine-extra-msg" data-member-id="${mid}" rows="2" placeholder="Lời nhắn cho mentor...">${mentorMsg}</textarea>
-                </div>
-            `;
+            const mentorMsg = globalExisting?.mentorMessages?.[mid] || '';
+            extraHtml += `<div class="lux-form-group" style="margin-bottom:20px;"><label class="cine-label-text">Nhắn cho <strong>${m?.name || 'Mentor'}</strong> (Mentor)</label><textarea class="cine-mentor-msg" data-member-id="${mid}" rows="2">${mentorMsg}</textarea></div>`;
         });
     } else {
-        extraHtml = `
-            <div style="padding:40px; text-align:center; background:rgba(0,0,0,0.02); border-radius:24px; border:1px dashed rgba(0,0,0,0.1); margin: 20px 0;">
-                <i class="fa-solid fa-circle-info" style="font-size:2.5rem; color:var(--primary); margin-bottom:20px; display:block;"></i>
-                <p style="color:#1e293b; font-size:1.15rem; line-height:1.6; font-weight:500;">
-                    Chương trình này không có Care Team và Mentor.<br>
-                    <span style="font-size:0.9rem; opacity:0.7; color:#475569;">Vui lòng bấm <strong>Tiếp tục</strong> để chuyển sang bước kế tiếp.</span>
-                </p>
-            </div>
-        `;
+        extraHtml = `<div style="text-align:center; padding: 40px 0; color: #6b7280;">Không có Care & Mentor.</div>`;
     }
 
-    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+    stepCounter++;
+    c.innerHTML += `<section class="cine-section" data-step="${stepCounter}">
         <div class="cine-sec-header">
-            <span class="cine-step-badge">${currentIdx}</span>
-            <h2 class="cine-sec-title">Gửi lời nhắn đến Care & Mentor (Không bắt buộc)</h2>
+            <h2 class="cine-sec-title">Nhắn gửi Care & Mentor</h2>
         </div>
-        <div class="cine-scroll-box" style="max-height:400px; overflow-y:auto; padding-right:10px;">
-            ${extraHtml}
-        </div>
+        <div class="cine-scroll-box">${extraHtml}</div>
         <div class="cine-footer-nav">
             <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
             <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
         </div>
     </section>`;
 
-    // STEP N+3: Program Evaluation
-    currentIdx++;
+    // Phase 4: Program Evaluation
+    stepCounter++;
     const progEval = globalExisting?.programEval || {};
-    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+    c.innerHTML += `<section class="cine-section" data-step="${stepCounter}">
         <div class="cine-sec-header">
-            <span class="cine-step-badge">${currentIdx}</span>
             <h2 class="cine-sec-title">Đánh giá Chương trình</h2>
         </div>
         <div class="cine-eval-loop">
@@ -6180,28 +6139,27 @@ function renderCineSteps() {
         </div>
     </section>`;
 
-    // STEP N+4: Feelings & Final Feedback
-    currentIdx++;
-    c.innerHTML += `<section class="cine-section" data-step="${currentIdx}">
+    // Phase 5: Final
+    stepCounter++;
+    c.innerHTML += `<section class="cine-section" data-step="${stepCounter}">
         <div class="cine-sec-header">
-            <span class="cine-step-badge"><i class="fa-solid fa-flag-checkered"></i></span>
-            <h2 class="cine-sec-title">Cảm nhận của Bản thân</h2>
+            <h2 class="cine-sec-title">Cảm nhận & Đề xuất</h2>
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
-            <label class="cine-label-text">Mực độ cảm nhận / Kết quả đạt được của bản thân</label>
-            <textarea id="cine-feelings" rows="3" placeholder="Bạn cảm thấy thế nào sau dự án?">${globalExisting?.feelings || ''}</textarea>
+            <label class="cine-label-text">Cảm nhận bản thân</label>
+            <textarea id="cine-feelings" rows="3">${globalExisting?.feelings || ''}</textarea>
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
-            <label class="cine-label-text">Đề xuất / Mong muốn cho các dự án sau</label>
-            <textarea id="cine-proposals" rows="3" placeholder="Bạn mong muốn điều gì ở dự án tới?">${globalExisting?.proposals || ''}</textarea>
+            <label class="cine-label-text">Đề xuất dự án sau</label>
+            <textarea id="cine-proposals" rows="3">${globalExisting?.proposals || ''}</textarea>
         </div>
         <div class="lux-form-group" style="margin-bottom:16px;">
-            <label class="cine-label-text">Nhận xét chung cho dự án / BTC (Công khai)</label>
-            <textarea id="cine-general-comment" rows="3" placeholder="Lời chia sẻ công khai...">${globalExisting?.generalComment || ''}</textarea>
+            <label class="cine-label-text">Nhận xét chung (Công khai)</label>
+            <textarea id="cine-general-comment" rows="3">${globalExisting?.generalComment || ''}</textarea>
         </div>
-        <div style="margin-bottom:32px;">
-            <label class="cine-label-text">Góp ý ẩn danh (cho BTC / Ban / Dự án)</label>
-            <textarea id="cine-final-feedback" rows="2" placeholder="Những suy nghĩ thầm kín... Sẽ hoàn toàn ẩn danh.">${globalExisting?.feedback || ''}</textarea>
+        <div style="margin-bottom:24px;">
+            <label class="cine-label-text">Góp ý ẩn danh</label>
+            <textarea id="cine-final-feedback" rows="2">${globalExisting?.feedback || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
             <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
@@ -6209,6 +6167,9 @@ function renderCineSteps() {
         </div>
     </section>`;
 
+    cine_totalSteps = stepCounter;
+    cine_currentStep = 1;
+    updateCineUI();
 }
 
 function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
@@ -6271,10 +6232,13 @@ function cinePrev() { if (cine_currentStep > 1) { cine_currentStep--; updateCine
 function cineAutofill(stepNum) {
     const sec = document.querySelector('.cine-section[data-step="' + stepNum + '"]');
     if (!sec) return;
-    sec.querySelectorAll('input[type=range]').forEach(s => {
-        const v = Math.floor(Math.random() * 3) + 8;
-        s.value = v;
-        s.parentElement.querySelector('.rating-val-display').innerText = v;
+    // Handle radio buttons (1-5)
+    sec.querySelectorAll('.min-eval-options').forEach(group => {
+        const radios = group.querySelectorAll('input[type="radio"]');
+        if (radios.length > 0) {
+            const randomIdx = Math.floor(Math.random() * 2) + 3; // Random 4 or 5
+            radios[randomIdx - 1].checked = true;
+        }
     });
 }
 
