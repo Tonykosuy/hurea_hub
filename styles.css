@@ -1582,7 +1582,7 @@ input:focus, select:focus, textarea:focus {
 
 .cinematic-window .lux-progress-bar {
     height: 100%;
-    background: var(--lux-gradient);
+    background: #000000 !important;
     box-shadow: none;
 }
 
