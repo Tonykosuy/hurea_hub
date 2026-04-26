@@ -9066,3 +9066,13 @@ body.is-user-role #dashboard-charts-row {
     color: #94a3b8 !important;
     font-weight: 500 !important;
 }
+
+/* Force black color for specific headers */
+.header-text h2 {
+    color: #000000 !important;
+}
+
+/* Fix background-clip warning */
+.header-main h2 {
+    background-clip: text !important;
+}
