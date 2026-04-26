@@ -1553,9 +1553,9 @@ input:focus, select:focus, textarea:focus {
    CINEMATIC MULTI-STEP EVALUATION OVERLAY (REDESIGNED)
    ========================================== */
 .cinematic-overlay {
-    background: rgba(0, 0, 0, 0.6) !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: #ffffff !important;
+
+
     z-index: 10000;
 }
 
@@ -1588,14 +1588,14 @@ input:focus, select:focus, textarea:focus {
 
 /* Header Adjustments */
 .cinematic-window .modal-header {
-    background: #ffffff;
+    background: #ffffff !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     padding: 24px 32px;
 }
 
 .cinematic-window .modal-body {
     padding: 32px;
-    background: #ffffff;
+    background: #ffffff !important;
 }
 
 .cine-container {
@@ -1609,8 +1609,9 @@ input:focus, select:focus, textarea:focus {
     position: sticky;
     top: -32px;
     z-index: 100;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
@@ -1634,7 +1635,8 @@ input:focus, select:focus, textarea:focus {
 
 .guide-cell {
     font-size: 0.85rem;
-    color: var(--text-main);
+    color: #000000 !important;
+    font-weight: 500;
 }
 
 /* Rating Item Light */
@@ -1655,14 +1657,14 @@ input:focus, select:focus, textarea:focus {
 .rating-label {
     font-weight: 700;
     font-size: 1rem;
-    color: #0f172a;
+    color: #000000 !important;
     display: flex;
     justify-content: space-between;
     margin-bottom: 16px;
 }
 
 .rating-val-display {
-    color: var(--primary);
+    color: #000000 !important;
     font-weight: 800;
 }
 
@@ -1730,15 +1732,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 .cine-btn-primary {
-    background: var(--lux-gradient);
+    background: #000000 !important;
     color: #ffffff;
-    box-shadow: var(--lux-glow);
+    box-shadow: none;
+    border: none;
 }
 
 .cine-btn-secondary {
-    background: #f1f5f9;
-    color: var(--text-main);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0 !important;
 }
 
 .cine-btn-secondary:hover {
@@ -1746,7 +1749,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .cine-step-badge {
-    background: var(--primary);
+    background: #000000 !important;
     color: #ffffff;
     width: 36px;
     height: 36px;
@@ -1755,7 +1758,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .cine-sec-title {
-    color: #0f172a;
+    color: #000000 !important;
     font-weight: 800;
 }
 
