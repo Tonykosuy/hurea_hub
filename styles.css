@@ -9430,6 +9430,11 @@ body.is-user-role #dashboard-charts-row {
     opacity: 1 !important;
 }
 
+.selector-header .header-main h2 {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
 .header-text p {
     color: #475569 !important;
     opacity: 1 !important;
