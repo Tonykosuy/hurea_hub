@@ -1606,11 +1606,15 @@ input:focus, select:focus, textarea:focus {
 
 /* Scoring Guide Light */
 .cine-scoring-guide {
-    background: #f8fafc;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: -32px;
+    z-index: 100;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .guide-title {
