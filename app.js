@@ -6218,7 +6218,7 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
+            <span style="font-weight:700; font-size: 1rem; color: #0f172a;">${label}</span>
         </div>
         <div class="rating-group">`;
 
@@ -6244,7 +6244,7 @@ function renderProgramEvalItem(id, label, initialValue = 3) {
     let html = `
     <div class="rating-item">
         <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:600; font-size: 0.95rem; color: #ffffff;">${label}</span>
+            <span style="font-weight:700; font-size: 1rem; color: #0f172a;">${label}</span>
         </div>
         <div class="rating-group" style="flex-wrap: wrap; gap: 8px;">`;
 
@@ -6253,7 +6253,7 @@ function renderProgramEvalItem(id, label, initialValue = 3) {
         html += `
             <div class="rating-opt-text" style="flex: 1; min-width: 80px;">
                 <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked} style="display:none;">
-                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: #ffffff;">
+                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: #f8fafc; border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: #64748b;">
                     ${labels[i - 1]}
                 </label>
             </div>`;
