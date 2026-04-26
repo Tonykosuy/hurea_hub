@@ -3010,7 +3010,7 @@ input:focus, select:focus, textarea:focus {
 .login-input-group label {
     display: block;
     margin-bottom: 0.75rem;
-    color: #94a3b8;
+    color: #ffffff;
     font-size: 0.85rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -3044,8 +3044,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .selected-member-info { flex: 1; }
-.selected-name { display: block; font-weight: 700; font-size: 1.1rem; color: #f1f5f9; }
-.selected-dept { font-size: 0.85rem; color: #64748b; }
+.selected-name { display: block; font-weight: 700; font-size: 1.1rem; color: #ffffff; }
+.selected-dept { font-size: 0.85rem; color: #ffffff; }
 
 /* PIN AREA */
 .pin-input-row {
@@ -3720,14 +3720,14 @@ input:focus, select:focus, textarea:focus {
 
 .selected-name {
     display: block;
-    color: #f8fafc;
+    color: #ffffff;
     font-size: 1rem;
     font-weight: 700;
 }
 
 .selected-dept {
     display: block;
-    color: #94a3b8;
+    color: #ffffff;
     font-size: 0.8rem;
     margin-top: 2px;
 }
