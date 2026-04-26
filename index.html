@@ -1237,12 +1237,17 @@
 
                             <!-- Tab Switcher (Admin Only) -->
                             <div id="admin-bug-tabs-container" style="display:none; padding: 0 20px 10px;">
-                                <div id="admin-bug-tabs" class="admin-tab-switcher">
-                                    <button class="admin-tab active" onclick="switchAdminBugTab('SYSTEM')">
-                                        <i class="fa-solid fa-bug"></i> Lỗi hệ thống
-                                    </button>
-                                    <button class="admin-tab" onclick="switchAdminBugTab('APPEAL')">
-                                        <i class="fa-solid fa-file-signature"></i> Phúc khảo điểm
+                                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+                                    <div id="admin-bug-tabs" class="admin-tab-switcher" style="margin-bottom: 0; flex: 1;">
+                                        <button class="admin-tab active" onclick="switchAdminBugTab('SYSTEM')">
+                                            <i class="fa-solid fa-bug"></i> Lỗi hệ thống
+                                        </button>
+                                        <button class="admin-tab" onclick="switchAdminBugTab('APPEAL')">
+                                            <i class="fa-solid fa-file-signature"></i> Phúc khảo điểm
+                                        </button>
+                                    </div>
+                                    <button class="btn-lux-primary" onclick="backupDatabase()" style="padding: 10px 20px; font-size: 0.85rem; background: linear-gradient(135deg, #059669, #10b981);">
+                                        <i class="fa-solid fa-database"></i> Sao lưu Dữ liệu
                                     </button>
                                 </div>
                                 <div class="report-status-filters" id="admin-bug-status-filters">

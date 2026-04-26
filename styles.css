@@ -9094,6 +9094,25 @@ input:focus, select:focus, textarea:focus {
         flex-shrink: 0 !important;
         padding: 8px 16px !important;
     }
+
+    /* Bug Report Layout Responsiveness */
+    .bug-report-layout {
+        grid-template-columns: 1fr !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 24px !important;
+    }
+    .bug-form-column {
+        order: 1 !important;
+    }
+    .bug-history-column {
+        order: 2 !important;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0 !important;
+    }
 }
 
 /* Default Dashboard Calendar Card */
