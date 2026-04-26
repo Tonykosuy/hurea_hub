@@ -2748,11 +2748,8 @@
             </div>
             <div class="modal-header">
                 <div class="header-main">
-                    <span class="icon-orb orb-primary"><i class="fa-solid fa-star"></i></span>
-                    <div class="header-text">
-                        <h3 id="cine-project-name" style="margin:0; font-size: 1.1rem;">Đánh giá dự án</h3>
-                        <p id="lux-step-indicator" style="margin:0; font-size: 0.8rem; color: var(--text-muted);">BƯỚC 1 / X</p>
-                    </div>
+                    <h3 id="cine-project-name">Đánh giá dự án</h3>
+                    <p id="lux-step-indicator">BƯỚC 1 / X</p>
                 </div>
                 <button class="close-btn" onclick="closeCinematicEval()">
                     <i class="fa-solid fa-xmark"></i>
@@ -2761,13 +2758,13 @@
             <div class="modal-body">
                 <main class="cine-container">
                     <div class="cine-scoring-guide">
-                        <div class="guide-title"><i class="fa-solid fa-circle-info"></i> THANG ĐIỂM THAM KHẢO</div>
+                        <div class="guide-title">THANG ĐIỂM THAM KHẢO</div>
                         <div class="guide-grid">
-                            <div class="guide-cell"><strong>5:</strong> Xuất sắc</div>
-                            <div class="guide-cell"><strong>4:</strong> Khá / Tốt</div>
-                            <div class="guide-cell"><strong>3:</strong> Đạt</div>
-                            <div class="guide-cell"><strong>2:</strong> Kém</div>
-                            <div class="guide-cell"><strong>1:</strong> Rất kém</div>
+                            <div class="guide-cell"><span>5</span> Xuất sắc</div>
+                            <div class="guide-cell"><span>4</span> Tốt</div>
+                            <div class="guide-cell"><span>3</span> Đạt</div>
+                            <div class="guide-cell"><span>2</span> Kém</div>
+                            <div class="guide-cell"><span>1</span> Rất kém</div>
                         </div>
                     </div>
 
@@ -2778,10 +2775,10 @@
             </div>
             <div id="cine-success-overlay" class="cine-success-overlay">
                 <div class="cine-success-card">
-                    <i class="fa-solid fa-circle-check checkmark-icon"></i>
-                    <h2>Đã hoàn thành!</h2>
+                    <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+                    <h2>Đã hoàn thành</h2>
                     <p>Cảm ơn bạn đã thực hiện đánh giá.</p>
-                    <button class="btn-primary" style="margin-top:24px; width: 100%;" onclick="closeCinematicEval()">Hoàn tất & Đóng</button>
+                    <button class="min-btn-black" onclick="closeCinematicEval()">Đóng</button>
                 </div>
             </div>
         </div>

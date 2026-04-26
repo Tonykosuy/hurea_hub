@@ -6049,8 +6049,8 @@ function renderCineSteps() {
                 ${renderRangeItem(stepNum, 'c7', 'Quan hệ với Care/Leader/Thành viên CT', existing?.c7 || 5)}
             </div>
             <div class="cine-footer-nav">
-                ${stepNum > 1 ? '<button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>' : '<div></div>'}
-                <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext(${stepNum})">Người tiếp theo</button>
+                ${stepNum > 1 ? '<button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>' : '<div></div>'}
+                <button type="button" class="min-btn-black" onclick="cineNext(${stepNum})">Tiếp theo</button>
             </div>
         </section>`;
 
@@ -6084,8 +6084,8 @@ function renderCineSteps() {
             <textarea id="cine-team-message" rows="3" placeholder="Lời nhắn gửi đến những người đồng đội...">${globalExisting?.teamMessage || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
-            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
-            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+            <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
         </div>
     </section>`;
 
@@ -6154,8 +6154,8 @@ function renderCineSteps() {
             ${extraHtml}
         </div>
         <div class="cine-footer-nav">
-            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
-            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+            <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
         </div>
     </section>`;
 
@@ -6175,8 +6175,8 @@ function renderCineSteps() {
             ${renderProgramEvalItem('p5', 'Công tác tổ chức', progEval.p5 || 3)}
         </div>
         <div class="cine-footer-nav">
-            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
-            <button type="button" class="cine-btn cine-btn-primary" onclick="cineNext()">Tiếp tục</button>
+            <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="min-btn-black" onclick="cineNext()">Tiếp theo</button>
         </div>
     </section>`;
 
@@ -6204,8 +6204,8 @@ function renderCineSteps() {
             <textarea id="cine-final-feedback" rows="2" placeholder="Những suy nghĩ thầm kín... Sẽ hoàn toàn ẩn danh.">${globalExisting?.feedback || ''}</textarea>
         </div>
         <div class="cine-footer-nav">
-            <button type="button" class="cine-btn cine-btn-secondary" onclick="cinePrev()">Quay lại</button>
-            <button type="button" class="cine-btn cine-btn-primary" onclick="submitCinematicEvaluation()">Gửi Toàn Bộ Đánh Giá</button>
+            <button type="button" class="min-btn-white" onclick="cinePrev()">Quay lại</button>
+            <button type="button" class="min-btn-black" onclick="submitCinematicEvaluation()">Gửi đánh giá</button>
         </div>
     </section>`;
 
@@ -6216,20 +6216,16 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
     const name = `target_${stepNum}_${critKey}`;
 
     let html = `
-    <div class="rating-item">
-        <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:700; font-size: 1rem; color: #0f172a;">${label}</span>
-        </div>
-        <div class="rating-group">`;
+    <div class="min-eval-card">
+        <div class="min-eval-label">${label}</div>
+        <div class="min-eval-options">`;
 
     for (let i = 1; i <= 5; i++) {
         const checked = i === val5 ? 'checked' : '';
         html += `
-            <div class="rating-opt">
+            <div class="min-eval-opt">
                 <input type="radio" id="radio_${stepNum}_${critKey}_${i}" name="${name}" value="${i}" ${checked}>
-                <label for="radio_${stepNum}_${critKey}_${i}">
-                    <span class="point-val">${i}</span>
-                </label>
+                <label for="radio_${stepNum}_${critKey}_${i}">${i}</label>
             </div>`;
     }
 
@@ -6239,23 +6235,19 @@ function renderRangeItem(stepNum, critKey, label, initialValue = 6) {
 
 function renderProgramEvalItem(id, label, initialValue = 3) {
     const name = `program_${id}`;
-    const labels = ['Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
+    const labels = ['Rất kém', 'Kém', 'Đạt', 'Tốt', 'Rất tốt'];
 
     let html = `
-    <div class="rating-item">
-        <div class="rating-label" style="margin-bottom: 8px;">
-            <span style="font-weight:700; font-size: 1rem; color: #0f172a;">${label}</span>
-        </div>
-        <div class="rating-group" style="flex-wrap: wrap; gap: 8px;">`;
+    <div class="min-eval-card">
+        <div class="min-eval-label">${label}</div>
+        <div class="min-eval-options text-opts">`;
 
     for (let i = 1; i <= 5; i++) {
         const checked = i === parseInt(initialValue) ? 'checked' : '';
         html += `
-            <div class="rating-opt-text" style="flex: 1; min-width: 80px;">
-                <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked} style="display:none;">
-                <label for="radio_program_${id}_${i}" style="display: block; padding: 10px 4px; background: #f8fafc; border: 1px solid rgba(0,0,0,0.05); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.75rem; color: #64748b;">
-                    ${labels[i - 1]}
-                </label>
+            <div class="min-eval-opt-text">
+                <input type="radio" id="radio_program_${id}_${i}" name="${name}" value="${i}" ${checked}>
+                <label for="radio_program_${id}_${i}">${labels[i - 1]}</label>
             </div>`;
     }
 
