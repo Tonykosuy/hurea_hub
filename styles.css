@@ -9354,3 +9354,7 @@ body.is-user-role #dashboard-charts-row {
     background-clip: text !important;
     -webkit-background-clip: text !important;
 }
+
+.cinematic-window .close-btn { color: #000000 !important; }
+.cinematic-window .icon-orb.orb-primary { background: #000000 !important; color: #ffffff !important; }
+.cinematic-window .header-text p { color: #475569 !important; }
