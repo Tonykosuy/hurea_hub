@@ -9171,15 +9171,9 @@ async function backupDatabase() {
             })
         });
 
-        // 2. Trigger direct XLSX download from Google Sheets
-        // This uses the specific Spreadsheet ID found in Code.gs
-        const spreadsheetId = '1ki4lIYHzk8SbSiblinvBQMBTGphh_Hd0C8NnYkmL0ZM';
-        const downloadUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`;
-        
-        window.open(downloadUrl, '_blank');
-        
-        showToast('Đang gửi mail và chuẩn bị file tải về...', 'success');
-        alert('Yêu cầu đã được gửi! \n1. File Excel (.xlsx) đang được tải xuống trình duyệt. \n2. Một bản sao lưu đã được gửi tới email: pn852007@gmail.com.');
+        // 2. We skip local download as per user request and only trigger the email
+        showToast('Đang gửi bản sao lưu tới email của bạn...', 'success');
+        alert('Yêu cầu đã được gửi! Một bản sao lưu (.xlsx) đang được gửi tới email: pn852007@gmail.com. Vui lòng kiểm tra hộp thư sau 1-2 phút.');
 
     } catch (err) {
         console.error('Backup Error:', err);

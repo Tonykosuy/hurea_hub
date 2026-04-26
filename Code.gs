@@ -8,17 +8,7 @@
       try {
         const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         const mode = e.parameter.mode || 'full';
-        const action = e.parameter.action;
         
-        if (action === 'download_xlsx') {
-          const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-          const token = ScriptApp.getOAuthToken();
-          const url = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/export?format=xlsx';
-          const res = UrlFetchApp.fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-          const blob = Utilities.newBlob(res.getContent(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ss.getName() + ".xlsx");
-          return ContentService.createTextOutput(JSON.stringify({status: 'success', url: url})).setMimeType(ContentService.MimeType.JSON);
-        }
-
         const configData = getSheetData(ss, 'Config');
         let data = { status: 'success' };
 
