@@ -1639,41 +1639,6 @@ input:focus, select:focus, textarea:focus {
     margin: 0 auto;
 }
 
-    margin-bottom: 48px;
-    z-index: 5;
-}
-
-.guide-title {
-    font-size: 0.75rem;
-    font-weight: 800;
-    margin-bottom: 16px;
-    letter-spacing: 0.1em;
-}
-
-.guide-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.guide-cell {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.guide-cell span {
-    width: 20px;
-    height: 20px;
-    background: #000000;
-    color: #ffffff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.75rem;
-}
 
 /* Evaluation Cards Minimal */
 .min-eval-card {
