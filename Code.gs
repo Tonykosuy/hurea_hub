@@ -8,8 +8,18 @@
       try {
         const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         const mode = e.parameter.mode || 'full';
-        const configData = getSheetData(ss, 'Config');
+        const action = e.parameter.action;
         
+        if (action === 'download_xlsx') {
+          const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+          const token = ScriptApp.getOAuthToken();
+          const url = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/export?format=xlsx';
+          const res = UrlFetchApp.fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+          const blob = Utilities.newBlob(res.getContent(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ss.getName() + ".xlsx");
+          return ContentService.createTextOutput(JSON.stringify({status: 'success', url: url})).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        const configData = getSheetData(ss, 'Config');
         let data = { status: 'success' };
 
         if (mode === 'auth') {
@@ -160,6 +170,10 @@
           case 'delete_score_record':
             // payload: { type: 'ScoreClub'|'ScoreDept', memberId: string, term: string }
             result = deleteScoreRecord(ss, payload.type, payload.memberId, payload.term);
+            break;
+          case 'backup_all':
+            dailyBackup();
+            result = { message: 'Backup mail triggered successfully' };
             break;
           default:
             throw new Error('Action not found: ' + action);
