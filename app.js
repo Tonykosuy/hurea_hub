@@ -183,13 +183,19 @@ function normalizeDataKeys(data) {
         'disciplinepoints': 'disciplinePoints',
         'brandscore': 'brandScore',
         'bonusscore': 'bonusScore',
-        'photocount': 'photoCount'
+        'photocount': 'photoCount',
+        // Common name variations
+        'họ và tên': 'name',
+        'họ tên': 'name',
+        'ho va ten': 'name',
+        'ho ten': 'name',
+        'fullname': 'name'
     };
 
     const newData = {};
     for (let key in data) {
         const normalizedKey = mapping[key.toLowerCase()] || key;
-        newData[normalizedKey] = data[key];
+        newData[normalizedKey] = normalizeDataKeys(data[key]);
     }
     return newData;
 }
@@ -7589,62 +7595,160 @@ function processTeamBatchPaste() {
 }
 // ADMIN: EXPORT INCOMPLETE EVALUATIONS
 async function exportIncompleteEvaluationsPDF() {
-    if (!state.currentUser || state.currentUser.role !== 'ADMIN') return;
+    if (!state.currentUser || state.userRole !== 'admin') return;
 
-    const term = state.activeTerm || 'Unknown';
-    const projects = state.projects;
-    const evaluations = state.evaluations;
+    const term = state.currentTerm || 'Unknown';
+    const projects = state.projects.filter(p => p.term === term);
+    const evaluations = state.evaluations || [];
 
+    const checkPL = (r) => {
+        if (!r) return false;
+        const lower = r.toLowerCase().trim();
+        return lower === 'pl' || lower === 'project leader' || lower === 'trưởng dự án';
+    };
+    const checkLeader = (r) => {
+        if (!r) return false;
+        const lower = r.toLowerCase().trim();
+        return (lower.includes('leader') || lower === 'tl' || lower === 'nhóm trưởng') && !checkPL(r);
+    };
+
+    const getRequiredTargets = (raterId, participants) => {
+        const raterPt = participants.find(pt => String(pt.memberId).trim() === String(raterId).trim());
+        if (!raterPt) return [];
+        
+        const raterRole = raterPt.role || 'Thành viên';
+        const raterTeam = raterPt.teamName;
+
+        if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole)) return [];
+
+        let targets = [];
+        if (checkPL(raterRole)) {
+            targets = participants.filter(pt => {
+                if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
+                const isSelf = pt.memberId === raterId;
+                const isAnyLeader = checkLeader(pt.role);
+                return isSelf || isAnyLeader;
+            });
+        } else if (checkLeader(raterRole)) {
+            targets = participants.filter(pt => {
+                if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
+                const isSelf = pt.memberId === raterId;
+                const isOtherLeader = checkLeader(pt.role) && pt.memberId !== raterId;
+                const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
+                const isMyPL = checkPL(pt.role);
+                return isSelf || isOtherLeader || isTeammate || isMyPL;
+            });
+        } else {
+            targets = participants.filter(pt => {
+                if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
+                const isSelf = pt.memberId === raterId;
+                const isMyLeader = pt.teamName === raterTeam && checkLeader(pt.role);
+                const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && pt.memberId !== raterId;
+                const isPL = checkPL(pt.role);
+                return (isSelf || isMyLeader || isTeammate) && !isPL;
+            });
+        }
+
+        // Unique by memberId
+        const unique = [];
+        const seen = new Set();
+        targets.forEach(t => {
+            if (!seen.has(t.memberId)) {
+                seen.add(t.memberId);
+                unique.push(t);
+            }
+        });
+        return unique;
+    };
+
+    const getNameFromId = (id, fallback) => {
+        const m = state.members.find(x => String(x.id).trim() === String(id).trim());
+        return m ? m.name : (fallback || 'Không tên');
+    };
+
+    // 1. Gather all incomplete data across projects
+    const raterMap = new Map(); // raterId -> { raterName, dept, missedProjects: [ {prjName, missedNames} ] }
+
+    projects.forEach(p => {
+        const prjIdStr = String(p.id).trim();
+        const participants = ensureArray(p.participants);
+
+        participants.forEach(rater => {
+            const rId = String(rater.memberId).trim();
+            const role = rater.role || '';
+            if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role)) return;
+
+            const required = getRequiredTargets(rId, participants);
+            const missed = required.filter(target => {
+                const tId = String(target.memberId).trim();
+                return !evaluations.some(ev => 
+                    String(ev.prjId || ev.prjid).trim() === prjIdStr &&
+                    String(ev.raterId || ev.raterid).trim() === rId &&
+                    String(ev.targetId || ev.targetid).trim() === tId
+                );
+            });
+
+            if (missed.length > 0) {
+                if (!raterMap.has(rId)) {
+                    const member = state.members.find(m => String(m.id) === rId);
+                    raterMap.set(rId, {
+                        raterName: member ? member.name : (rater.name || 'Không tên'),
+                        dept: getMemberDept(member) || rater.teamName || 'Khác',
+                        missedProjects: []
+                    });
+                }
+                raterMap.get(rId).missedProjects.push({
+                    prjName: p.name,
+                    missedNames: missed.map(m => getNameFromId(m.memberId, m.name)).join(', ')
+                });
+            }
+        });
+    });
+
+    // 2. Group by Dept
+    const deptGroups = {};
+    raterMap.forEach(info => {
+        if (!deptGroups[info.dept]) deptGroups[info.dept] = [];
+        deptGroups[info.dept].push(info);
+    });
+
+    // 3. Render HTML
     let html = `
-        <div style="text-align:center; margin-bottom:30px; border-bottom:2px solid #333; padding-bottom:20px;">
-            <h1 style="margin:0; font-size:24px; color:#1a202c;">DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO</h1>
-            <p style="margin:5px 0; color:#4a5568; font-size:16px;">Nhiệm kỳ: ${term} | Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}</p>
+        <div style="text-align:center; margin-bottom:30px; border-bottom:2px solid #0ea5e9; padding-bottom:20px; font-family: 'Times New Roman', serif;">
+            <h1 style="margin:0; font-size:26px; color:#1e293b; text-transform: uppercase; font-weight: bold;">DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO</h1>
+            <p style="margin:8px 0; color:#64748b; font-size:16px; font-style: italic;">Nhiệm kỳ: ${term} | Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}</p>
         </div>
     `;
 
-    let totalMissed = 0;
-    let foundAny = false;
-
-    projects.forEach(p => {
-        const prjId = String(p.id).trim();
-        const participants = ensureArray(p.participants);
-
-        // Find unique raters for this project
-        const submittedRaters = new Set();
-        evaluations.forEach(ev => {
-            const evPrj = String(ev.prjId || ev.prjid).trim();
-            if (evPrj === prjId) {
-                submittedRaters.add(String(ev.raterId || ev.raterid).trim());
-            }
-        });
-
-        const missed = participants.filter(pt => !submittedRaters.has(String(pt.memberId).trim()));
-
-        if (missed.length > 0) {
-            foundAny = true;
-            totalMissed += missed.length;
+    const sortedDepts = Object.keys(deptGroups).sort();
+    if (sortedDepts.length === 0) {
+        html += `<div style="text-align:center; padding:60px; color:#64748b; font-size: 18px; font-family: 'Times New Roman', serif;">🎉 Chúc mừng! Tất cả mọi người đã hoàn thành nhiệm vụ đánh giá chéo.</div>`;
+    } else {
+        sortedDepts.forEach(dept => {
+            const members = deptGroups[dept];
             html += `
-                <div style="margin-bottom:25px; page-break-inside: avoid;">
-                    <h2 style="background:#edf2f7; padding:8px 12px; border-left:4px solid #3182ce; font-size:18px; margin-bottom:10px;">
-                        Dự án: ${p.name} <span style="font-weight:normal; font-size:14px;">(${missed.length} người chưa làm)</span>
+                <div style="margin-bottom:35px; page-break-inside: avoid; font-family: 'Times New Roman', serif;">
+                    <h2 style="background:#f1f5f9; padding:10px 15px; border-left:5px solid #0ea5e9; font-size:19px; margin-bottom:15px; color:#0f172a; font-weight: bold;">
+                        Ban: ${dept} <span style="font-weight:normal; font-size:14px; color:#64748b;">(${members.length} người chưa hoàn thành)</span>
                     </h2>
-                    <table style="width:100%; border-collapse: collapse; margin-bottom:10px;">
+                    <table style="width:100%; border-collapse: collapse; margin-bottom:10px; font-size: 13px;">
                         <thead>
-                            <tr style="background:#f7fafc;">
-                                <th style="border:1px solid #e2e8f0; padding:10px; text-align:left;">Họ và Tên</th>
-                                <th style="border:1px solid #e2e8f0; padding:10px; text-align:left;">Ban / Team</th>
-                                <th style="border:1px solid #e2e8f0; padding:10px; text-align:left;">Vai trò</th>
+                            <tr style="background:#f8fafc; color:#475569;">
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 8%;">STT</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:left; width: 25%;">Họ và Tên</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:left;">Những chương trình chưa làm đánh giá chéo</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            missed.forEach(m => {
+            members.forEach((m, idx) => {
+                const missedStr = m.missedProjects.map(mp => `<strong>${mp.prjName}</strong> (thiếu: ${mp.missedNames})`).join('<br>');
                 html += `
                     <tr>
-                        <td style="border:1px solid #e2e8f0; padding:8px 10px;">${m.name || 'Không tên'}</td>
-                        <td style="border:1px solid #e2e8f0; padding:8px 10px;">${m.teamName || m.dept || '-'}</td>
-                        <td style="border:1px solid #e2e8f0; padding:8px 10px;">${m.role || 'Thành viên'}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; text-align:center;">${idx + 1}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; font-weight: 600;">${m.raterName}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; color:#ef4444; font-style: italic; line-height:1.5;">${missedStr}</td>
                     </tr>
                 `;
             });
@@ -7654,14 +7758,10 @@ async function exportIncompleteEvaluationsPDF() {
                     </table>
                 </div>
             `;
-        }
-    });
+        });
 
-    if (!foundAny) {
-        html += `<div style="text-align:center; padding:40px; color:#718096;">🎉 Tất cả mọi người đã hoàn thành nhiệm vụ!</div>`;
-    } else {
-        html += `<div style="margin-top:30px; border-top:1px solid #e2e8f0; padding-top:10px; text-align:right; font-weight:bold;">
-            Tổng cộng: ${totalMissed} lượt chưa hoàn thành
+        html += `<div style="margin-top:40px; border-top:2px solid #e2e8f0; padding-top:15px; text-align:right; font-weight:bold; font-family: 'Times New Roman', serif; font-size: 16px;">
+            Tổng cộng: ${raterMap.size} thành viên chưa hoàn tất đủ các lượt đánh giá.
         </div>`;
     }
 
@@ -7669,18 +7769,21 @@ async function exportIncompleteEvaluationsPDF() {
     reportContainer.innerHTML = html;
 
     const opt = {
-        margin: 10,
-        filename: `DS_Chua_Danh_Gia_Cheo_${term}.pdf`,
+        margin: [15, 15],
+        filename: `DS_Chua_Hoan_Thanh_Danh_Gia_Cheo_${term}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     try {
+        showToast('Đang tạo báo cáo PDF...', 'info');
         await html2pdf().set(opt).from(reportContainer).save();
+        showToast('Xuất báo cáo thành công!', 'success');
     } catch (err) {
         console.error('PDF Export Error:', err);
-        alert('Có lỗi xảy ra khi xuất PDF. Vui lòng thử lại.');
+        showToast('Lỗi khi xuất PDF. Vui lòng thử lại.', 'error');
     }
 }
 
