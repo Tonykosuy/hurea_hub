@@ -7727,7 +7727,7 @@ async function exportIncompleteEvaluationsPDF() {
         sortedDepts.forEach(dept => {
             const members = deptGroups[dept];
             html += `
-                <div style="margin-bottom:35px; page-break-inside: avoid; font-family: 'Times New Roman', serif;">
+                <div style="margin-bottom:35px; font-family: 'Times New Roman', serif;">
                     <h2 style="background:#f1f5f9; padding:10px 15px; border-left:5px solid #0ea5e9; font-size:19px; margin-bottom:15px; color:#0f172a; font-weight: bold;">
                         Ban: ${dept} <span style="font-weight:normal; font-size:14px; color:#64748b;">(${members.length} người chưa hoàn thành)</span>
                     </h2>
@@ -7746,7 +7746,7 @@ async function exportIncompleteEvaluationsPDF() {
             members.forEach((m, idx) => {
                 const projectNames = m.missedProjects.map(mp => `<strong>${mp.prjName}</strong>`).join(', ');
                 html += `
-                    <tr>
+                    <tr style="page-break-inside: avoid;">
                         <td style="border:1px solid #cbd5e1; padding:10px; text-align:center;">${idx + 1}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; font-weight: 600;">${m.raterName}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; text-align:center; font-weight: 700; color: #ef4444;">${m.missedProjects.length}</td>
@@ -7776,7 +7776,7 @@ async function exportIncompleteEvaluationsPDF() {
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { mode: ['css', 'legacy'] }
     };
 
     try {
