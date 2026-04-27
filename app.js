@@ -7734,8 +7734,9 @@ async function exportIncompleteEvaluationsPDF() {
                     <table style="width:100%; border-collapse: collapse; margin-bottom:10px; font-size: 13px;">
                         <thead>
                             <tr style="background:#f8fafc; color:#475569;">
-                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 8%;">STT</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 6%;">STT</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left; width: 25%;">Họ và Tên</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 15%;">Số lượng nợ</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left;">Những chương trình chưa làm đánh giá chéo</th>
                             </tr>
                         </thead>
@@ -7743,12 +7744,13 @@ async function exportIncompleteEvaluationsPDF() {
             `;
 
             members.forEach((m, idx) => {
-                const missedStr = m.missedProjects.map(mp => `<strong>${mp.prjName}</strong> (thiếu: ${mp.missedNames})`).join('<br>');
+                const projectNames = m.missedProjects.map(mp => `<strong>${mp.prjName}</strong>`).join(', ');
                 html += `
                     <tr>
                         <td style="border:1px solid #cbd5e1; padding:10px; text-align:center;">${idx + 1}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; font-weight: 600;">${m.raterName}</td>
-                        <td style="border:1px solid #cbd5e1; padding:10px; color:#ef4444; font-style: italic; line-height:1.5;">${missedStr}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; text-align:center; font-weight: 700; color: #ef4444;">${m.missedProjects.length}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; color:#ef4444; font-style: italic;">${projectNames}</td>
                     </tr>
                 `;
             });
