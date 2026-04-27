@@ -7619,6 +7619,12 @@ async function exportIncompleteEvaluationsPDF() {
         const raterRole = raterPt.role || 'Thành viên';
         const raterTeam = raterPt.teamName;
 
+        // BCN and Leaders/PLs don't need to do any cross-evaluations
+        const member = state.members.find(m => String(m.id).trim() === String(raterId).trim());
+        const dept = getMemberDept(member) || raterPt.dept || '';
+        if (dept.toUpperCase() === 'BCN') return [];
+        if (checkPL(raterRole) || checkLeader(raterRole)) return [];
+
         if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole)) return [];
 
         let targets = [];
