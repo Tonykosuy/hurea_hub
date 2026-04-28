@@ -2276,6 +2276,115 @@ function initDashboardCharts() {
             }
         }
     });
+
+    // --- 6. Active vs Total Personnel ---
+    const activeData = depts.map(d => {
+        const deptMembers = state.members.filter(m => getMemberDept(m) === d);
+        const active = deptMembers.filter(m => {
+            const s = (m.status || m.Trạng_thái || m.Tinh_trang || '').toLowerCase();
+            return !s || s.includes('đang hoạt động') || s.includes('active') || s.includes('hoạt động');
+        }).length;
+        return { total: deptMembers.length, active: active };
+    });
+
+    if (dashboardCharts.activePersonnel) dashboardCharts.activePersonnel.destroy();
+    dashboardCharts.activePersonnel = new Chart(document.getElementById('chart-active-personnel'), {
+        type: 'bar',
+        data: {
+            labels: depts,
+            datasets: [
+                {
+                    label: 'Đang hoạt động',
+                    data: activeData.map(d => d.active),
+                    backgroundColor: accentGreen,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Tổng số',
+                    data: activeData.map(d => d.total),
+                    backgroundColor: primary + '33',
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            ...ctxOptions,
+            scales: {
+                y: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Times New Roman' } } },
+                x: { ticks: { color: textColor, font: { family: 'Times New Roman' } } }
+            }
+        }
+    });
+
+    // --- 7. Total Points Contribution ---
+    const deptPoints = depts.map(d => {
+        return termEvals.reduce((sum, ev) => {
+            const m = state.members.find(member => member.id === ev.targetId);
+            if (m && getMemberDept(m) === d) {
+                return sum + parseFloat(ev.score || ev.avgScore || 0);
+            }
+            return sum;
+        }, 0);
+    });
+
+    if (dashboardCharts.deptPoints) dashboardCharts.deptPoints.destroy();
+    dashboardCharts.deptPoints = new Chart(document.getElementById('chart-dept-total-points'), {
+        type: 'doughnut',
+        data: {
+            labels: depts,
+            datasets: [{
+                data: deptPoints,
+                backgroundColor: deptColors,
+                borderWidth: 2,
+                borderColor: 'rgba(255,255,255,0.1)'
+            }]
+        },
+        options: {
+            ...ctxOptions,
+            cutout: '60%',
+            plugins: {
+                ...ctxOptions.plugins,
+                legend: { position: 'right', labels: { color: textColor, font: { family: 'Times New Roman' } } }
+            }
+        }
+    });
+
+    // --- 8. Avg Project Participation ---
+    const avgParticipation = depts.map(d => {
+        const deptMembers = state.members.filter(m => getMemberDept(m) === d);
+        if (deptMembers.length === 0) return 0;
+        const totalPart = deptMembers.reduce((sum, m) => {
+            const mPrjs = state.projects.filter(p =>
+                p.term === state.currentTerm &&
+                ensureArray(p.participants).some(pt => String(pt.memberId || pt.memberid) === String(m.id))
+            );
+            return sum + mPrjs.length;
+        }, 0);
+        return (totalPart / deptMembers.length).toFixed(1);
+    });
+
+    if (dashboardCharts.deptParticipation) dashboardCharts.deptParticipation.destroy();
+    dashboardCharts.deptParticipation = new Chart(document.getElementById('chart-dept-project-participation'), {
+        type: 'bar',
+        data: {
+            labels: depts,
+            datasets: [{
+                label: 'Dự án / TV',
+                data: avgParticipation,
+                backgroundColor: accentPurple,
+                borderRadius: 8,
+                barThickness: 20
+            }]
+        },
+        options: {
+            ...ctxOptions,
+            indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Times New Roman' } } },
+                y: { ticks: { color: textColor, font: { family: 'Times New Roman' } } }
+            }
+        }
+    });
 }
 
 function renderAnnouncements() {
