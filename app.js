@@ -2111,15 +2111,17 @@ function initDashboardCharts() {
     depts.forEach(d => evalDataByDept[d] = { scores: [0, 0, 0, 0, 0], count: 0, totalAvg: 0 });
 
     termEvals.forEach(ev => {
-        const m = state.members.find(member => member.id === ev.targetId);
-        if (m && evalDataByDept[m.dept]) {
-            evalDataByDept[m.dept].count++;
+        const tId = ev.targetId || ev.targetid || ev.target_id;
+        const m = state.members.find(member => member.id === tId);
+        const mDept = getMemberDept(m);
+        if (m && evalDataByDept[mDept]) {
+            evalDataByDept[mDept].count++;
             const avg = ev.score || ev.avgScore || ev.totalScore || 0;
-            evalDataByDept[m.dept].totalAvg += parseFloat(avg);
-            // Map c1..c5 to individual radar points (Expertise, Responsibility, Communication, Creativity, Attitude)
+            evalDataByDept[mDept].totalAvg += parseFloat(avg);
+            // Map c1..c5 to individual radar points
             for (let i = 1; i <= 5; i++) {
-                const val = parseFloat(ev[`c${i}`] || 0);
-                evalDataByDept[m.dept].scores[i - 1] += val;
+                const val = parseFloat(ev[`c${i}`] || ev[`C${i}`] || 0);
+                evalDataByDept[mDept].scores[i - 1] += val;
             }
         }
     });
@@ -2189,8 +2191,8 @@ function initDashboardCharts() {
     // --- 3. Score Distribution ---
     const scoreBuckets = [0, 0, 0, 0, 0]; // <5, 5-7, 7-8, 8-9, 9-10
     state.members.forEach(m => {
-        // Find most recent score for this member in current term
-        const mEvals = termEvals.filter(e => String(e.targetId) === String(m.id));
+        const mId = m.id || m.ID || m.mId;
+        const mEvals = termEvals.filter(e => String(e.targetId || e.targetid || e.target_id) === String(mId));
         if (mEvals.length > 0) {
             const lastEval = mEvals[mEvals.length - 1];
             const avg = lastEval.score || lastEval.avgScore || lastEval.totalScore || 0;
@@ -2225,7 +2227,7 @@ function initDashboardCharts() {
     });
 
     // --- 4. Member Mix (Same as before but refreshed) ---
-    const memberCounts = depts.map(d => state.members.filter(m => m.dept === d).length);
+    const memberCounts = depts.map(d => state.members.filter(m => getMemberDept(m) === d).length);
     if (dashboardCharts.memberDept) dashboardCharts.memberDept.destroy();
     dashboardCharts.memberDept = new Chart(document.getElementById('chart-member-dept'), {
         type: 'doughnut',
@@ -2281,7 +2283,7 @@ function initDashboardCharts() {
     const activeData = depts.map(d => {
         const deptMembers = state.members.filter(m => getMemberDept(m) === d);
         const active = deptMembers.filter(m => {
-            const s = (m.status || m.Trạng_thái || m.Tinh_trang || '').toLowerCase();
+            const s = (m.status || m['trạng_thái'] || m['tình_trạng'] || m.Trạng_thái || m.Tinh_trang || '').toLowerCase();
             return !s || s.includes('đang hoạt động') || s.includes('active') || s.includes('hoạt động');
         }).length;
         return { total: deptMembers.length, active: active };
@@ -2319,7 +2321,8 @@ function initDashboardCharts() {
     // --- 7. Total Points Contribution ---
     const deptPoints = depts.map(d => {
         return termEvals.reduce((sum, ev) => {
-            const m = state.members.find(member => member.id === ev.targetId);
+            const tId = ev.targetId || ev.targetid || ev.target_id;
+            const m = state.members.find(member => member.id === tId);
             if (m && getMemberDept(m) === d) {
                 return sum + parseFloat(ev.score || ev.avgScore || 0);
             }
@@ -6881,7 +6884,8 @@ function saveBugUpdate(bugId, newStatus = null) {
 
 function getMemberDept(m) {
     if (!m) return '';
-    return m.dept || m.Ban || m.Department || m['Bộ phận'] || '';
+    const d = m.dept || m.ban || m.department || m['bộ_phận'] || m.Ban || m.Department || m['Bộ phận'] || '';
+    return String(d).replace(/^Ban\s+/i, '').trim();
 }
 
 function setLoginDeptFilter(btn, dept) {
