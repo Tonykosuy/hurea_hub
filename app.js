@@ -2319,15 +2319,32 @@ function initDashboardCharts() {
     });
 
     // --- 7. Top 5 High Scorers (Leaderboard List) ---
-    const topPerformers = state.clubScores
-        .filter(s => String(s.term) === String(state.currentTerm))
+    let scoreRecords = state.clubScores.filter(s => String(s.term) === String(state.currentTerm));
+    
+    // Fallback: If official scores aren't saved yet, calculate from evaluations
+    if (scoreRecords.length === 0) {
+        const memberAgg = {};
+        state.evaluations.filter(e => String(e.term) === String(state.currentTerm)).forEach(ev => {
+            const tId = ev.targetId || ev.targetid || ev.target_id;
+            if (!tId) return;
+            if (!memberAgg[tId]) memberAgg[tId] = { sum: 0, count: 0 };
+            const s = parseFloat(ev.score || ev.avgScore || ev.totalScore || 0);
+            if (s > 0) { memberAgg[tId].sum += s; memberAgg[tId].count++; }
+        });
+        scoreRecords = Object.keys(memberAgg).map(mId => ({
+            memberid: mId,
+            score: memberAgg[mId].count > 0 ? (memberAgg[mId].sum / memberAgg[mId].count).toFixed(2) : 0
+        }));
+    }
+
+    const topPerformers = scoreRecords
         .map(s => {
             const mId = s.memberid || s.memberId || s.ID || s.id;
             const m = state.members.find(member => String(member.id) === String(mId));
             return {
                 name: m ? m.name : 'Unknown',
                 dept: getMemberDept(m),
-                score: parseFloat(s.score || s.finalScore || s.totalScore || 0)
+                score: parseFloat(s.score || 0)
             };
         })
         .sort((a, b) => b.score - a.score)
@@ -2335,20 +2352,24 @@ function initDashboardCharts() {
 
     const lbList = document.getElementById('top-leaderboard-list');
     if (lbList) {
-        lbList.innerHTML = `
-            <div class="leaderboard-list">
-                ${topPerformers.map((p, i) => `
-                    <div class="leaderboard-item" style="animation: slideInRight 0.4s ease forwards ${i * 0.1}s; opacity:0;">
-                        <div class="rank-badge rank-${i < 3 ? (i + 1) : 'other'}">${i + 1}</div>
-                        <div class="lb-info">
-                            <span class="lb-name">${p.name}</span>
-                            <span class="lb-dept">Ban ${p.dept}</span>
+        if (topPerformers.length === 0) {
+            lbList.innerHTML = '<div class="empty-state" style="padding:40px;">Chưa có dữ liệu điểm số nhiệm kỳ này.</div>';
+        } else {
+            lbList.innerHTML = `
+                <div class="leaderboard-list">
+                    ${topPerformers.map((p, i) => `
+                        <div class="leaderboard-item" style="animation: slideInRight 0.4s ease forwards ${i * 0.1}s; opacity:0;">
+                            <div class="rank-badge rank-${i < 3 ? (i + 1) : 'other'}">${i + 1}</div>
+                            <div class="lb-info">
+                                <span class="lb-name">${p.name}</span>
+                                <span class="lb-dept">Ban ${p.dept}</span>
+                            </div>
+                            <div class="lb-score">${p.score.toFixed(1)}</div>
                         </div>
-                        <div class="lb-score">${p.score.toFixed(1)}</div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
+                    `).join('')}
+                </div>
+            `;
+        }
     }
 
     // --- 8. Evaluation Activity Trend (Last 7 Days) ---
