@@ -2318,73 +2318,73 @@ function initDashboardCharts() {
         }
     });
 
-    // --- 7. Total Points Contribution ---
-    const deptPoints = depts.map(d => {
-        return termEvals.reduce((sum, ev) => {
-            const tId = ev.targetId || ev.targetid || ev.target_id;
-            const m = state.members.find(member => member.id === tId);
-            if (m && getMemberDept(m) === d) {
-                return sum + parseFloat(ev.score || ev.avgScore || 0);
-            }
-            return sum;
-        }, 0);
-    });
+    // --- 7. Top 10 High Scorers (Individual Leaderboard) ---
+    const topPerformers = state.clubScores
+        .filter(s => String(s.term) === String(state.currentTerm))
+        .map(s => {
+            const mId = s.memberid || s.memberId || s.ID || s.id;
+            const m = state.members.find(member => String(member.id) === String(mId));
+            return {
+                name: m ? m.name : 'Unknown',
+                score: parseFloat(s.score || s.finalScore || s.totalScore || 0)
+            };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
 
     if (dashboardCharts.deptPoints) dashboardCharts.deptPoints.destroy();
     dashboardCharts.deptPoints = new Chart(document.getElementById('chart-dept-total-points'), {
-        type: 'doughnut',
-        data: {
-            labels: depts,
-            datasets: [{
-                data: deptPoints,
-                backgroundColor: deptColors,
-                borderWidth: 2,
-                borderColor: 'rgba(255,255,255,0.1)'
-            }]
-        },
-        options: {
-            ...ctxOptions,
-            cutout: '60%',
-            plugins: {
-                ...ctxOptions.plugins,
-                legend: { position: 'right', labels: { color: textColor, font: { family: 'Times New Roman' } } }
-            }
-        }
-    });
-
-    // --- 8. Avg Project Participation ---
-    const avgParticipation = depts.map(d => {
-        const deptMembers = state.members.filter(m => getMemberDept(m) === d);
-        if (deptMembers.length === 0) return 0;
-        const totalPart = deptMembers.reduce((sum, m) => {
-            const mPrjs = state.projects.filter(p =>
-                p.term === state.currentTerm &&
-                ensureArray(p.participants).some(pt => String(pt.memberId || pt.memberid) === String(m.id))
-            );
-            return sum + mPrjs.length;
-        }, 0);
-        return (totalPart / deptMembers.length).toFixed(1);
-    });
-
-    if (dashboardCharts.deptParticipation) dashboardCharts.deptParticipation.destroy();
-    dashboardCharts.deptParticipation = new Chart(document.getElementById('chart-dept-project-participation'), {
         type: 'bar',
         data: {
-            labels: depts,
+            labels: topPerformers.map(p => p.name),
             datasets: [{
-                label: 'Dự án / TV',
-                data: avgParticipation,
-                backgroundColor: accentPurple,
-                borderRadius: 8,
-                barThickness: 20
+                label: 'Điểm tổng kết',
+                data: topPerformers.map(p => p.score),
+                backgroundColor: primary,
+                borderRadius: 4
             }]
         },
         options: {
             ...ctxOptions,
             indexAxis: 'y',
             scales: {
-                x: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Times New Roman' } } },
-                y: { ticks: { color: textColor, font: { family: 'Times New Roman' } } }
+                x: { beginAtZero: true, max: 10, ticks: { color: textColor, font: { family: 'Times New Roman' } } },
+                y: { ticks: { color: textColor, font: { family: 'Times New Roman', size: 10 } } }
+            }
+        }
+    });
+
+    // --- 8. Project Type Distribution ---
+    const prjTypes = {};
+    state.projects.filter(p => p.term === state.currentTerm).forEach(p => {
+        let type = p.type || 'Khác';
+        // Normalize type names
+        if (type === 'internal') type = 'Nội bộ';
+        else if (type === 'event') type = 'Sự kiện';
+        else if (type === 'external') type = 'Đối ngoại';
+        else if (type === 'social') type = 'Xã hội';
+        
+        prjTypes[type] = (prjTypes[type] || 0) + 1;
+    });
+
+    if (dashboardCharts.deptParticipation) dashboardCharts.deptParticipation.destroy();
+    dashboardCharts.deptParticipation = new Chart(document.getElementById('chart-dept-project-participation'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(prjTypes),
+            datasets: [{
+                data: Object.values(prjTypes),
+                backgroundColor: [primary, accentGreen, accentYellow, accentRed, accentPurple],
+                borderWidth: 2,
+                borderColor: 'rgba(255,255,255,0.1)'
+            }]
+        },
+        options: {
+            ...ctxOptions,
+            cutout: '65%',
+            plugins: {
+                ...ctxOptions.plugins,
+                legend: { position: 'right', labels: { color: textColor, font: { family: 'Times New Roman' } } }
             }
         }
     });
