@@ -17,6 +17,66 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
+    <style>
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 5px;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(var(--primary-rgb), 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(var(--primary-rgb), 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .leaderboard-item:hover {
+            transform: translateX(8px);
+            background: rgba(var(--primary-rgb), 0.08);
+            border-color: rgba(var(--primary-rgb), 0.3);
+        }
+        .rank-badge {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 14px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .rank-1 { background: linear-gradient(135deg, #ffd700, #ffae00); color: #fff; }
+        .rank-2 { background: linear-gradient(135deg, #c0c0c0, #909090); color: #fff; }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32, #a0522d); color: #fff; }
+        .rank-other { background: #f1f5f9; color: #64748b; }
+        
+        .lb-info { flex-grow: 1; }
+        .lb-name {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-main);
+            margin-bottom: 2px;
+        }
+        .lb-dept {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .lb-score {
+            font-weight: 800;
+            font-size: 16px;
+            color: var(--primary);
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
 </head>
 
 <body>
@@ -337,17 +397,17 @@
                                 </div>
                             </div>
 
-                            <!-- Chart 7: Top 10 High Scorers -->
+                            <!-- Chart 7: Top 5 High Scorers List -->
                             <div class="chart-card">
-                                <h4><i class="fa-solid fa-trophy"></i> Bảng vàng: Top 10 Cá nhân Xuất sắc</h4>
-                                <div class="chart-wrapper">
-                                    <canvas id="chart-dept-total-points"></canvas>
+                                <h4><i class="fa-solid fa-trophy"></i> Bảng vàng: Top 5 Cá nhân Xuất sắc</h4>
+                                <div class="chart-wrapper" id="top-leaderboard-list" style="height: auto; min-height: 250px; overflow-y: auto;">
+                                    <!-- List will be injected here -->
                                 </div>
                             </div>
 
-                            <!-- Chart 8: Project Type Distribution -->
+                            <!-- Chart 8: Evaluation Activity Trend -->
                             <div class="chart-card">
-                                <h4><i class="fa-solid fa-layer-group"></i> Cơ cấu Dự án theo Loại hình</h4>
+                                <h4><i class="fa-solid fa-chart-line"></i> Xu hướng Hoạt động (7 ngày qua)</h4>
                                 <div class="chart-wrapper">
                                     <canvas id="chart-dept-project-participation"></canvas>
                                 </div>
