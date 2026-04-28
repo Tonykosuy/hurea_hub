@@ -2063,14 +2063,24 @@ function updateDashboardStats() {
     document.getElementById('stat-total-members').innerText = state.members.length;
     document.getElementById('stat-total-projects').innerText = state.projects.filter(p => p.term === state.currentTerm).length;
     document.getElementById('stat-evaluated').innerText = state.evaluations.filter(e => e.term === state.currentTerm).length;
+    
+    // Update Password Stats for Admin
+    const authCount = state.userPasswords.length;
+    const authDashVal = document.getElementById('stat-total-auth-members-dash');
+    if (authDashVal) authDashVal.innerText = authCount;
+    
+    const pwStatCard = document.getElementById('stat-card-passwords');
+    
     renderAnnouncements();
 
     const chartRow = document.getElementById('dashboard-charts-row');
     if (state.userRole === 'admin') {
         if (chartRow) chartRow.style.display = '';
+        if (pwStatCard) pwStatCard.style.display = 'flex';
         initDashboardCharts();
     } else {
         if (chartRow) chartRow.style.display = 'none';
+        if (pwStatCard) pwStatCard.style.display = 'none';
     }
 }
 
@@ -7198,7 +7208,7 @@ function applyPermissions(role) {
 
         // Password management is for admin only
         const pwNav = document.getElementById('pw-mgmt-nav');
-        if (pwNav) pwNav.classList.add('nav-hidden');
+        if (pwNav) pwNav.classList.remove('nav-hidden');
     }
 }
 
