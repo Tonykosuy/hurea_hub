@@ -1549,6 +1549,77 @@ input:focus, select:focus, textarea:focus {
     border-left: 3px solid var(--primary);
 }
 
+/* Feedback Folder & Navigation Styles */
+.feedback-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.fb-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.fb-breadcrumb span {
+    color: var(--text-muted);
+}
+.fb-breadcrumb .active-crumb {
+    color: var(--primary);
+}
+
+.fb-member-item {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    padding: 16px 20px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+.fb-member-item:hover {
+    transform: translateX(4px);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+}
+.fb-member-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.fb-member-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-main);
+}
+.fb-member-dept {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.btn-premium-xs {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: var(--lux-gradient);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.btn-premium-xs:hover {
+    transform: scale(1.05);
+    box-shadow: var(--lux-glow);
+}
+
 /* ==========================================
    MINIMALIST B&W EVALUATION MODAL
    ========================================== */

@@ -47,7 +47,8 @@ const state = {
     config: {},
     initialLoading: true,
     tempPickerData: { memberId: null, teamId: null },
-    selectedPickerIds: []
+    selectedPickerIds: [],
+    feedbackPrjId: null, // Track current project folder in Suggestion Box
 };
 
 // --- DATA HELPERS ---
@@ -409,7 +410,7 @@ function setupNavigation() {
             if (!targetId) return; // "More" button uses direct onclick
 
             e.preventDefault();
-            
+
             // Sync active state across sidebar and bottom bar
             allNavItems.forEach(n => {
                 if (n.getAttribute('data-target') === targetId) {
@@ -2063,14 +2064,14 @@ function updateDashboardStats() {
     document.getElementById('stat-total-members').innerText = state.members.length;
     document.getElementById('stat-total-projects').innerText = state.projects.filter(p => p.term === state.currentTerm).length;
     document.getElementById('stat-evaluated').innerText = state.evaluations.filter(e => e.term === state.currentTerm).length;
-    
+
     // Update Password Stats for Admin
     const authCount = state.userPasswords.length;
     const authDashVal = document.getElementById('stat-total-auth-members-dash');
     if (authDashVal) authDashVal.innerText = authCount;
-    
+
     const pwStatCard = document.getElementById('stat-card-passwords');
-    
+
     renderAnnouncements();
 
     const chartRow = document.getElementById('dashboard-charts-row');
@@ -2279,30 +2280,35 @@ function initDashboardCharts() {
         }
     });
 
-    // --- 6. Active vs Total Personnel ---
-    const activeData = depts.map(d => {
+    // --- 6. Active vs Total Personnel (4 Columns: L&D, R&R, ER, EB) ---
+    const coreDepts = ['L&D', 'R&R', 'ER', 'EB'];
+    const activeIds = new Set();
+    state.projects.filter(p => p.term === state.currentTerm).forEach(p => {
+        ensureArray(p.participants).forEach(part => {
+            activeIds.add(part.memberId);
+        });
+    });
+
+    const activeData = coreDepts.map(d => {
         const deptMembers = state.members.filter(m => getMemberDept(m) === d);
-        const active = deptMembers.filter(m => {
-            const s = (m.status || m['trạng_thái'] || m['tình_trạng'] || m.Trạng_thái || m.Tinh_trang || '').toLowerCase();
-            return !s || s.includes('đang hoạt động') || s.includes('active') || s.includes('hoạt động');
-        }).length;
-        return { total: deptMembers.length, active: active };
+        const activeCount = deptMembers.filter(m => activeIds.has(m.id)).length;
+        return { total: deptMembers.length, active: activeCount };
     });
 
     if (dashboardCharts.activePersonnel) dashboardCharts.activePersonnel.destroy();
     dashboardCharts.activePersonnel = new Chart(document.getElementById('chart-active-personnel'), {
         type: 'bar',
         data: {
-            labels: depts,
+            labels: coreDepts,
             datasets: [
                 {
-                    label: 'Đang hoạt động',
+                    label: 'Nhân sự tham gia dự án',
                     data: activeData.map(d => d.active),
                     backgroundColor: accentGreen,
                     borderRadius: 6
                 },
                 {
-                    label: 'Tổng số',
+                    label: 'Tổng số nhân sự Ban',
                     data: activeData.map(d => d.total),
                     backgroundColor: primary + '33',
                     borderRadius: 6
@@ -2312,16 +2318,16 @@ function initDashboardCharts() {
         options: {
             ...ctxOptions,
             scales: {
-                y: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Times New Roman' } } },
-                x: { ticks: { color: textColor, font: { family: 'Times New Roman' } } }
+                y: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Montserrat', size: 10 } } },
+                x: { ticks: { color: textColor, font: { family: 'Montserrat', size: 11, weight: 'bold' } } }
             }
         }
     });
 
     // --- 7. Top 5 High Scorers (Leaderboard List) ---
     let scoreRecords = state.clubScores.filter(s => String(s.term) === String(state.currentTerm));
-    
-    // Fallback: If official scores aren't saved yet, calculate from evaluations
+
+    // Fallback: Calculate from evaluations if no official scores yet
     if (scoreRecords.length === 0) {
         const memberAgg = {};
         state.evaluations.filter(e => String(e.term) === String(state.currentTerm)).forEach(ev => {
@@ -2357,16 +2363,21 @@ function initDashboardCharts() {
         } else {
             lbList.innerHTML = `
                 <div class="leaderboard-list">
-                    ${topPerformers.map((p, i) => `
+                    ${topPerformers.map((p, i) => {
+                        const rankClass = i < 3 ? `rank-${i + 1}` : 'rank-other';
+                        const medalIcon = i === 0 ? '<i class="fa-solid fa-medal" style="color:#ffd700"></i>' :
+                                        i === 1 ? '<i class="fa-solid fa-medal" style="color:#c0c0c0"></i>' :
+                                        i === 2 ? '<i class="fa-solid fa-medal" style="color:#cd7f32"></i>' : (i + 1);
+                        return `
                         <div class="leaderboard-item" style="animation: slideInRight 0.4s ease forwards ${i * 0.1}s; opacity:0;">
-                            <div class="rank-badge rank-${i < 3 ? (i + 1) : 'other'}">${i + 1}</div>
+                            <div class="rank-badge ${rankClass}">${medalIcon}</div>
                             <div class="lb-info">
                                 <span class="lb-name">${p.name}</span>
                                 <span class="lb-dept">Ban ${p.dept}</span>
                             </div>
                             <div class="lb-score">${p.score.toFixed(1)}</div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 </div>
             `;
         }
@@ -2407,12 +2418,12 @@ function initDashboardCharts() {
         options: {
             ...ctxOptions,
             scales: {
-                y: { 
-                    beginAtZero: true, 
-                    ticks: { color: textColor, font: { family: 'Times New Roman' }, stepSize: 5 } 
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor, font: { family: 'Times New Roman' }, stepSize: 5 }
                 },
-                x: { 
-                    ticks: { color: textColor, font: { family: 'Times New Roman' } } 
+                x: {
+                    ticks: { color: textColor, font: { family: 'Times New Roman' } }
                 }
             }
         }
@@ -4955,37 +4966,131 @@ function renderFeedbacks() {
     }
 
     const filterPrj = document.getElementById('filter-feedback-prj').value;
+    const filterDept = document.getElementById('filter-feedback-dept').value;
     grid.innerHTML = '';
-    let fbEvals = state.evaluations.filter(e => e.term === state.currentTerm && e.feedback && String(e.feedback).trim() !== '');
-    if (filterPrj !== 'ALL') fbEvals = fbEvals.filter(e => e.prjId === filterPrj);
-    if (fbEvals.length === 0) {
-        empty.innerHTML = 'Chưa có phản hồi nào';
+
+    // Aggregate ALL qualitative feedback from evaluations
+    const allFeedback = [];
+    const termEvals = state.evaluations.filter(e => e.term === state.currentTerm);
+
+    termEvals.forEach(ev => {
+        const prj = state.projects.find(p => p.id === ev.prjId);
+        const prjName = prj ? prj.name : 'Dự án ẩn';
+        const rater = state.members.find(m => m.id === ev.raterId);
+        const raterName = rater ? rater.name : 'Ẩn danh';
+        const raterDept = rater ? getMemberDept(rater) : 'N/A';
+
+        // 1. Anonymous feedback (the specific "feedback" field)
+        if (ev.feedback && String(ev.feedback).trim() !== '') {
+            allFeedback.push({
+                id: ev.id + '_anon',
+                type: 'Góp ý Ẩn danh',
+                content: ev.feedback,
+                prjName,
+                sender: 'Ẩn danh',
+                dept: raterDept,
+                prjId: ev.prjId,
+                icon: 'fa-user-secret',
+                style: 'background:rgba(244, 63, 94, 0.05); border-left:4px solid #f43f5e;'
+            });
+        }
+
+        // 2. Team Messages
+        if (ev.teamMessage && String(ev.teamMessage).trim() !== '') {
+            allFeedback.push({
+                id: ev.id + '_team',
+                type: 'Nhắn nhủ Team',
+                content: ev.teamMessage,
+                prjName,
+                sender: raterName,
+                dept: raterDept,
+                prjId: ev.prjId,
+                icon: 'fa-users',
+                style: 'border-left:4px solid var(--primary);'
+            });
+        }
+
+        // 3. General Comments
+        if (ev.generalComment && String(ev.generalComment).trim() !== '') {
+            allFeedback.push({
+                id: ev.id + '_gen',
+                type: 'Nhận xét chung',
+                content: ev.generalComment,
+                prjName,
+                sender: raterName,
+                dept: raterDept,
+                prjId: ev.prjId,
+                icon: 'fa-comment-dots',
+                style: 'border-left:4px solid #10b981;'
+            });
+        }
+
+        // 4. Proposals
+        if (ev.proposals && String(ev.proposals).trim() !== '') {
+            allFeedback.push({
+                id: ev.id + '_prop',
+                type: 'Đề xuất / Mong muốn',
+                content: ev.proposals,
+                prjName,
+                sender: raterName,
+                dept: raterDept,
+                prjId: ev.prjId,
+                icon: 'fa-lightbulb',
+                style: 'border-left:4px solid #f59e0b;'
+            });
+        }
+
+        // 5. Feelings
+        if (ev.feelings && String(ev.feelings).trim() !== '') {
+            allFeedback.push({
+                id: ev.id + '_feel',
+                type: 'Cảm nhận cá nhân',
+                content: ev.feelings,
+                prjName,
+                sender: raterName,
+                dept: raterDept,
+                prjId: ev.prjId,
+                icon: 'fa-heart',
+                style: 'border-left:4px solid #8b5cf6;'
+            });
+        }
+    });
+
+    // Filtering logic
+    let filtered = allFeedback.filter(fb => {
+        const matchesPrj = filterPrj === 'ALL' || fb.prjId === filterPrj;
+        const matchesDept = filterDept === 'ALL' || fb.dept === filterDept;
+        return matchesPrj && matchesDept;
+    });
+
+    if (filtered.length === 0) {
+        empty.innerHTML = '<i class="fa-solid fa-face-meh" style="font-size:2.5rem; margin-bottom:12px; opacity:0.3;"></i><p>Không có phản hồi nào phù hợp với bộ lọc.</p>';
         empty.style.display = 'flex';
         grid.style.display = 'none';
         return;
     }
+
     empty.style.display = 'none';
     grid.style.display = 'grid';
-    fbEvals.forEach(fb => {
-        const prj = state.projects.find(p => p.id === fb.prjId);
-        const prjName = prj ? prj.name : 'Dự án ẩn';
-        const isNamed = fb.raterId && fb.targetId === fb.raterId && (fb.workDone || fb.teamMessage || fb.feelings);
-        const sender = isNamed ? (state.members.find(m => m.id === fb.raterId)?.name || 'Thành viên') : 'Ẩn danh';
 
+    filtered.reverse().forEach(fb => {
         grid.innerHTML += `
-            <div class="feedback-card">
+            <div class="feedback-card" style="${fb.style || ''}">
                 <div class="fb-header">
-                    <span><i class="fa-solid fa-folder"></i> ${prjName}</span>
-                    <span><i class="fa-solid ${isNamed ? 'fa-user' : 'fa-user-secret'}"></i> ${sender}</span>
+                    <span class="fb-type-badge"><i class="fa-solid ${fb.icon}"></i> ${fb.type}</span>
+                    <span class="fb-prj-badge"><i class="fa-solid fa-folder"></i> ${fb.prjName}</span>
                 </div>
-                <div class="fb-content" style="margin-bottom:12px;">
-                    ${isNamed ? (fb.generalComment || fb.feelings || 'Đã gửi đánh giá chi tiết') : `"${fb.feedback}"`}
+                <div class="fb-sender-info" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">
+                    <i class="fa-solid fa-user"></i> Người gửi: <strong>${fb.sender}</strong> (${fb.dept})
                 </div>
-                ${isNamed ? `
-                    <button class="btn-premium-xs" onclick="openFeedbackDetail('${fb.id}')">
-                        <i class="fa-solid fa-eye"></i> Xem chi tiết
+                <div class="fb-content" style="font-style:${fb.sender === 'Ẩn danh' ? 'italic' : 'normal'}; line-height:1.6; color:var(--text-main);">
+                    "${fb.content}"
+                </div>
+                <div class="fb-footer" style="margin-top:12px; display:flex; justify-content:flex-end;">
+                     <button class="btn-premium-xs" onclick="openFeedbackDetail('${fb.id.split('_')[0]}')">
+                        <i class="fa-solid fa-circle-info"></i> Xem bối cảnh
                     </button>
-                ` : ''}
+                </div>
             </div>`;
     });
 }
@@ -5953,7 +6058,16 @@ function renderEvaluationTasks() {
         if (isAdmin) return true;
         const parts = ensureArray(p.participants);
         const myId = String(state.currentUser.id).trim();
-        return parts.some(pt => String(pt.memberId).trim() === myId && !['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role));
+        return parts.some(pt => {
+            const isMe = String(pt.memberId).trim() === myId;
+            if (!isMe) return false;
+            
+            const role = pt.role || '';
+            const isHelper = ['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role);
+            const isExempt = isExemptFromEval(myId, role);
+            
+            return !isHelper && !isExempt;
+        });
     });
 
     if (myProjects.length === 0) {
@@ -6081,8 +6195,8 @@ function startCinematicEvaluation(prjId) {
     const raterTeam = raterPt.teamName;
     const raterRole = raterPt.role || 'Thành viên';
 
-    if (['SP', 'SUPPORT', 'CHECKIN'].includes(raterRole)) {
-        return alert('Nhân sự Hỗ trợ và Check-in không tham gia đánh giá chéo!');
+    if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole) || isExemptFromEval(raterId, raterRole)) {
+        return alert('Trưởng/Phó ban, Ban chủ nhiệm và các nhân sự hỗ trợ không cần làm đánh giá chéo!');
     }
 
     const checkPL = (r) => {
@@ -6146,7 +6260,7 @@ function startCinematicEvaluation(prjId) {
 
     if (cine_targets.length === 0) return alert('Không có ai để đánh giá trong dự án này!');
     document.getElementById('cine-project-name').innerText = 'Đánh giá dự án: ' + prj.name;
-    
+
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
     const overlay = document.getElementById('cinematic-eval-inline');
@@ -6159,9 +6273,9 @@ function startCinematicEvaluation(prjId) {
 function openCinematicEval(prjId, raterId) {
     const overlay = document.getElementById('cinematic-eval-inline');
     overlay.classList.add('active');
-    overlay.style.display = 'flex'; 
+    overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden'; // Lock scroll
-    
+
     renderCineSteps();
     document.getElementById('eval-project-setup-view').style.display = 'none';
     updateCineUI();
@@ -7209,6 +7323,24 @@ function isBoardMember() {
     return bcnNames.includes(state.currentUser.name.toLowerCase().trim());
 }
 
+function isExemptFromEval(memberId, role) {
+    const member = state.members.find(m => String(m.id) === String(memberId));
+    if (!member) return false;
+
+    // Check Dept (BCN is exempt)
+    const dept = (getMemberDept(member) || '').toUpperCase();
+    if (dept === 'BCN') return true;
+
+    // Check Role (Trưởng ban, Phó ban are exempt)
+    if (role) {
+        const lower = role.toLowerCase().trim();
+        const leadershipKeywords = ['trưởng ban', 'phó ban', 'leader', 'tl', 'nhóm trưởng', 'pl', 'project leader', 'trưởng dự án'];
+        if (leadershipKeywords.some(key => lower.includes(key))) return true;
+    }
+
+    return false;
+}
+
 function updateHeaderUser() {
     const name = state.currentUser ? state.currentUser.name : 'Guest';
     const encodedName = encodeURIComponent(name);
@@ -7767,16 +7899,12 @@ async function exportIncompleteEvaluationsPDF() {
     const getRequiredTargets = (raterId, participants) => {
         const raterPt = participants.find(pt => String(pt.memberId).trim() === String(raterId).trim());
         if (!raterPt) return [];
-        
+
         const raterRole = raterPt.role || 'Thành viên';
         const raterTeam = raterPt.teamName;
 
-        // BCN and Leaders/PLs don't need to do any cross-evaluations
-        const member = state.members.find(m => String(m.id).trim() === String(raterId).trim());
-        const dept = getMemberDept(member) || raterPt.dept || '';
-        if (dept.toUpperCase() === 'BCN') return [];
-        if (checkPL(raterRole) || checkLeader(raterRole)) return [];
-
+        // Exempt Leadership and Helpers
+        if (isExemptFromEval(raterId, raterRole)) return [];
         if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole)) return [];
 
         let targets = [];
@@ -7834,12 +7962,12 @@ async function exportIncompleteEvaluationsPDF() {
         participants.forEach(rater => {
             const rId = String(rater.memberId).trim();
             const role = rater.role || '';
-            if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role)) return;
+            if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role) || isExemptFromEval(rId, role)) return;
 
             const required = getRequiredTargets(rId, participants);
             const missed = required.filter(target => {
                 const tId = String(target.memberId).trim();
-                return !evaluations.some(ev => 
+                return !evaluations.some(ev =>
                     String(ev.prjId || ev.prjid).trim() === prjIdStr &&
                     String(ev.raterId || ev.raterid).trim() === rId &&
                     String(ev.targetId || ev.targetid).trim() === tId
@@ -7894,7 +8022,7 @@ async function exportIncompleteEvaluationsPDF() {
                             <tr style="background:#f8fafc; color:#475569;">
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 6%;">STT</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left; width: 25%;">Họ và Tên</th>
-                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 15%;">Số lượng nợ</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 15%;">Số lượng thiếu</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left;">Những chương trình chưa làm đánh giá chéo</th>
                             </tr>
                         </thead>
@@ -9419,18 +9547,278 @@ async function deleteEvent(id) {
     }
 }
 
+function isExemptFromEval(memberId, role) {
+    // Leadership roles that do NOT need to do cross-evaluations
+    const exemptRoles = ['BCN', 'TRƯỞNG BAN', 'PHÓ BAN', 'TRUONG BAN', 'PHO BAN', 'CHỦ NHIỆM', 'PHÓ CHỦ NHIỆM', 'CHỦ TỊCH', 'PHÓ CHỦ TỊCH'];
+    const lowerRole = (role || '').toUpperCase();
+    
+    // Check if role name contains exempt keywords
+    const isExemptRole = exemptRoles.some(r => lowerRole.includes(r));
+    
+    // Also check if member is explicitly in BCN department
+    const member = state.members.find(m => String(m.id) === String(memberId));
+    const isBCNMember = member && (getMemberDept(member) === 'BCN' || getMemberDept(member) === 'Ban Chủ Nhiệm');
+    
+    return isExemptRole || isBCNMember;
+}
+
+// Re-updating renderFeedbacks to include Care/Mentor messages
+const originalRenderFeedbacks = renderFeedbacks;
+renderFeedbacks = function() {
+    const grid = document.getElementById('feedback-grid');
+    const empty = document.getElementById('feedback-empty');
+    const nav = document.getElementById('feedback-nav');
+    if (!grid || !empty || !nav) return;
+
+    if (state.userRole === 'user') {
+        grid.innerHTML = '';
+        grid.style.display = 'none';
+        nav.style.display = 'none';
+        empty.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">
+            <i class="fa-solid fa-lock" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5;"></i>
+            <p><strong>Truy cập bị hạn chế</strong></p>
+            <p style="font-size: 0.85rem;">Phần góp ý này chỉ dành cho Ban chủ nhiệm và Trưởng/Phó ban đối soát.</p>
+        </div>`;
+        empty.style.display = 'flex';
+        return;
+    }
+
+    const filterPrj = document.getElementById('filter-feedback-prj').value;
+    const filterDept = document.getElementById('filter-feedback-dept').value;
+
+    // Sync state with top filter if top filter is changed
+    if (filterPrj !== 'ALL' && state.feedbackPrjId !== filterPrj) {
+        state.feedbackPrjId = filterPrj;
+    } else if (filterPrj === 'ALL' && state.feedbackPrjId !== null && !document.getElementById('filter-feedback-prj').dataset.manual) {
+         // Only reset if not in a deep view or if we want to reset
+    }
+
+    grid.innerHTML = '';
+    
+    // Aggregation Logic
+    const allFeedback = [];
+    const termEvals = state.evaluations.filter(e => e.term === state.currentTerm);
+
+    termEvals.forEach(ev => {
+        const prj = state.projects.find(p => p.id === ev.prjId);
+        const prjName = prj ? prj.name : 'Dự án ẩn';
+        const rater = state.members.find(m => m.id === ev.raterId);
+        const raterName = rater ? rater.name : 'Ẩn danh';
+        const raterDept = rater ? (rater.dept || 'N/A') : 'N/A';
+
+        const addFb = (type, content, icon, style, targetName = '') => {
+            if (!content || String(content).trim() === '') return;
+            allFeedback.push({
+                id: ev.id + '_' + type.replace(/\s+/g, ''),
+                evalId: ev.id,
+                type,
+                content,
+                prjName,
+                prjId: ev.prjId,
+                sender: raterName,
+                raterId: ev.raterId,
+                target: targetName,
+                dept: raterDept,
+                icon,
+                style
+            });
+        };
+
+        addFb('Góp ý Ẩn danh', ev.feedback, 'fa-user-secret', 'background:rgba(244, 63, 94, 0.05); border-left:4px solid #f43f5e;');
+        addFb('Nhắn nhủ Team', ev.teamMessage, 'fa-users', 'border-left:4px solid var(--primary);');
+        addFb('Nhận xét chung', ev.generalComment, 'fa-comment-dots', 'border-left:4px solid #10b981;');
+        addFb('Đề xuất / Mong muốn', ev.proposals, 'fa-lightbulb', 'border-left:4px solid #f59e0b;');
+        addFb('Cảm nhận cá nhân', ev.feelings, 'fa-heart', 'border-left:4px solid #8b5cf6;');
+
+        if (ev.careMessages) {
+            Object.keys(ev.careMessages).forEach(cid => {
+                const target = state.members.find(m => m.id === cid);
+                addFb('Nhắn gửi Care', ev.careMessages[cid], 'fa-hand-holding-heart', 'border-left:4px solid #06b6d4;', target ? target.name : 'Care');
+            });
+        }
+        if (ev.mentorMessages) {
+            Object.keys(ev.mentorMessages).forEach(mid => {
+                const target = state.members.find(m => m.id === mid);
+                addFb('Nhắn gửi Mentor', ev.mentorMessages[mid], 'fa-chalkboard-user', 'border-left:4px solid #3b82f6;', target ? target.name : 'Mentor');
+            });
+        }
+    });
+
+    let filtered = allFeedback.filter(fb => {
+        const matchesDept = filterDept === 'ALL' || fb.dept === filterDept;
+        return matchesDept;
+    });
+
+    // VIEW 1: FOLDER VIEW (PROJECTS)
+    if (state.feedbackPrjId === null) {
+        nav.style.display = 'none';
+        grid.style.display = 'grid';
+        grid.className = 'feedback-grid'; // Use regular grid for folders
+
+        const projectsWithFb = [...new Set(filtered.map(f => f.prjId))];
+        
+        if (projectsWithFb.length === 0) {
+            empty.style.display = 'flex';
+            grid.style.display = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+
+        projectsWithFb.forEach(pid => {
+            const prj = state.projects.find(p => p.id === pid);
+            const pName = prj ? prj.name : 'Dự án khác';
+            const count = filtered.filter(f => f.prjId === pid).length;
+            const memberCount = [...new Set(filtered.filter(f => f.prjId === pid).map(f => f.raterId))].length;
+
+            const card = document.createElement('div');
+            card.className = 'folder-card lux-folder';
+            card.onclick = () => setFeedbackPrj(pid);
+            card.innerHTML = `
+                <div class="folder-icon"><i class="fa-solid fa-folder-tree"></i></div>
+                <div class="folder-name">${pName}</div>
+                <div class="folder-meta">${memberCount} thành viên • ${count} bản ghi</div>
+            `;
+            grid.appendChild(card);
+        });
+    } 
+    // VIEW 2: MEMBER LIST VIEW
+    else {
+        nav.style.display = 'flex';
+        nav.innerHTML = `
+            <div class="fb-breadcrumb">
+                <button class="btn-sm btn-secondary" onclick="setFeedbackPrj(null)">
+                    <i class="fa-solid fa-arrow-left"></i> Quay lại
+                </button>
+                <span>/</span>
+                <span class="active-crumb">${(state.projects.find(p => p.id === state.feedbackPrjId) || {name:'Dự án'}).name}</span>
+            </div>
+        `;
+
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.gap = '12px';
+        grid.className = 'feedback-member-list';
+
+        const prjFb = filtered.filter(f => f.prjId === state.feedbackPrjId);
+        const raterIds = [...new Set(prjFb.map(f => f.raterId))];
+
+        if (raterIds.length === 0) {
+            empty.style.display = 'flex';
+            grid.style.display = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+
+        raterIds.forEach(rid => {
+            const rater = state.members.find(m => m.id === rid);
+            const raterName = rater ? rater.name : 'Ẩn danh';
+            const raterDept = rater ? (rater.dept || 'N/A') : 'N/A';
+            const fbCount = prjFb.filter(f => f.raterId === rid).length;
+
+            const item = document.createElement('div');
+            item.className = 'fb-member-item';
+            item.innerHTML = `
+                <div class="fb-member-info">
+                    <div class="m-list-avatar" style="width:40px; height:40px; font-size:0.9rem;">${getInitials(raterName)}</div>
+                    <div>
+                        <div class="fb-member-name">${raterName}</div>
+                        <div class="fb-member-dept">${raterDept} • ${fbCount} góp ý</div>
+                    </div>
+                </div>
+                <button class="btn-premium-xs" onclick="openMemberFeedbackDetail('${state.feedbackPrjId}', '${rid}')">
+                    <i class="fa-solid fa-circle-info"></i> Chi tiết
+                </button>
+            `;
+            grid.appendChild(item);
+        });
+    }
+};
+
+function setFeedbackPrj(prjId) {
+    state.feedbackPrjId = prjId;
+    const filterEl = document.getElementById('filter-feedback-prj');
+    if (filterEl) {
+        filterEl.dataset.manual = 'true';
+        filterEl.value = prjId || 'ALL';
+        setTimeout(() => delete filterEl.dataset.manual, 100);
+    }
+    renderFeedbacks();
+}
+
+function openMemberFeedbackDetail(prjId, raterId) {
+    const prj = state.projects.find(p => p.id === prjId);
+    const rater = state.members.find(m => m.id === raterId);
+    if (!prj || !rater) return;
+
+    // Filter evaluations by this rater in this project
+    const memberEvals = state.evaluations.filter(e => e.term === state.currentTerm && e.prjId === prjId && e.raterId === raterId);
+    
+    // Aggregate all feedback types
+    const items = [];
+    memberEvals.forEach(ev => {
+        const add = (type, content, icon, style, targetName = '') => {
+            if (!content || String(content).trim() === '') return;
+            items.push({ type, content, icon, style, targetName, evalId: ev.id });
+        };
+        add('Góp ý Ẩn danh', ev.feedback, 'fa-user-secret', 'background:rgba(244, 63, 94, 0.05); border-left:4px solid #f43f5e;');
+        add('Nhắn nhủ Team', ev.teamMessage, 'fa-users', 'border-left:4px solid var(--primary);');
+        add('Nhận xét chung', ev.generalComment, 'fa-comment-dots', 'border-left:4px solid #10b981;');
+        add('Đề xuất / Mong muốn', ev.proposals, 'fa-lightbulb', 'border-left:4px solid #f59e0b;');
+        add('Cảm nhận cá nhân', ev.feelings, 'fa-heart', 'border-left:4px solid #8b5cf6;');
+        if (ev.careMessages) Object.keys(ev.careMessages).forEach(cid => {
+            const t = state.members.find(m => m.id === cid);
+            add('Nhắn gửi Care', ev.careMessages[cid], 'fa-hand-holding-heart', 'border-left:4px solid #06b6d4;', t ? t.name : 'Care');
+        });
+        if (ev.mentorMessages) Object.keys(ev.mentorMessages).forEach(mid => {
+            const t = state.members.find(m => m.id === mid);
+            add('Nhắn gửi Mentor', ev.mentorMessages[mid], 'fa-chalkboard-user', 'border-left:4px solid #3b82f6;', t ? t.name : 'Mentor');
+        });
+    });
+
+    const modal = document.getElementById('fb-detail-modal');
+    const body = document.getElementById('fb-detail-body');
+    if (!modal || !body) return;
+
+    body.innerHTML = `
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px dashed var(--border-color);">
+            <div style="font-size:1.1rem; font-weight:700; color:var(--primary-color);">Dự án: ${prj.name}</div>
+            <div style="font-size:0.9rem; color:var(--text-muted);">Thành viên: <strong>${rater.name}</strong> (${rater.dept || 'N/A'})</div>
+        </div>
+        <div class="feedback-grid" style="grid-template-columns: 1fr;">
+            ${items.map(item => `
+                <div class="feedback-card" style="${item.style || ''}">
+                    <div class="fb-header">
+                        <span class="fb-type-badge"><i class="fa-solid ${item.icon}"></i> ${item.type}</span>
+                        ${item.targetName ? `<span class="fb-prj-badge"><i class="fa-solid fa-arrow-right"></i> Đến: ${item.targetName}</span>` : ''}
+                    </div>
+                    <div class="fb-content">
+                        "${item.content}"
+                    </div>
+                    <div class="fb-footer" style="display:flex; justify-content:flex-end; margin-top:8px;">
+                         <button class="btn-premium-xs" onclick="closeModal('fb-detail-modal'); setTimeout(() => openFeedbackDetail('${item.evalId}'), 300)">
+                            <i class="fa-solid fa-eye"></i> Xem bối cảnh
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    openModal('fb-detail-modal');
+}
+
 async function backupDatabase() {
     showToast('Đang thực hiện sao lưu toàn hệ thống...', 'info');
-    
+
     try {
         // 1. Trigger Google Apps Script to send the Spreadsheet via Email
         fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                action: 'backup_all', 
-                recipient: 'pn852007@gmail.com' 
+            body: JSON.stringify({
+                action: 'backup_all',
+                recipient: 'pn852007@gmail.com'
             })
         });
 

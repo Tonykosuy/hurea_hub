@@ -76,6 +76,29 @@
             color: var(--primary);
             font-family: 'Montserrat', sans-serif;
         }
+
+        /* Premium Leaderboard Enhancements */
+        .rank-badge i {
+            font-size: 0.9rem;
+        }
+        .leaderboard-item {
+            position: relative;
+            overflow: hidden;
+        }
+        .leaderboard-item::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .leaderboard-item:hover::after {
+            left: 100%;
+        }
+
         @keyframes slideInRight {
             from { opacity: 0; transform: translateX(20px); }
             to { opacity: 1; transform: translateX(0); }
@@ -998,9 +1021,17 @@
                                     <i class="fa-solid fa-file-pdf"></i> Xuất Báo Cáo
                                 </button>
                             </div>
-                            <div class="search-box" style="width:auto; margin:0;">
+                            <div class="search-box" style="width:auto; margin:0; display: flex; gap: 8px;">
                                 <select id="filter-feedback-prj" class="styled-select" onchange="renderFeedbacks()">
                                     <option value="ALL">Toàn bộ Dự án</option>
+                                </select>
+                                <select id="filter-feedback-dept" class="styled-select" onchange="renderFeedbacks()">
+                                    <option value="ALL">Toàn bộ Ban</option>
+                                    <option value="L&D">Ban L&D</option>
+                                    <option value="R&R">Ban R&R</option>
+                                    <option value="ER">Ban ER</option>
+                                    <option value="EB">Ban EB</option>
+                                    <option value="BCN">Ban Chủ Nhiệm</option>
                                 </select>
                             </div>
                         </div>
@@ -1016,6 +1047,7 @@
 
                     <!-- Pane: Feedbacks -->
                     <div id="fb-pane-feedback" class="fb-pane active">
+                        <div id="feedback-nav" class="feedback-nav-bar" style="display:none; margin-bottom:20px;"></div>
                         <div class="feedback-grid" id="feedback-grid"></div>
                         <div id="feedback-empty" class="empty-state" style="display:none">Chưa có phản hồi nào</div>
                     </div>
