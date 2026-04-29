@@ -9775,7 +9775,7 @@ function openMemberFeedbackDetail(prjId, raterId) {
         });
     });
 
-    const modal = document.getElementById('fb-detail-modal');
+    const modal = document.getElementById('feedback-detail-modal');
     const body = document.getElementById('fb-detail-body');
     if (!modal || !body) return;
 
@@ -9795,7 +9795,7 @@ function openMemberFeedbackDetail(prjId, raterId) {
                         "${item.content}"
                     </div>
                     <div class="fb-footer" style="display:flex; justify-content:flex-end; margin-top:8px;">
-                         <button class="btn-premium-xs" onclick="closeModal('fb-detail-modal'); setTimeout(() => openFeedbackDetail('${item.evalId}'), 300)">
+                         <button class="btn-premium-xs" onclick="closeModal('feedback-detail-modal'); setTimeout(() => openFeedbackDetail('${item.evalId}'), 300)">
                             <i class="fa-solid fa-eye"></i> Xem bối cảnh
                         </button>
                     </div>
@@ -9804,7 +9804,7 @@ function openMemberFeedbackDetail(prjId, raterId) {
         </div>
     `;
 
-    openModal('fb-detail-modal');
+    openModal('feedback-detail-modal');
 }
 
 async function backupDatabase() {
