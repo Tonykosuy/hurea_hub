@@ -1453,12 +1453,21 @@
                                 <button class="pill" onclick="setPasswordDeptFilter(this, 'BCN')">BCN/Khác</button>
                             </div>
                         </div>
+
+                        <div class="lux-bulk-actions" style="margin-left: auto;">
+                            <button class="btn-lux-primary" onclick="exportSelectedPasswords()" style="background: var(--lux-gradient-alt); border:none;">
+                                <i class="fa-solid fa-file-export"></i> Xuất đã chọn
+                            </button>
+                        </div>
                     </div>
 
                     <div class="table-container glass-panel">
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th style="width:40px; text-align:center;">
+                                        <input type="checkbox" id="pw-select-all" onclick="toggleAllPasswords(this)">
+                                    </th>
                                     <th>Thành viên</th>
                                     <th>Ban</th>
                                     <th>Trạng thái</th>

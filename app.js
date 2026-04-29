@@ -7615,6 +7615,7 @@ function renderPasswordManagement() {
         const mDept = getMemberDept(m);
 
         tr.innerHTML = `
+            <td style="text-align:center;"><input type="checkbox" class="pw-member-checkbox" data-mid="${m.id}"></td>
             <td><strong>${m.name}</strong></td>
             <td><span class="version-badge">${mDept}</span></td>
             <td>
@@ -7639,6 +7640,86 @@ function renderPasswordManagement() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function toggleAllPasswords(master) {
+    document.querySelectorAll('.pw-member-checkbox').forEach(cb => cb.checked = master.checked);
+}
+
+function exportSelectedPasswords() {
+    const selectedCbs = document.querySelectorAll('.pw-member-checkbox:checked');
+    if (selectedCbs.length === 0) {
+        showToast('Vui lòng chọn ít nhất một thành viên!', 'warning');
+        return;
+    }
+
+    const data = [];
+    selectedCbs.forEach(cb => {
+        const mId = cb.dataset.mid;
+        const m = state.members.find(x => String(x.id) === String(mId));
+        const authRec = state.userPasswords.find(p => String(p.memberId) === String(mId));
+        if (m) {
+            data.push({
+                name: m.name,
+                dept: getMemberDept(m),
+                password: authRec ? authRec.password : '(Chưa có)'
+            });
+        }
+    });
+
+    // Create a temporary display for the user to copy
+    const exportHtml = `
+        <div style="margin-bottom:20px;">
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px;">Đã chọn <strong>${data.length}</strong> thành viên. Bạn có thể sao chép bảng bên dưới:</p>
+            <div style="max-height:400px; overflow-y:auto; border:1px solid var(--border-color); border-radius:8px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                    <thead style="background:var(--bg-sidebar); position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:10px; border-bottom:1px solid var(--border-color); text-align:left;">Họ và tên</th>
+                            <th style="padding:10px; border-bottom:1px solid var(--border-color); text-align:left;">Ban</th>
+                            <th style="padding:10px; border-bottom:1px solid var(--border-color); text-align:left;">Mật khẩu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(d => `
+                            <tr>
+                                <td style="padding:10px; border-bottom:1px solid var(--border-color);">${d.name}</td>
+                                <td style="padding:10px; border-bottom:1px solid var(--border-color);">${d.dept}</td>
+                                <td style="padding:10px; border-bottom:1px solid var(--border-color);"><code>${d.password}</code></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:12px;">
+            <button class="btn-secondary" onclick="closeModal('fb-detail-modal')">Đóng</button>
+            <button class="btn-primary" onclick="copyPasswordTableToClipboard()">
+                <i class="fa-solid fa-copy"></i> Sao chép tất cả
+            </button>
+        </div>
+    `;
+
+    // Reuse the feedback detail modal for display
+    const modal = document.getElementById('feedback-detail-modal');
+    const body = document.getElementById('fb-detail-body');
+    if (modal && body) {
+        body.innerHTML = exportHtml;
+        const title = modal.querySelector('h3');
+        if (title) title.innerHTML = '<i class="fa-solid fa-file-export"></i> Danh sách mật khẩu đã chọn';
+        openModal('feedback-detail-modal');
+    }
+
+    // Attach copy function to window
+    window.copyPasswordTableToClipboard = () => {
+        let text = "Họ và tên\tBan\tMật khẩu\n";
+        data.forEach(d => {
+            text += `${d.name}\t${d.dept}\t${d.password}\n`;
+        });
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Đã sao chép vào bộ nhớ tạm!', 'success');
+        });
+    };
 }
 
 function togglePassReveal(mId) {
