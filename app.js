@@ -7722,6 +7722,47 @@ function exportSelectedPasswords() {
     };
 }
 
+function openBulkSelectModal() {
+    document.getElementById('bulk-select-input').value = '';
+    openModal('bulk-select-modal');
+}
+
+function processBulkSelect() {
+    const text = document.getElementById('bulk-select-input').value;
+    if (!text.trim()) {
+        showToast('Vui lòng dán danh sách tên!', 'warning');
+        return;
+    }
+
+    const inputNames = text.split('\n').map(n => n.trim()).filter(n => n !== '');
+    let matchedCount = 0;
+    
+    // Uncheck all first
+    document.querySelectorAll('.pw-member-checkbox').forEach(cb => cb.checked = false);
+    
+    // Find matching checkboxes
+    const cbs = document.querySelectorAll('.pw-member-checkbox');
+    inputNames.forEach(name => {
+        const foundCb = Array.from(cbs).find(cb => {
+            const mId = cb.dataset.mid;
+            const m = state.members.find(x => String(x.id) === String(mId));
+            return m && m.name.toLowerCase() === name.toLowerCase();
+        });
+        
+        if (foundCb) {
+            foundCb.checked = true;
+            matchedCount++;
+        }
+    });
+
+    closeModal('bulk-select-modal');
+    if (matchedCount > 0) {
+        showToast(`Đã tìm thấy và chọn ${matchedCount}/${inputNames.length} thành viên!`, 'success');
+    } else {
+        showToast('Không tìm thấy thành viên nào khớp với danh sách!', 'error');
+    }
+}
+
 function togglePassReveal(mId) {
     const span = document.getElementById('pass-display-' + mId);
     if (!span) return;

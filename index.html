@@ -1432,7 +1432,7 @@
                     </div>
 
                     <div class="lux-control-bar glass-panel"
-                        style="margin-bottom: 24px; padding: 12px 24px; display: flex; align-items: center; gap: 24px;">
+                        style="margin-bottom: 24px; padding: 12px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
                         <div class="lux-search-wrapper" style="flex: 1; min-width: 250px;">
                             <i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i>
                             <input type="text" id="search-password-mgmt"
@@ -1454,7 +1454,10 @@
                             </div>
                         </div>
 
-                        <div class="lux-bulk-actions" style="margin-left: auto;">
+                        <div class="lux-bulk-actions" style="display: flex; gap: 12px;">
+                            <button class="btn-lux-primary" onclick="openBulkSelectModal()" style="background: var(--secondary); color: var(--text-main); border: 1px solid var(--border-color);">
+                                <i class="fa-solid fa-paste"></i> Chọn nhanh
+                            </button>
                             <button class="btn-lux-primary" onclick="exportSelectedPasswords()" style="background: var(--lux-gradient-alt); border:none;">
                                 <i class="fa-solid fa-file-export"></i> Xuất đã chọn
                             </button>
@@ -2859,6 +2862,26 @@
             </div>
             <div id="fb-detail-body" class="modal-body" style="max-height:80vh; overflow-y:auto;">
                 <!-- Content populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== BULK SELECT MODAL ===== -->
+    <div id="bulk-select-modal" class="modal">
+        <div class="modal-wrapper glass-panel" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-paste"></i> Chọn nhanh từ danh sách</h3>
+                <button class="close-btn" onclick="closeModal('bulk-select-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Dán danh sách <strong>Họ và tên</strong> từ Excel (mỗi người một dòng) để hệ thống tự động tích chọn:</p>
+                <textarea id="bulk-select-input" rows="10" style="width:100%; border-radius:12px; border:1px solid var(--border-color); padding:16px; font-family:inherit; font-size:0.9rem;" placeholder="Nguyễn Văn A&#10;Trần Thị B..."></textarea>
+            </div>
+            <div class="modal-footer" style="padding:20px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn-secondary" onclick="closeModal('bulk-select-modal')">Hủy</button>
+                <button class="btn-primary" onclick="processBulkSelect()">
+                    <i class="fa-solid fa-check-double"></i> Xác nhận chọn
+                </button>
             </div>
         </div>
     </div>
