@@ -9699,7 +9699,7 @@ renderFeedbacks = function() {
         grid.style.gap = '12px';
         grid.className = 'feedback-member-list';
 
-        const prjFb = filtered.filter(f => f.prjId === state.feedbackPrjId);
+        const prjFb = filtered.filter(f => String(f.prjId) == String(state.feedbackPrjId));
         const raterIds = [...new Set(prjFb.map(f => f.raterId))];
 
         if (raterIds.length === 0) {
@@ -9746,12 +9746,20 @@ function setFeedbackPrj(prjId) {
 }
 
 function openMemberFeedbackDetail(prjId, raterId) {
-    const prj = state.projects.find(p => p.id === prjId);
-    const rater = state.members.find(m => m.id === raterId);
-    if (!prj || !rater) return;
+    console.log('Opening feedback for:', prjId, raterId);
+    const prj = state.projects.find(p => String(p.id) == String(prjId));
+    const rater = state.members.find(m => String(m.id) == String(raterId));
+    if (!prj || !rater) {
+        console.warn('Project or Rater not found:', prjId, raterId);
+        return;
+    }
 
     // Filter evaluations by this rater in this project
-    const memberEvals = state.evaluations.filter(e => e.term === state.currentTerm && e.prjId === prjId && e.raterId === raterId);
+    const memberEvals = state.evaluations.filter(e => 
+        String(e.term) == String(state.currentTerm) && 
+        String(e.prjId) == String(prjId) && 
+        String(e.raterId) == String(raterId)
+    );
     
     // Aggregate all feedback types
     const items = [];
