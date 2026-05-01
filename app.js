@@ -49,6 +49,8 @@ const state = {
     tempPickerData: { memberId: null, teamId: null },
     selectedPickerIds: [],
     feedbackPrjId: null, // Track current project folder in Suggestion Box
+    showEvalNames: false, // For anonymizing cross-evaluation in score detail
+    activeDetailTab: 'prj', // For maintaining active tab when re-rendering detail
 };
 
 // --- DATA HELPERS ---
@@ -2969,9 +2971,9 @@ function showScoreDetail(mId) {
         const renderEvalRow = (label, color, items) => {
             if (items.length === 0) return '';
             const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
-            const rows = items.map(e => `
+            const rows = items.map((e, idx) => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-bottom:1px solid var(--border-color); font-size:0.82rem;">
-                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${e.name} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
+                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${state.showEvalNames ? e.name : ('Thành viên ' + (idx + 1))} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
                     <div style="display:flex; gap:16px; align-items:center;">
                         <span title="Kỹ năng">KN: ${(e.c4 || 0).toFixed ? e.c4.toFixed(1) : e.c4 || '---'}</span>
                         <span title="Thái độ">TĐ: ${(e.c1 || 0).toFixed ? e.c1.toFixed(1) : e.c1 || '---'}</span>
@@ -3015,7 +3017,7 @@ function showScoreDetail(mId) {
                             <span style="font-weight:800; color:#8b5cf6;">${selfEval.score.toFixed(2)}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; font-size:0.82rem;">
-                            <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${selfEval.name}</span>
+                            <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${state.showEvalNames ? selfEval.name : 'Bản thân'}</span>
                             <div style="display:flex; gap:16px; align-items:center;">
                                 <span>KN: ${selfEval.c4 != null ? Number(selfEval.c4).toFixed(1) : '---'}</span>
                                 <span>TĐ: ${selfEval.c1 != null ? Number(selfEval.c1).toFixed(1) : '---'}</span>
@@ -3237,18 +3239,25 @@ function showScoreDetail(mId) {
                 </div>
             ` : ''}
 
-            <div class="lux-tab-nav" style="display:flex; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
-                <button class="pill active" onclick="switchDetailTab(this, 'prj')">Dự án</button>
-                <button class="pill" onclick="switchDetailTab(this, 'crosseval')">Đánh giá chéo</button>
-                <button class="pill" onclick="switchDetailTab(this, 'clb')">CLB</button>
-                <button class="pill" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
-                <button class="pill" onclick="switchDetailTab(this, 'feedback')">Góp ý & Tin nhắn</button>
-                <button class="pill" onclick="switchDetailTab(this, 'explanation')"><i class="fa-solid fa-calculator"></i> Giải trình</button>
-                <button class="pill" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
+            <div class="lux-tab-nav" style="display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                <div style="display:flex; gap:8px;">
+                    <button class="pill ${state.activeDetailTab === 'prj' ? 'active' : ''}" onclick="switchDetailTab(this, 'prj')">Dự án</button>
+                    <button class="pill ${state.activeDetailTab === 'crosseval' ? 'active' : ''}" onclick="switchDetailTab(this, 'crosseval')">Đánh giá chéo</button>
+                    <button class="pill ${state.activeDetailTab === 'clb' ? 'active' : ''}" onclick="switchDetailTab(this, 'clb')">CLB</button>
+                    <button class="pill ${state.activeDetailTab === 'ban' ? 'active' : ''}" onclick="switchDetailTab(this, 'ban')">Ban Chuyên Môn</button>
+                    <button class="pill ${state.activeDetailTab === 'feedback' ? 'active' : ''}" onclick="switchDetailTab(this, 'feedback')">Góp ý & Tin nhắn</button>
+                    <button class="pill ${state.activeDetailTab === 'explanation' ? 'active' : ''}" onclick="switchDetailTab(this, 'explanation')"><i class="fa-solid fa-calculator"></i> Giải trình</button>
+                    <button class="pill ${state.activeDetailTab === 'appeal-hist' ? 'active' : ''}" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
+                </div>
+
+                <button class="btn-lux-secondary" style="font-size: 0.75rem; padding: 6px 12px; margin-left: auto; border-radius: 10px; display: flex; align-items: center; gap: 6px;" onclick="toggleEvalNames('${mId}')">
+                    <i class="fa-solid ${state.showEvalNames ? 'fa-eye-slash' : 'fa-eye'}"></i> 
+                    ${state.showEvalNames ? 'Ẩn danh tính' : 'Hiện danh tính'}
+                </button>
             </div>
         </div>
 
-        <div id="detail-tab-explanation" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-explanation" class="detail-tab-pane" style="${state.activeDetailTab === 'explanation' ? 'display:block;' : 'display:none;'}">
             <div class="score-formula-box" style="padding:20px; background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:16px;">
                 <h4 style="margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-calculator"></i> Công thức & Giải trình chi tiết</h4>
 
@@ -3363,7 +3372,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-prj" class="detail-tab-pane active">
+        <div id="detail-tab-prj" class="detail-tab-pane ${state.activeDetailTab === 'prj' ? 'active' : ''}" style="${state.activeDetailTab === 'prj' ? 'display:block;' : 'display:none;'}">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px;">
                 <table class="data-table">
                     <thead><tr><th>Dự án</th><th>Vai trò</th><th>Đánh giá</th><th>Kỹ năng</th><th>Thái độ</th><th>T.Nhiệm</th><th>Kết quả</th></tr></thead>
@@ -3377,7 +3386,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-crosseval" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-crosseval" class="detail-tab-pane ${state.activeDetailTab === 'crosseval' ? 'active' : ''}" style="${state.activeDetailTab === 'crosseval' ? 'display:block;' : 'display:none;'}">
             <div class="cross-eval-container" style="display:flex; flex-direction:column; gap:20px;">
                 ${(() => {
             let crossHtml = '';
@@ -3447,9 +3456,9 @@ function showScoreDetail(mId) {
                 const renderEvalRow = (label, color, items) => {
                     if (items.length === 0) return '';
                     const avgScore = (items.reduce((s, e) => s + (e.score || 0), 0) / items.length).toFixed(2);
-                    const rows = items.map(e => `
+                    const rows = items.map((e, idx) => `
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; border-bottom:1px solid var(--border-color); font-size:0.82rem;">
-                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${e.name} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
+                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:${color};"></i>${state.showEvalNames ? e.name : ('Thành viên ' + (idx + 1))} <small style="color:var(--text-muted);">(${e.role || ''})</small></span>
                                     <div style="display:flex; gap:16px; align-items:center;">
                                         <span title="Kỹ năng">KN: ${(e.c4 || 0).toFixed ? e.c4.toFixed(1) : e.c4 || '---'}</span>
                                         <span title="Thái độ">TĐ: ${(e.c1 || 0).toFixed ? e.c1.toFixed(1) : e.c1 || '---'}</span>
@@ -3481,7 +3490,7 @@ function showScoreDetail(mId) {
                                     <span style="font-weight:800; color:#8b5cf6;">${selfEval.score.toFixed(2)}</span>
                                 </div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px; font-size:0.82rem;">
-                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${selfEval.name}</span>
+                                    <span style="color:var(--text-main);"><i class="fa-solid fa-user" style="margin-right:6px; color:#8b5cf6;"></i>${state.showEvalNames ? selfEval.name : 'Bản thân'}</span>
                                     <div style="display:flex; gap:16px; align-items:center;">
                                         <span>KN: ${selfEval.c4 != null ? Number(selfEval.c4).toFixed(1) : '---'}</span>
                                         <span>TĐ: ${selfEval.c1 != null ? Number(selfEval.c1).toFixed(1) : '---'}</span>
@@ -3509,7 +3518,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-clb" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-clb" class="detail-tab-pane" style="${state.activeDetailTab === 'clb' ? 'display:block;' : 'display:none;'}">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px;">
                 <table class="data-table">
                     <thead><tr><th>Tiêu chí</th><th>Giá trị</th><th>Trọng số</th><th>Thành phần</th></tr></thead>
@@ -3526,7 +3535,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-ban" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-ban" class="detail-tab-pane" style="${state.activeDetailTab === 'ban' ? 'display:block;' : 'display:none;'}">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px;">
                 <table class="data-table">
                     <thead><tr><th>Tiêu chí đánh giá</th><th>Điểm</th><th>Thành phần</th></tr></thead>
@@ -3538,7 +3547,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-feedback" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-feedback" class="detail-tab-pane" style="${state.activeDetailTab === 'feedback' ? 'display:block;' : 'display:none;'}">
             <div class="feedback-container" style="display:flex; flex-direction:column; gap:20px;">
                 ${(() => {
             let fbHtml = '';
@@ -3613,7 +3622,7 @@ function showScoreDetail(mId) {
             </div>
         </div>
 
-        <div id="detail-tab-appeal-hist" class="detail-tab-pane" style="display:none;">
+        <div id="detail-tab-appeal-hist" class="detail-tab-pane" style="${state.activeDetailTab === 'appeal-hist' ? 'display:block;' : 'display:none;'}">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
                 <table class="data-table">
                     <thead><tr><th>Ngày gửi</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
@@ -4090,11 +4099,17 @@ function exportIndividualPDFFromModal() {
 }
 
 function switchDetailTab(btn, paneId) {
+    state.activeDetailTab = paneId;
     btn.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     const modal = btn.closest('.modal-wrapper');
     modal.querySelectorAll('.detail-tab-pane').forEach(p => p.style.display = 'none');
     modal.querySelector(`#detail-tab-${paneId}`).style.display = 'block';
+}
+
+function toggleEvalNames(mId) {
+    state.showEvalNames = !state.showEvalNames;
+    showScoreDetail(mId);
 }
 
 function selectEvalMethod(type, method) {
