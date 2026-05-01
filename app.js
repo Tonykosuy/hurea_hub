@@ -1004,6 +1004,7 @@ function _renderProjects() {
                     <span class="p-badge ${sCls}">${sLbl}</span>
                 </div>
                 <div class="p-actions">
+                    <button class="btn-icon" onclick="exportIncompleteEvaluationsPDF('${p.id}')" title="Xuất DS chưa đánh giá chéo"><i class="fa-solid fa-file-export"></i></button>
                     <button class="btn-icon" onclick="editProjectV2('${p.id}')" title="Chỉnh sửa"><i class="fa-solid fa-pen-to-square"></i></button>
                     ${state.userRole === 'admin' ? `<button class="btn-icon delete" onclick="deleteProject('${p.id}')" title="Xóa"><i class="fa-solid fa-trash-can"></i></button>` : ''}
                 </div>
@@ -2063,7 +2064,21 @@ let currentAnnDeptFilter = 'ALL';
 function updateDashboardStats() {
     document.getElementById('stat-total-members').innerText = state.members.length;
     document.getElementById('stat-total-projects').innerText = state.projects.filter(p => p.term === state.currentTerm).length;
-    document.getElementById('stat-evaluated').innerText = state.evaluations.filter(e => e.term === state.currentTerm).length;
+    const termEvals = state.evaluations.filter(e => String(e.term) === String(state.currentTerm));
+    document.getElementById('stat-evaluated').innerText = termEvals.length;
+
+    // Calculate Finished Projects
+    const finishedPrjs = state.projects.filter(p => String(p.term) === String(state.currentTerm) && (p.status === 'finish' || p.status === 'Hoàn thành')).length;
+    const finishEl = document.getElementById('stat-finished-projects');
+    if (finishEl) finishEl.innerText = finishedPrjs;
+
+    // Calculate Active Members (unique members in current term projects)
+    const activeIds = new Set();
+    state.projects.filter(p => String(p.term) === String(state.currentTerm)).forEach(p => {
+        ensureArray(p.participants).forEach(part => activeIds.add(part.memberId));
+    });
+    const activeEl = document.getElementById('stat-active-members');
+    if (activeEl) activeEl.innerText = activeIds.size;
 
     // Update Password Stats for Admin
     const authCount = state.userPasswords.length;
@@ -2083,6 +2098,15 @@ function updateDashboardStats() {
         if (chartRow) chartRow.style.display = 'none';
         if (pwStatCard) pwStatCard.style.display = 'none';
     }
+
+    // Render leaderboard asynchronously to avoid blocking the UI
+    setTimeout(() => {
+        try {
+            renderTopLeaderboard();
+        } catch (e) {
+            console.error("Leaderboard render error:", e);
+        }
+    }, 200);
 }
 
 function initDashboardCharts() {
@@ -2103,7 +2127,7 @@ function initDashboardCharts() {
         }
     };
 
-    const termEvals = state.evaluations.filter(e => e.term === state.currentTerm);
+    const termEvals = state.evaluations.filter(e => String(e.term) === String(state.currentTerm));
     const depts = ['L&D', 'R&R', 'ER', 'EB', 'BCN'];
     const deptColors = [primary, accentGreen, accentYellow, accentRed, accentPurple];
 
@@ -2245,7 +2269,7 @@ function initDashboardCharts() {
 
     // --- 5. Project Health ---
     const prjStatus = { 'Chưa chạy': 0, 'Đang chạy': 0, 'Hoàn thành': 0 };
-    state.projects.filter(p => p.term === state.currentTerm).forEach(p => {
+    state.projects.filter(p => String(p.term) === String(state.currentTerm)).forEach(p => {
         let status = p.status || 'Chưa chạy';
         // Normalize common status strings
         if (status === 'setup') status = 'Chưa chạy';
@@ -2283,7 +2307,7 @@ function initDashboardCharts() {
     // --- 6. Active vs Total Personnel (4 Columns: L&D, R&R, ER, EB) ---
     const coreDepts = ['L&D', 'R&R', 'ER', 'EB'];
     const activeIds = new Set();
-    state.projects.filter(p => p.term === state.currentTerm).forEach(p => {
+    state.projects.filter(p => String(p.term) === String(state.currentTerm)).forEach(p => {
         ensureArray(p.participants).forEach(part => {
             activeIds.add(part.memberId);
         });
@@ -2323,65 +2347,6 @@ function initDashboardCharts() {
             }
         }
     });
-
-    // --- 7. Top 5 High Scorers (Leaderboard List) ---
-    let scoreRecords = state.clubScores.filter(s => String(s.term) === String(state.currentTerm));
-
-    // Fallback: Calculate from evaluations if no official scores yet
-    if (scoreRecords.length === 0) {
-        const memberAgg = {};
-        state.evaluations.filter(e => String(e.term) === String(state.currentTerm)).forEach(ev => {
-            const tId = ev.targetId || ev.targetid || ev.target_id;
-            if (!tId) return;
-            if (!memberAgg[tId]) memberAgg[tId] = { sum: 0, count: 0 };
-            const s = parseFloat(ev.score || ev.avgScore || ev.totalScore || 0);
-            if (s > 0) { memberAgg[tId].sum += s; memberAgg[tId].count++; }
-        });
-        scoreRecords = Object.keys(memberAgg).map(mId => ({
-            memberid: mId,
-            score: memberAgg[mId].count > 0 ? (memberAgg[mId].sum / memberAgg[mId].count).toFixed(2) : 0
-        }));
-    }
-
-    const topPerformers = scoreRecords
-        .map(s => {
-            const mId = s.memberid || s.memberId || s.ID || s.id;
-            const m = state.members.find(member => String(member.id) === String(mId));
-            return {
-                name: m ? m.name : 'Unknown',
-                dept: getMemberDept(m),
-                score: parseFloat(s.score || 0)
-            };
-        })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
-
-    const lbList = document.getElementById('top-leaderboard-list');
-    if (lbList) {
-        if (topPerformers.length === 0) {
-            lbList.innerHTML = '<div class="empty-state" style="padding:40px;">Chưa có dữ liệu điểm số nhiệm kỳ này.</div>';
-        } else {
-            lbList.innerHTML = `
-                <div class="leaderboard-list">
-                    ${topPerformers.map((p, i) => {
-                        const rankClass = i < 3 ? `rank-${i + 1}` : 'rank-other';
-                        const medalIcon = i === 0 ? '<i class="fa-solid fa-medal" style="color:#ffd700"></i>' :
-                                        i === 1 ? '<i class="fa-solid fa-medal" style="color:#c0c0c0"></i>' :
-                                        i === 2 ? '<i class="fa-solid fa-medal" style="color:#cd7f32"></i>' : (i + 1);
-                        return `
-                        <div class="leaderboard-item" style="animation: slideInRight 0.4s ease forwards ${i * 0.1}s; opacity:0;">
-                            <div class="rank-badge ${rankClass}">${medalIcon}</div>
-                            <div class="lb-info">
-                                <span class="lb-name">${p.name}</span>
-                                <span class="lb-dept">Ban ${p.dept}</span>
-                            </div>
-                            <div class="lb-score">${p.score.toFixed(1)}</div>
-                        </div>
-                    `}).join('')}
-                </div>
-            `;
-        }
-    }
 
     // --- 8. Evaluation Activity Trend (Last 7 Days) ---
     const last7Days = [];
@@ -2591,8 +2556,8 @@ function avgArr(arr) {
     return arr.reduce((a, c) => a + c.score, 0) / arr.length;
 }
 
-function calculateMemberProjectScore(mId) {
-    const termProjects = state.projects.filter(p => p.term === state.currentTerm);
+function getMemberProjectStats(mId) {
+    const termProjects = state.projects.filter(p => String(p.term) === String(state.currentTerm));
     let totalScore = 0;
     let projectCount = 0;
 
@@ -2644,7 +2609,6 @@ function calculateMemberProjectScore(mId) {
                     otherLeaderScores.push(e.score);
                 }
             } else {
-                // Everything else is treated as teammate/core-team peer
                 if (rTeam === team) {
                     peerScores.push(e.score);
                 }
@@ -2658,11 +2622,9 @@ function calculateMemberProjectScore(mId) {
         const getAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
         if (checkPL(role)) {
-            // PL Score: (Self + All Leaders)
             const leadersAvg = getAvg([...leaderOfTeamScores, ...otherLeaderScores]);
             if (leadersAvg !== null) categories.push(leadersAvg);
         } else if (checkLeader(role)) {
-            // Leader Score: (Self + Teammates + PL) or (Self + Teammates + Other Leaders)
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
 
@@ -2674,7 +2636,6 @@ function calculateMemberProjectScore(mId) {
                 if (othersAvg !== null) categories.push(othersAvg);
             }
         } else {
-            // CT Score: (Self + Teammates + Leader)
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
             const myLeaderAvg = getAvg(leaderOfTeamScores);
@@ -2688,7 +2649,14 @@ function calculateMemberProjectScore(mId) {
         }
     });
 
-    return projectCount > 0 ? totalScore / projectCount : 0;
+    return {
+        score: projectCount > 0 ? totalScore / projectCount : 0,
+        count: projectCount
+    };
+}
+
+function calculateMemberProjectScore(mId) {
+    return getMemberProjectStats(mId).score;
 }
 
 function calculateMemberClubScore(mId) {
@@ -2747,6 +2715,97 @@ function calculateMemberClubScore(mId) {
     return total;
 }
 
+function getMemberFinalScore(member) {
+    const mId = member.id;
+    const prjStats = getMemberProjectStats(mId);
+    const prjScore = prjStats.score;
+    const projectCount = prjStats.count;
+    
+    const clubScore = calculateMemberClubScore(mId);
+    const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+    const deptScore = de ? de.totalScore : 0;
+    const total = (prjScore + clubScore + deptScore) / 3;
+    
+    // Classification
+    let gradeVi = 'Cần Cố Gắng';
+    let grade = 'Can co gang';
+    if (total >= 8.5) { gradeVi = 'Xuất Sắc'; grade = 'Xuat Sac'; }
+    else if (total >= 7) { gradeVi = 'Khá'; grade = 'Kha'; }
+    else if (total >= 5) { gradeVi = 'Đạt'; grade = 'Dat'; }
+
+    return {
+        prjScore,
+        clubScore,
+        deptScore,
+        total,
+        projectCount,
+        gradeVi,
+        grade
+    };
+}
+
+function renderTopLeaderboard() {
+    const lbList = document.getElementById('top-leaderboard-list');
+    if (!lbList) return;
+
+    // Calculate final scores for all members in current term
+    const performers = state.members.map(m => {
+        const scores = getMemberFinalScore(m);
+        return {
+            name: m.name,
+            dept: getMemberDept(m),
+            score: scores.total,
+            projectCount: scores.projectCount,
+            gradeVi: scores.gradeVi,
+            grade: scores.grade
+        };
+    })
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+    if (performers.length === 0) {
+        lbList.innerHTML = '<div class="empty-state" style="padding:40px;">Chưa có dữ liệu điểm số nhiệm kỳ này.</div>';
+        return;
+    }
+
+    lbList.innerHTML = `
+        <div class="leaderboard-list">
+            ${performers.map((p, i) => {
+                const rankClass = i < 3 ? `rank-${i + 1}` : 'rank-other';
+                const medalIcon = i === 0 ? '<i class="fa-solid fa-medal" style="color:#ffd700"></i>' :
+                                 i === 1 ? '<i class="fa-solid fa-medal" style="color:#c0c0c0"></i>' :
+                                 i === 2 ? '<i class="fa-solid fa-medal" style="color:#cd7f32"></i>' : (i + 1);
+                
+                const gradeColors = { 'Xuat Sac': '#f59e0b', 'Kha': '#10b981', 'Dat': '#0ea5e9', 'Can co gang': '#ef4444' };
+                const gc = gradeColors[p.grade] || '#ef4444';
+
+                return `
+                <div class="leaderboard-item" style="animation: slideInRight 0.4s ease forwards ${i * 0.1}s; opacity:0;">
+                    <div class="rank-badge ${rankClass}">${medalIcon}</div>
+                    <div class="lb-info">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <span class="lb-name">${p.name}</span>
+                                <span class="lb-dept">Ban ${p.dept}</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="lb-extra-data" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                                    <i class="fa-solid fa-diagram-project" style="color:var(--primary); margin-right:4px;"></i> ${p.projectCount} dự án
+                                </div>
+                                <div class="lb-grade-tag" style="display:inline-block; margin-top:4px; font-size:0.65rem; font-weight:800; color:${gc}; background:${gc}15; padding:2px 8px; border-radius:8px; border:1px solid ${gc}30;">
+                                    ${p.gradeVi}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lb-score">${p.score.toFixed(2)}</div>
+                </div>
+            `}).join('')}
+        </div>
+    `;
+}
+
 function calculateFinalScores() {
     const tbody = document.getElementById('score-tbody');
     if (!tbody) return;
@@ -2769,12 +2828,8 @@ function calculateFinalScores() {
     }
 
     filtered.forEach(member => {
-        const mId = member.id;
-        const prjScore = calculateMemberProjectScore(mId);
-        const clubScore = calculateMemberClubScore(mId);
-        const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-        const deptScore = de ? de.totalScore : 0;
-        const total = (prjScore + clubScore + deptScore) / 3;
+        const scores = getMemberFinalScore(member);
+        const { prjScore, clubScore, deptScore, total } = scores;
 
         // Classification
         let grade = 'Can co gang';
@@ -2807,7 +2862,7 @@ function calculateFinalScores() {
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
             <td><strong style="font-size:1.2rem;color:var(--primary)">${total.toFixed(2)}</strong></td>
             <td><span style="background:${gc}22;color:${gc};border:1px solid ${gc}44;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700">${gradeVi}</span></td>
-            <td><button class="btn-secondary btn-sm" onclick="showScoreDetail('${mId}')"><i class="fa-solid fa-list-ul"></i> Chi tiết</button></td>`;
+            <td><button class="btn-secondary btn-sm" onclick="showScoreDetail('${member.id}')"><i class="fa-solid fa-list-ul"></i> Chi tiết</button></td>`;
         tbody.appendChild(tr);
     });
 }
@@ -6121,6 +6176,12 @@ function renderEvaluationTasks() {
                             <div class="eval-progress-bar-fill" style="width: ${progressPercent}%"></div>
                         </div>
                     </div>
+
+                    <div class="task-admin-actions" style="margin-top: 16px; border-top: 1px dashed var(--border-color); padding-top: 12px; display: flex; justify-content: flex-end;">
+                        <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsPDF('${p.id}')" style="font-size: 0.75rem; padding: 6px 12px;">
+                            <i class="fa-solid fa-file-export"></i> Xuất DS chưa làm
+                        </button>
+                    </div>
                 </div>
             `;
             pendingList.appendChild(card);
@@ -8000,11 +8061,14 @@ function processTeamBatchPaste() {
     }
 }
 // ADMIN: EXPORT INCOMPLETE EVALUATIONS
-async function exportIncompleteEvaluationsPDF() {
+async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
     if (!state.currentUser || state.userRole !== 'admin') return;
 
     const term = state.currentTerm || 'Unknown';
-    const projects = state.projects.filter(p => p.term === term);
+    let projects = state.projects.filter(p => p.term === term);
+    if (targetPrjId) {
+        projects = projects.filter(p => String(p.id).trim() === String(targetPrjId).trim());
+    }
     const evaluations = state.evaluations || [];
 
     const checkPL = (r) => {
@@ -8121,9 +8185,13 @@ async function exportIncompleteEvaluationsPDF() {
     });
 
     // 3. Render HTML
+    const reportTitle = targetPrjId && projects.length > 0
+        ? `DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO - ${projects[0].name.toUpperCase()}`
+        : "DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO";
+
     let html = `
         <div style="text-align:center; margin-bottom:30px; border-bottom:2px solid #0ea5e9; padding-bottom:20px; font-family: 'Times New Roman', serif;">
-            <h1 style="margin:0; font-size:26px; color:#1e293b; text-transform: uppercase; font-weight: bold;">DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO</h1>
+            <h1 style="margin:0; font-size:26px; color:#1e293b; text-transform: uppercase; font-weight: bold;">${reportTitle}</h1>
             <p style="margin:8px 0; color:#64748b; font-size:16px; font-style: italic;">Nhiệm kỳ: ${term} | Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}</p>
         </div>
     `;
@@ -8178,9 +8246,13 @@ async function exportIncompleteEvaluationsPDF() {
     const reportContainer = document.getElementById('incomplete-eval-template');
     reportContainer.innerHTML = html;
 
+    const pdfFilename = targetPrjId && projects.length > 0
+        ? `DS_Chua_Hoan_Thanh_DGC_${projects[0].name.replace(/\s+/g, '_')}.pdf`
+        : `DS_Chua_Hoan_Thanh_Danh_Gia_Cheo_${term}.pdf`;
+
     const opt = {
         margin: [15, 15],
-        filename: `DS_Chua_Hoan_Thanh_Danh_Gia_Cheo_${term}.pdf`,
+        filename: pdfFilename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },

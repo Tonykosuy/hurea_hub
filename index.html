@@ -364,12 +364,42 @@
                                     <p id="stat-evaluated">0</p>
                                 </div>
                             </div>
+                            <div class="stat-card glass-panel">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399);"><i class="fa-solid fa-check-double"></i></div>
+                                <div class="stat-info">
+                                    <h3>Dự án Hoàn thành</h3>
+                                    <p id="stat-finished-projects">0</p>
+                                </div>
+                            </div>
+
+                            <div class="stat-card glass-panel">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #0ea5e9, #38bdf8);"><i class="fa-solid fa-user-gear"></i></div>
+                                <div class="stat-info">
+                                    <h3>Nhân sự tham gia</h3>
+                                    <p id="stat-active-members">0</p>
+                                </div>
+                            </div>
+
                             <div class="stat-card glass-panel" id="stat-card-passwords" style="display:none; cursor:pointer;" onclick="document.querySelector('.nav-item[data-target=\'password-management-view\']').click()">
                                 <div class="stat-icon" style="background: var(--lux-gradient);"><i class="fa-solid fa-key"></i></div>
                                 <div class="stat-info">
                                     <h3>Đã có mật khẩu</h3>
                                     <p id="stat-total-auth-members-dash">0</p>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Top Leaderboard (Visible to Everyone) -->
+                        <div class="leaderboard-section-v2 glass-panel" style="margin-top: 24px; padding: 24px; border-radius: 20px;">
+                            <div class="section-header-v2" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 10px;">
+                                    <i class="fa-solid fa-trophy" style="color: #f59e0b; font-size: 1.5rem;"></i>
+                                    Bảng vàng: Top 5 Cá nhân Xuất sắc
+                                </h3>
+                                <span class="badge-premium" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Premium Rank</span>
+                            </div>
+                            <div id="top-leaderboard-list" style="min-height: 250px;">
+                                <!-- List will be injected here -->
                             </div>
                         </div>
 
@@ -424,13 +454,6 @@
                                 </div>
                             </div>
 
-                            <!-- Chart 7: Top 5 High Scorers List -->
-                            <div class="chart-card">
-                                <h4><i class="fa-solid fa-trophy"></i> Bảng vàng: Top 5 Cá nhân Xuất sắc</h4>
-                                <div class="chart-wrapper" id="top-leaderboard-list" style="height: auto; min-height: 250px; overflow-y: auto;">
-                                    <!-- List will be injected here -->
-                                </div>
-                            </div>
 
                             <!-- Chart 8: Evaluation Activity Trend -->
                             <div class="chart-card">
