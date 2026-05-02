@@ -7628,6 +7628,8 @@ function applyPermissions(role) {
         if (evalCalcActions) evalCalcActions.style.display = 'none';
     }
 
+    // Common restrictions for non-admins (Users, Heads, BCN)
+    if (role !== 'admin') {
         const prjAddBtn = document.querySelector('#projects-view .btn-primary');
         if (prjAddBtn) prjAddBtn.style.display = 'none';
 
@@ -7652,6 +7654,7 @@ function applyPermissions(role) {
         document.querySelectorAll('.project-card .btn-icon.delete').forEach(btn => btn.style.display = 'none');
 
     } else {
+        // Admin specific
         document.querySelectorAll('.eval-tab').forEach(tab => tab.style.display = '');
         const evalCalcActions = document.querySelector('#eval-calc .pane-header div[style*="gap:12px"]');
         if (evalCalcActions) evalCalcActions.style.display = 'flex';
