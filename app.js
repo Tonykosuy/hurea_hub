@@ -617,7 +617,13 @@ function fillSearchableDropdown(listId, data, valKey, labelKey, fmtCb, hiddenId,
 function populateSelectDropdowns() {
     fillSearchableDropdown('list-club-member', state.members, 'id', 'name',
         m => `<strong>${m.name}</strong> - ${m.dept}`, 'eval-club-member', 'btn-club-member');
-    fillSearchableDropdown('list-dept-member', state.members.filter(m => m.dept !== 'BCN'), 'id', 'name',
+    // Filter Dept Member list: leaders only see their own ban, admin/bcn see all
+    let deptMembers = state.members.filter(m => m.dept !== 'BCN');
+    if (state.userRole === 'head' && state.userDept) {
+        deptMembers = deptMembers.filter(m => (m.dept || '').trim() === state.userDept);
+    }
+    
+    fillSearchableDropdown('list-dept-member', deptMembers, 'id', 'name',
         m => `<strong>${m.name}</strong> - ${m.dept}`, 'eval-dept-member', 'btn-dept-member');
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     fillSearchableDropdown('list-prj', termProjects, 'id', 'name',
@@ -4413,7 +4419,7 @@ async function saveClubEval() {
     if (!mId) return alert('Chưa chọn thành viên');
 
     // Admin or Board Member check
-    if (state.userRole !== 'admin') {
+    if (!['admin', 'bcn', 'head'].includes(state.userRole)) {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
@@ -4487,7 +4493,7 @@ async function saveDeptEval() {
     if (!mId) return alert('Chưa chọn thành viên');
 
     // Admin or Board Member check
-    if (state.userRole !== 'admin') {
+    if (!['admin', 'bcn', 'head'].includes(state.userRole)) {
         return alert('Bạn không có quyền thực hiện đánh giá này.');
     }
 
@@ -4568,6 +4574,10 @@ function openBatchEvalModal(type) {
 }
 
 function renderEvalGrid(type) {
+    if (!['admin', 'bcn', 'head'].includes(state.userRole)) {
+        closeModal('batch-eval-modal');
+        return showToast('Bạn không có quyền truy cập chức năng này.', 'error');
+    }
     const table = document.getElementById('batch-eval-table');
     const members = state.members.filter(m => state.scoreDeptFilter === 'ALL' || m.dept === state.scoreDeptFilter);
 
@@ -4738,6 +4748,10 @@ function handleBatchPaste(e) {
 }
 
 async function saveBatchEval() {
+    if (!['admin', 'bcn', 'head'].includes(state.userRole)) {
+        closeModal('batch-eval-modal');
+        return showToast('Bạn không có quyền lưu đánh giá hàng loạt.', 'error');
+    }
     const type = currentBatchType;
     const rows = document.querySelectorAll('#batch-eval-table tbody tr');
     const records = [];
@@ -7314,17 +7328,24 @@ function handleLogin() {
     // Role Detection
     const activeTermObj = state.terms.find(t => t.id === state.currentTerm);
     let role = 'user';
+    state.userDept = (member.dept || '').trim();
 
     if (activeTermObj && activeTermObj.bcn) {
         const bcn = activeTermObj.bcn;
         const isPres = ensureArray(bcn.presIds).includes(memberId);
         const isVp = ensureArray(bcn.vpIds).includes(memberId);
-        const isHead = [bcn.ldIds, bcn.rrIds, bcn.erIds, bcn.ebIds].some(ids => ensureArray(ids).includes(memberId));
+        
+        const isLD = ensureArray(bcn.ldIds).includes(memberId);
+        const isRR = ensureArray(bcn.rrIds).includes(memberId);
+        const isER = ensureArray(bcn.erIds).includes(memberId);
+        const isEB = ensureArray(bcn.ebIds).includes(memberId);
 
         if (isPres || isVp) {
-            role = 'user'; // Was 'bcn' - Downgraded to match user permissions
-        } else if (isHead) {
-            role = 'user'; // Was 'head' - Downgraded to match user permissions
+            role = 'bcn';
+        } else if (isLD || isRR || isER || isEB) {
+            role = 'head';
+            // Specifically ensure userDept matches the config keys if there's any mapping needed
+            // (Assumes member.dept is already correct, e.g., 'R&R', 'L&D')
         }
     }
 
@@ -7451,6 +7472,12 @@ function updateHeaderUser() {
     if (state.userRole === 'admin') {
         badge.innerText = 'Admin';
         badge.className = 'header-role-badge role-admin';
+    } else if (state.userRole === 'bcn') {
+        badge.innerText = 'BCN';
+        badge.className = 'header-role-badge role-bcn';
+    } else if (state.userRole === 'head') {
+        badge.innerText = 'Leader';
+        badge.className = 'header-role-badge role-head';
     } else {
         badge.innerText = 'Member';
         badge.className = 'header-role-badge role-user';
@@ -7459,7 +7486,10 @@ function updateHeaderUser() {
     // Update version badge
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) {
-        versionBadge.innerText = state.userRole === 'admin' ? 'Admin V20' : 'Member';
+        if (state.userRole === 'admin') versionBadge.innerText = 'Admin V20';
+        else if (state.userRole === 'bcn') versionBadge.innerText = 'BCN';
+        else if (state.userRole === 'head') versionBadge.innerText = 'Leader';
+        else versionBadge.innerText = 'Member';
     }
 }
 
@@ -7501,7 +7531,7 @@ function applyPermissions(role) {
 
         navItems.forEach(item => {
             const target = item.getAttribute('data-target');
-            if (target === 'members-view' || target === 'terms-view' || target === 'terms-view') {
+            if (target === 'members-view' || target === 'terms-view') {
                 item.classList.add('nav-hidden');
             }
         });
@@ -7529,7 +7559,7 @@ function applyPermissions(role) {
         const deptComment = document.getElementById('dept-comment');
         if (deptComment) {
             deptComment.disabled = true;
-            deptComment.placeholder = "Chỉ Admin mới có quyền nhập nhận xét.";
+            deptComment.placeholder = "Chỉ Admin/Ban lãnh đạo mới có quyền nhập nhận xét.";
         }
 
         const deptSaveBtn = document.querySelector('#eval-dept .btn-primary');
@@ -7539,6 +7569,47 @@ function applyPermissions(role) {
 
         const evalCalcActions = document.querySelector('#eval-calc .pane-header div[style*="gap:12px"]');
         if (evalCalcActions) evalCalcActions.style.display = 'none';
+    } else if (role === 'head' || role === 'bcn') {
+        // Leaders and BCN can see Dept Eval but not all admin settings
+        navItems.forEach(item => {
+            const target = item.getAttribute('data-target');
+            if (target === 'members-view' || target === 'terms-view' || target === 'terms-view') {
+                item.classList.add('nav-hidden');
+            }
+        });
+
+        // Hide from bottom nav too
+        document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            const target = item.getAttribute('data-target');
+            if (target === 'members-view' || target === 'terms-view') {
+                item.style.display = 'none';
+            }
+        });
+
+        // Evaluation Tabs visibility
+        document.querySelectorAll('.eval-tab').forEach(tab => {
+            const evalTarget = tab.getAttribute('data-eval');
+            if (evalTarget === 'eval-club') {
+                tab.style.display = 'none'; // Only Admin does Club Eval
+            } else {
+                tab.style.display = ''; // Show Dept Eval and Peer Eval
+            }
+        });
+
+        const deptComment = document.getElementById('dept-comment');
+        if (deptComment) {
+            deptComment.disabled = false;
+            deptComment.placeholder = "Nhập nhận xét chi tiết về hiệu suất và đóng góp của thành viên...";
+        }
+
+        const deptSaveBtn = document.querySelector('#eval-dept .btn-primary');
+        if (deptSaveBtn) {
+            deptSaveBtn.style.display = 'inline-flex';
+        }
+
+        const evalCalcActions = document.querySelector('#eval-calc .pane-header div[style*="gap:12px"]');
+        if (evalCalcActions) evalCalcActions.style.display = 'none';
+    }
 
         const prjAddBtn = document.querySelector('#projects-view .btn-primary');
         if (prjAddBtn) prjAddBtn.style.display = 'none';
