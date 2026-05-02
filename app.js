@@ -7332,20 +7332,37 @@ function handleLogin() {
 
     if (activeTermObj && activeTermObj.bcn) {
         const bcn = activeTermObj.bcn;
-        const isPres = ensureArray(bcn.presIds).includes(memberId);
-        const isVp = ensureArray(bcn.vpIds).includes(memberId);
         
-        const isLD = ensureArray(bcn.ldIds).includes(memberId);
-        const isRR = ensureArray(bcn.rrIds).includes(memberId);
-        const isER = ensureArray(bcn.erIds).includes(memberId);
-        const isEB = ensureArray(bcn.ebIds).includes(memberId);
+        // Comprehensive check of all ID fields in BCN structure
+        const presIds = ensureArray(bcn.presIds).map(id => String(id).trim());
+        const vpIds = ensureArray(bcn.vpIds).map(id => String(id).trim());
+        const ldIds = ensureArray(bcn.ldIds).map(id => String(id).trim());
+        const rrIds = ensureArray(bcn.rrIds).map(id => String(id).trim());
+        const erIds = ensureArray(bcn.erIds).map(id => String(id).trim());
+        const ebIds = ensureArray(bcn.ebIds).map(id => String(id).trim());
 
-        if (isPres || isVp) {
-            role = 'bcn';
-        } else if (isLD || isRR || isER || isEB) {
-            role = 'head';
-            // Specifically ensure userDept matches the config keys if there's any mapping needed
-            // (Assumes member.dept is already correct, e.g., 'R&R', 'L&D')
+        const allLeaderIds = [...presIds, ...vpIds, ...ldIds, ...rrIds, ...erIds, ...ebIds];
+        
+        // Name-based fallback for migration/legacy data
+        const bcnNames = [bcn.pres, bcn.vp, bcn.ld, bcn.rr, bcn.er, bcn.eb]
+            .filter(Boolean)
+            .flatMap(str => str.split(',').map(n => n.trim().toLowerCase()));
+        
+        const myId = String(memberId).trim();
+        const myName = (member.name || '').toLowerCase().trim();
+
+        if (allLeaderIds.includes(myId) || bcnNames.includes(myName)) {
+            if (presIds.includes(myId) || (bcn.pres && bcn.pres.toLowerCase().includes(myName)) || 
+                vpIds.includes(myId) || (bcn.vp && bcn.vp.toLowerCase().includes(myName))) {
+                role = 'bcn';
+            } else {
+                role = 'head';
+                // Map department
+                if (ldIds.includes(myId) || (bcn.ld && bcn.ld.toLowerCase().includes(myName))) state.userDept = 'L&D';
+                else if (rrIds.includes(myId) || (bcn.rr && bcn.rr.toLowerCase().includes(myName))) state.userDept = 'R&R';
+                else if (erIds.includes(myId) || (bcn.er && bcn.er.toLowerCase().includes(myName))) state.userDept = 'ER';
+                else if (ebIds.includes(myId) || (bcn.eb && bcn.eb.toLowerCase().includes(myName))) state.userDept = 'EB';
+            }
         }
     }
 
