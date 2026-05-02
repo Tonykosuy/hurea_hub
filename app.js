@@ -4151,11 +4151,12 @@ const DEPT_EVAL_CONFIG = {
     'R&R': [
         { id: 'rr_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy bộ phận', weight: 0.1 },
         { id: 'rr_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
-        { id: 'rr_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
+        { id: 'rr_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với CTV/TV ban', weight: 0.1 },
         { id: 'rr_sup', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Tham gia đóng góp, hỗ trợ tích cực các hoạt động, chương trình của team khác trong ban', weight: 0.2 },
-        { id: 'rr_tb', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Teambuilding', weight: 0.1 },
-        { id: 'rr_tt', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tình nguyện trung thu HureAMour', weight: 0.2 },
-        { id: 'rr_ctv', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tìm kiếm CTV tháng 10/2025', weight: 0.2 }
+        { id: 'rr_yea', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Year-End Awards', weight: 0.1 },
+        { id: 'rr_xtn', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Xuân Tình Nguyện 2026', weight: 0.1 },
+        { id: 'rr_tn', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tân Niên 2026', weight: 0.1 },
+        { id: 'rr_ctv', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Tìm kiếm CTV Tháng 03/2026', weight: 0.2 }
     ],
     'ER': [
         { id: 'er_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy ban', weight: 0.1 },
@@ -4182,14 +4183,14 @@ const DEPT_EVAL_CONFIG = {
         { id: 'eb_cr', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Creative (Đóng góp ý tưởng, xây dựng fanpage)', weight: 0.1 }
     ],
     'L&D': [
-        { id: 'ld_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỶ LUẬT', label: 'Thực hiện nội quy ban', weight: 0.1 },
+        { id: 'ld_rule', cat: 'TINH THẦN TRÁCH NHIỆM, KỈ LUẬT', label: 'Thực hiện nội quy ban', weight: 0.1 },
         { id: 'ld_head', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với trưởng phó ban', weight: 0.1 },
         { id: 'ld_mem', cat: 'MỐI QUAN HỆ VỚI BAN', label: 'Với thành viên/CTV ban', weight: 0.1 },
         { id: 'ld_idea', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Đóng góp ý kiến, xây dựng ý tưởng project', weight: 0.15 },
-        { id: 'ld_pro', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Chủ động tham gia Project, xung phong đảm nhận', weight: 0.15 },
-        { id: 'ld_sup', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Nhiệt tình, chủ động hỗ trợ các thành viên khác', weight: 0.1 },
-        { id: 'ld_qlct', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Chất lượng chương trình tổ chức', weight: 0.15 },
-        { id: 'ld_thct', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Thực hiện công tác tổ chức, quản lý chương trình', weight: 0.15 }
+        { id: 'ld_pro', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Chủ động tham gia Project, xung phong đảm nhận các vị trí quan trọng', weight: 0.15 },
+        { id: 'ld_sup', cat: 'THAM GIA VÀ HỖ TRỢ CÔNG VIỆC CỦA BAN', label: 'Nhiệt tình, chủ động hỗ trợ các thành viên khác trong ban', weight: 0.1 },
+        { id: 'ld_deadline', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Mức độ hoàn thành đúng deadline', weight: 0.15 },
+        { id: 'ld_task', cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Mức độ hoàn thiện task', weight: 0.15 }
     ]
 };
 
@@ -4575,14 +4576,27 @@ function renderEvalGrid(type) {
     if (type === 'club') {
         html += '<th>Kỷ luật (+/-)</th><th>Lý do</th><th>Hình ảnh (0-10)</th></tr></thead><tbody>';
     } else {
-        html += '<th>Kỷ luật (x0.1)</th><th>TB/PB (x0.1)</th><th>TV (x0.1)</th><th>Hỗ trợ (x0.2)</th><th>Q1 (x0.1)</th><th>Q2 (x0.2)</th><th>Q3 (x0.2)</th><th>Nhận xét</th></tr></thead><tbody>';
+        const currentDept = state.scoreDeptFilter;
+        let config = [];
+        if (currentDept !== 'ALL') {
+            config = DEPT_EVAL_CONFIG[currentDept] || [];
+        } else {
+            // Default to R&R if ALL is selected, but warn user
+            config = DEPT_EVAL_CONFIG['R&R'];
+            showToast('Lưu ý: Bạn đang ở chế độ "Tất cả Ban". Bảng nhập sẽ sử dụng cấu hình của Ban R&R làm mặc định.', 'info');
+        }
+        
+        config.forEach(c => {
+            html += `<th title="${c.cat}">${c.label.length > 20 ? c.label.substring(0, 17) + '...' : c.label}<br><small>(x${c.weight})</small></th>`;
+        });
+        html += '<th>Nhận xét</th></tr></thead><tbody>';
     }
 
     members.forEach((m, idx) => {
         const ce = state.clubScores.find(x => x.memberId === m.id && x.term === state.currentTerm);
         const de = state.deptScores.find(x => x.memberId === m.id && x.term === state.currentTerm);
 
-        html += `<tr data-mid="${m.id}">
+        html += `<tr data-mid="${m.id}" data-dept="${m.dept}">
             <td>${idx + 1}</td>
             <td><strong>${m.name}</strong><br><small style="color:var(--text-muted)">Ban ${m.dept}</small></td>`;
 
@@ -4593,16 +4607,18 @@ function renderEvalGrid(type) {
                 <td><input type="text" class="grid-input score-val" data-field="reason" placeholder="Lý do..."></td>
                 <td><input type="number" class="grid-input num-center score-val" data-field="brand" placeholder="7" value="${clubBrand}"></td>`;
         } else {
+            const memberConfig = DEPT_EVAL_CONFIG[m.dept] || [];
             const c = (de && de.criteria) ? de.criteria : {};
-            html += `
-                <td><input type="number" class="grid-input num-center score-val" data-field="rule" value="${c.rule !== undefined ? c.rule : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="hRel" value="${c.hRel !== undefined ? c.hRel : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="mRel" value="${c.mRel !== undefined ? c.mRel : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="sup" value="${c.sup !== undefined ? c.sup : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="q1" value="${c.q1 !== undefined ? c.q1 : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="q2" value="${c.q2 !== undefined ? c.q2 : ''}"></td>
-                <td><input type="number" class="grid-input num-center score-val" data-field="q3" value="${c.q3 !== undefined ? c.q3 : ''}"></td>
-                <td><input type="text" class="grid-input score-val" data-field="remarks" value="${de ? de.remarks || '' : ''}"></td>`;
+            
+            // Use the config of the current VIEW (not necessarily the member if ALL is selected)
+            const viewDept = state.scoreDeptFilter === 'ALL' ? 'R&R' : state.scoreDeptFilter;
+            const viewConfig = DEPT_EVAL_CONFIG[viewDept] || [];
+
+            viewConfig.forEach(vc => {
+                const val = c[vc.id] !== undefined ? c[vc.id] : '';
+                html += `<td><input type="number" class="grid-input num-center score-val" data-field="${vc.id}" value="${val}"></td>`;
+            });
+            html += `<td><input type="text" class="grid-input score-val" data-field="remarks" value="${de ? de.remarks || '' : ''}"></td>`;
         }
         html += '</tr>';
     });
@@ -4752,26 +4768,34 @@ async function saveBatchEval() {
                 records.push(entry);
             }
         } else {
-            const rule = parseFloat(inputs[0].value);
-            const hRel = parseFloat(inputs[1].value);
-            const mRel = parseFloat(inputs[2].value);
-            const sup = parseFloat(inputs[3].value);
-            const q1 = parseFloat(inputs[4].value);
-            const q2 = parseFloat(inputs[5].value);
-            const q3 = parseFloat(inputs[6].value);
-            const remarks = inputs[7].value;
+            const member = state.members.find(m => m.id === mId);
+            const viewDept = state.scoreDeptFilter === 'ALL' ? 'R&R' : state.scoreDeptFilter;
+            const config = DEPT_EVAL_CONFIG[viewDept] || [];
+            
+            let totalScore = 0;
+            const criteriaObj = {};
+            let hasAnyData = false;
 
-            if (!isNaN(rule) || !isNaN(hRel) || remarks) {
-                const bonus = 0; // Default in batch for now
-                let totalScore = 0.1 * ((rule || 0) + (hRel || 0) + (mRel || 0) + (q1 || 0)) + 0.2 * ((sup || 0) + (q2 || 0) + (q3 || 0)) + bonus;
+            config.forEach((c, i) => {
+                const val = parseFloat(inputs[i].value);
+                if (!isNaN(val)) {
+                    totalScore += val * c.weight;
+                    criteriaObj[c.id] = val;
+                    hasAnyData = true;
+                }
+            });
+
+            const remarks = inputs[config.length].value;
+            if (remarks) hasAnyData = true;
+
+            if (hasAnyData) {
                 if (totalScore > 10) totalScore = 10;
-
                 records.push({
                     memberId: mId,
                     term: state.currentTerm,
                     totalScore,
                     remarks,
-                    criteria: { rule, hRel, mRel, sup, q1, q2, q3, bonus }
+                    criteria: JSON.stringify(criteriaObj)
                 });
             }
         }
