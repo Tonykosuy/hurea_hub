@@ -2879,12 +2879,12 @@ function calculateFinalScores() {
 // SCORE DETAIL MODAL
 // ==========================================
 function showScoreDetail(mId) {
-    const member = state.members.find(m => m.id === mId);
+    const member = state.members.find(m => String(m.id) === String(mId));
     if (!member) return;
     document.getElementById('score-detail-title').innerText = 'Chi tiết điểm: ' + member.name;
     const prjScore = calculateMemberProjectScore(mId);
     const clubScore = calculateMemberClubScore(mId);
-    const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+    const de = state.deptScores.find(x => String(x.memberId) === String(mId) && x.term === state.currentTerm);
     const deptScore = de ? de.totalScore : 0;
     const total = ((prjScore + clubScore + deptScore) / 3).toFixed(2);
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
@@ -2892,7 +2892,7 @@ function showScoreDetail(mId) {
     let prjRows = '';
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
-        const pt = participants.find(p => p.memberId === mId);
+        const pt = participants.find(p => String(p.memberId) === String(mId));
         if (!pt) return;
 
         const isSupport = pt.role === 'SUPPORT' || pt.role === 'SP';
@@ -2908,7 +2908,7 @@ function showScoreDetail(mId) {
             return;
         }
 
-        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && (e.targetId || e.targetid) === mId);
+        const evals = state.evaluations.filter(e => (e.prjId || e.prjid) === prj.id && String(e.targetId || e.targetid) === String(mId));
         if (evals.length === 0) {
             prjRows += `<tr><td><strong>${prj.name}</strong></td><td>${pt.role}</td><td colspan="5" style="color:var(--text-muted)">Chưa có đánh giá</td></tr>`;
             return;
@@ -3049,7 +3049,7 @@ function showScoreDetail(mId) {
         </tr>`;
     });
 
-    const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+    const ce = state.clubScores.find(x => String(x.memberId) === String(mId) && x.term === state.currentTerm);
     // Unify discipline logic: 10 base, minus deductions if input as negative, or absolute score if 0-10
     let discVal = (ce && ce.disciplinePoints !== undefined) ? parseFloat(ce.disciplinePoints) : 10;
     let disc = discVal;
@@ -3059,7 +3059,7 @@ function showScoreDetail(mId) {
     let internalCheckinCount = 0;
     termProjects.forEach(prj => {
         const participants = ensureArray(prj.participants);
-        const pt = participants.find(p => p.memberId === mId);
+        const pt = participants.find(p => String(p.memberId) === String(mId));
         if (!pt) return;
 
         if (pt.role === 'SUPPORT') {
@@ -3568,8 +3568,8 @@ function showScoreDetail(mId) {
             termProjects.forEach(prj => {
                 const evalRecord = state.evaluations.find(e =>
                     (e.prjId || e.prjid) === prj.id &&
-                    (e.raterId || e.raterid) === mId &&
-                    (e.targetId || e.targetid) === mId
+                    String(e.raterId || e.raterid) === String(mId) &&
+                    String(e.targetId || e.targetid) === String(mId)
                 );
                 if (!evalRecord) return;
 
@@ -3642,7 +3642,7 @@ function showScoreDetail(mId) {
                     <thead><tr><th>Ngày gửi</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
                     <tbody>
                         ${(() => {
-            const appeals = state.bugReports.filter(b => b.memberId === mId && b.area === 'PHÚC KHẢO');
+            const appeals = state.bugReports.filter(b => String(b.memberId) === String(mId) && b.area === 'PHÚC KHẢO');
             if (appeals.length === 0) return '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có yêu cầu phúc khảo nào</td></tr>';
             return appeals.slice().reverse().map(a => {
                 let stLabel = 'Chờ xử lý', stColor = 'var(--text-muted)';
