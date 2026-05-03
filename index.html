@@ -986,11 +986,14 @@
                                     <p style="margin:0; opacity:0.8;">Danh sách các dự án bạn tham gia cần được đánh giá
                                         chéo.</p>
                                 </div>
-                                <button class="btn-lux-primary" id="btn-export-incomplete-evals"
-                                    onclick="exportIncompleteEvaluationsPDF()"
-                                    style="display:none; font-size:0.85rem; padding:10px 16px;">
-                                    <i class="fa-solid fa-file-export"></i> DS chưa hoàn thành
-                                </button>
+                                <div id="btn-export-incomplete-evals" style="display:none; gap:10px;">
+                                    <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsPDF()" style="font-size:0.85rem; padding:8px 16px;">
+                                        <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                                    </button>
+                                    <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsExcel()" style="font-size:0.85rem; padding:8px 16px; color:#10b981; border-color:rgba(16,185,129,0.3);">
+                                        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Hidden Report Template for Incomplete Evals -->

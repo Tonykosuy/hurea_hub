@@ -1012,7 +1012,8 @@ function _renderProjects() {
                     <span class="p-badge ${sCls}">${sLbl}</span>
                 </div>
                 <div class="p-actions">
-                    <button class="btn-icon" onclick="exportIncompleteEvaluationsPDF('${p.id}')" title="Xuất DS chưa đánh giá chéo"><i class="fa-solid fa-file-export"></i></button>
+                    <button class="btn-icon" onclick="exportIncompleteEvaluationsPDF('${p.id}')" title="Xuất PDF DS chưa đánh giá chéo"><i class="fa-solid fa-file-pdf"></i></button>
+                    <button class="btn-icon" style="color:#10b981;" onclick="exportIncompleteEvaluationsExcel('${p.id}')" title="Xuất Excel DS chưa đánh giá chéo"><i class="fa-solid fa-file-excel"></i></button>
                     <button class="btn-icon" onclick="editProjectV2('${p.id}')" title="Chỉnh sửa"><i class="fa-solid fa-pen-to-square"></i></button>
                     ${state.userRole === 'admin' ? `<button class="btn-icon delete" onclick="deleteProject('${p.id}')" title="Xóa"><i class="fa-solid fa-trash-can"></i></button>` : ''}
                 </div>
@@ -6243,7 +6244,7 @@ function renderEvaluationTasks() {
     historyList.innerHTML = '';
 
     const exportBtn = document.getElementById('btn-export-incomplete-evals');
-    if (exportBtn) exportBtn.style.display = isAdmin ? 'block' : 'none';
+    if (exportBtn) exportBtn.style.display = isAdmin ? 'flex' : 'none';
 
     const myId = String(state.currentUser.id).trim();
 
@@ -6285,9 +6286,12 @@ function renderEvaluationTasks() {
                         </div>
                     </div>
 
-                    <div class="task-admin-actions" style="margin-top: 16px; border-top: 1px dashed var(--border-color); padding-top: 12px; display: flex; justify-content: flex-end;">
+                    <div class="task-admin-actions" style="margin-top: 16px; border-top: 1px dashed var(--border-color); padding-top: 12px; display: flex; justify-content: flex-end; gap: 8px;">
                         <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsPDF('${p.id}')" style="font-size: 0.75rem; padding: 6px 12px;">
-                            <i class="fa-solid fa-file-export"></i> Xuất DS chưa làm
+                            <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                        </button>
+                        <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsExcel('${p.id}')" style="font-size: 0.75rem; padding: 6px 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                            <i class="fa-solid fa-file-excel"></i> Xuất Excel
                         </button>
                     </div>
                 </div>
@@ -8245,8 +8249,8 @@ function processTeamBatchPaste() {
     }
 }
 // ADMIN: EXPORT INCOMPLETE EVALUATIONS
-async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
-    if (!state.currentUser || state.userRole !== 'admin') return;
+function getIncompleteEvalsData(targetPrjId = null) {
+    if (!state.currentUser || state.userRole !== 'admin') return null;
 
     const term = state.currentTerm || 'Unknown';
     let projects = state.projects.filter(p => p.term === term);
@@ -8273,7 +8277,6 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
         const raterRole = raterPt.role || 'Thành viên';
         const raterTeam = raterPt.teamName;
 
-        // Exempt Leadership and Helpers
         if (isExemptFromEval(raterId, raterRole)) return [];
         if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole)) return [];
 
@@ -8289,10 +8292,9 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
             targets = participants.filter(pt => {
                 if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
                 const isSelf = pt.memberId === raterId;
-                const isOtherLeader = checkLeader(pt.role) && pt.memberId !== raterId;
                 const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
                 const isMyPL = checkPL(pt.role);
-                return isSelf || isOtherLeader || isTeammate || isMyPL;
+                return isSelf || isTeammate || isMyPL;
             });
         } else {
             targets = participants.filter(pt => {
@@ -8305,7 +8307,6 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
             });
         }
 
-        // Unique by memberId
         const unique = [];
         const seen = new Set();
         targets.forEach(t => {
@@ -8322,18 +8323,14 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
         return m ? m.name : (fallback || 'Không tên');
     };
 
-    // 1. Gather all incomplete data across projects
-    const raterMap = new Map(); // raterId -> { raterName, dept, missedProjects: [ {prjName, missedNames} ] }
-
+    const raterMap = new Map();
     projects.forEach(p => {
         const prjIdStr = String(p.id).trim();
         const participants = ensureArray(p.participants);
-
         participants.forEach(rater => {
             const rId = String(rater.memberId).trim();
             const role = rater.role || '';
             if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role) || isExemptFromEval(rId, role)) return;
-
             const required = getRequiredTargets(rId, participants);
             const missed = required.filter(target => {
                 const tId = String(target.memberId).trim();
@@ -8343,7 +8340,6 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
                     String(ev.targetId || ev.targetid).trim() === tId
                 );
             });
-
             if (missed.length > 0) {
                 if (!raterMap.has(rId)) {
                     const member = state.members.find(m => String(m.id) === rId);
@@ -8361,14 +8357,20 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
         });
     });
 
-    // 2. Group by Dept
     const deptGroups = {};
     raterMap.forEach(info => {
         if (!deptGroups[info.dept]) deptGroups[info.dept] = [];
         deptGroups[info.dept].push(info);
     });
 
-    // 3. Render HTML
+    return { raterMap, deptGroups, term, projects };
+}
+
+async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
+    const data = getIncompleteEvalsData(targetPrjId);
+    if (!data) return;
+    const { raterMap, deptGroups, term, projects } = data;
+
     const reportTitle = targetPrjId && projects.length > 0
         ? `DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO - ${projects[0].name.toUpperCase()}`
         : "DANH SÁCH CHƯA HOÀN THÀNH ĐÁNH GIÁ CHÉO";
@@ -8396,7 +8398,8 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
                             <tr style="background:#f8fafc; color:#475569;">
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 6%;">STT</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left; width: 25%;">Họ và Tên</th>
-                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 15%;">Số lượng thiếu</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 12%;">Số lượng thiếu</th>
+                                <th style="border:1px solid #cbd5e1; padding:12px; text-align:center; width: 12%;">Điểm trừ</th>
                                 <th style="border:1px solid #cbd5e1; padding:12px; text-align:left;">Những chương trình chưa làm đánh giá chéo</th>
                             </tr>
                         </thead>
@@ -8405,11 +8408,13 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
 
             members.forEach((m, idx) => {
                 const projectNames = m.missedProjects.map(mp => `<strong>${mp.prjName}</strong>`).join(', ');
+                const deduction = m.missedProjects.length * -2;
                 html += `
                     <tr style="page-break-inside: avoid;">
                         <td style="border:1px solid #cbd5e1; padding:10px; text-align:center;">${idx + 1}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; font-weight: 600;">${m.raterName}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; text-align:center; font-weight: 700; color: #ef4444;">${m.missedProjects.length}</td>
+                        <td style="border:1px solid #cbd5e1; padding:10px; text-align:center; font-weight: 700; color: #ef4444;">${deduction}</td>
                         <td style="border:1px solid #cbd5e1; padding:10px; color:#ef4444; font-style: italic;">${projectNames}</td>
                     </tr>
                 `;
@@ -8451,6 +8456,51 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
         console.error('PDF Export Error:', err);
         showToast('Lỗi khi xuất PDF. Vui lòng thử lại.', 'error');
     }
+}
+
+function exportIncompleteEvaluationsExcel(targetPrjId = null) {
+    const data = getIncompleteEvalsData(targetPrjId);
+    if (!data) return;
+    const { deptGroups, term, projects } = data;
+
+    const sortedDepts = Object.keys(deptGroups).sort();
+    if (sortedDepts.length === 0) {
+        return showToast('Không có dữ liệu ai thiếu đánh giá chéo!', 'info');
+    }
+
+    const header = ['Ban', 'Ho va Ten', 'So luong thieu', 'Diem tru', 'Chung trinh thieu'];
+    let csvContent = '\uFEFF' + header.join(',') + '\n';
+
+    sortedDepts.forEach(dept => {
+        const members = deptGroups[dept];
+        members.forEach(m => {
+            const deduction = m.missedProjects.length * -2;
+            const projectNames = m.missedProjects.map(mp => mp.prjName).join(' | ');
+            const row = [
+                `"${dept}"`,
+                `"${m.raterName}"`,
+                m.missedProjects.length,
+                deduction,
+                `"${projectNames}"`
+            ];
+            csvContent += row.join(',') + '\n';
+        });
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const excelFilename = targetPrjId && projects.length > 0
+        ? `DS_Chua_Hoan_Thanh_DGC_${projects[0].name.replace(/\s+/g, '_')}.csv`
+        : `DS_Chua_Hoan_Thanh_Danh_Gia_Cheo_${term}.csv`;
+        
+    link.setAttribute('href', url);
+    link.setAttribute('download', excelFilename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Tải xuống báo cáo Excel thành công!', 'success');
 }
 
 // ==========================================
