@@ -3122,18 +3122,7 @@ function showScoreDetail(mId) {
             sec.items.push(c);
         });
 
-        let tableHtml = `
-            <table class="dept-table-themed">
-                <thead>
-                    <tr>
-                        <th style="width:25%">TIÊU CHÍ</th>
-                        <th style="width:45%">CHỈ TIÊU</th>
-                        <th style="width:15%">ĐIỂM</th>
-                        <th style="width:15%">THÀNH PHẦN</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        let tableRows = '';
 
         sections.forEach(sec => {
             sec.items.forEach((c, idx) => {
@@ -3141,21 +3130,21 @@ function showScoreDetail(mId) {
                 const scoreDisp = val !== null ? `${val}/10` : '---';
                 const weightedDisp = val !== null ? (val * c.weight).toFixed(2) : '---';
 
-                tableHtml += `<tr>`;
+                tableRows += `<tr>`;
                 if (idx === 0) {
-                    tableHtml += `<td rowspan="${sec.items.length}" style="font-weight:800; background:rgba(0,0,0,0.02); vertical-align:middle; text-align:center; font-size:0.75rem; border-right:1px solid var(--border-color);">${sec.name}</td>`;
+                    tableRows += `<td rowspan="${sec.items.length}" style="font-weight:800; background:rgba(0,0,0,0.02); vertical-align:middle; text-align:center; font-size:0.75rem; border-right:1px solid var(--border-color);">${sec.name}</td>`;
                 }
-                tableHtml += `
+                tableRows += `
                     <td>${c.label} <small>(x${c.weight})</small></td>
                     <td class="text-center" style="font-weight:700;">${scoreDisp}</td>
-                    <td class="text-center" style="font-weight:800; color:var(--active-dept-color);">${weightedDisp}</td>
+                    <td class="text-center" style="font-weight:700;">${weightedDisp}</td>
                 </tr>`;
             });
         });
 
         if (de && de.bonusScore) {
             const bVal = parseFloat(de.bonusScore || 0);
-            tableHtml += `
+            tableRows += `
                 <tr style="background:var(--active-dept-light);">
                     <td colspan="2"><strong style="color:var(--active-dept-text)">Đóng góp / Bonus</strong></td>
                     <td class="text-center" style="color:var(--active-dept-text)">+${bVal}</td>
@@ -3163,17 +3152,18 @@ function showScoreDetail(mId) {
                 </tr>`;
         }
 
-        tableHtml += `</tbody></table>`;
-        deptRows = tableHtml;
+        deptRows = tableRows;
 
         if (de && !deptCri) {
             deptRows += `
-                <div style="margin-top:10px; color:var(--text-muted); font-size:0.8rem; font-style:italic;">
-                    * Dữ liệu chi tiết đang ở chế độ rút gọn. Tổng điểm: <strong>${deptScore.toFixed(2)}</strong>
-                </div>`;
+                <tr>
+                    <td colspan="4" style="padding:10px; color:var(--text-muted); font-size:0.8rem; font-style:italic; text-align:center;">
+                        * Dữ liệu chi tiết đang ở chế độ rút gọn. Tổng điểm: <strong>${deptScore.toFixed(2)}</strong>
+                    </td>
+                </tr>`;
         }
     } else {
-        deptRows = `<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có cấu hình tiêu chí cho Ban "${member.dept || 'N/A'}".</td></tr>`;
+        deptRows = `<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:40px;">Chưa có cấu hình tiêu chí cho Ban "${member.dept || 'N/A'}".</td></tr>`;
     }
 
     state.currentDetailMemberId = mId;
@@ -3276,7 +3266,7 @@ function showScoreDetail(mId) {
 
                 <div class="formula-item" style="margin-bottom:24px;">
                     <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--primary); display:flex; align-items:center; gap:8px;">
-                        <i class="fa-solid fa-diagram-project"></i> 3. Chi tiết Đánh giá chéo từ Project
+                        <i class="fa-solid fa-diagram-project"></i> 2. Chi tiết Đánh giá chéo từ Project
                     </div>
                     <div class="glass-panel" style="background:rgba(14, 165, 233, 0.03); border:1px solid rgba(14, 165, 233, 0.1); border-radius:16px; overflow:hidden;">
                         <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
@@ -3356,7 +3346,7 @@ function showScoreDetail(mId) {
                 </div>
 
                 <div class="formula-item" style="margin-bottom:20px;">
-                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">4. Điểm CLB (Cơ cấu 3-3-2-2)</div>
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">3. Điểm CLB (Cơ cấu 3-3-2-2)</div>
                     <div style="font-size:0.85rem; line-height:1.6; background:rgba(0,0,0,0.02); padding:15px; border-radius:12px;">
                         <p>• <strong>Kỷ luật (30%):</strong> ${disc.toFixed(1)}/10 ${ce ? `(Lý do: ${ce.reasons || 'N/A'})` : '(Mặc định 10)'}</p>
                         <p>• <strong>Hỗ trợ & Coreteam (30%):</strong> [(${sBase} * 0.3) + (${cBase} * 0.7)] = ${supportScore.toFixed(2)} (Hỗ trợ: ${supportCount}, Coreteam: ${coreteamCount})</p>
@@ -3369,8 +3359,19 @@ function showScoreDetail(mId) {
                     </div>
                 </div>
 
+                <div class="formula-item" style="margin-bottom:20px;">
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">4. Điểm Ban Chuyên Môn (Tính theo bộ tiêu chí riêng)</div>
+                    <div style="font-size:0.85rem; line-height:1.6; background:rgba(0,0,0,0.02); padding:15px; border-radius:12px;">
+                        <p>• <strong>Điểm hoạt động chuyên môn:</strong> ${(deptScore - (de && de.bonusScore ? parseFloat(de.bonusScore) : 0)).toFixed(2)}/10</p>
+                        <p>• <strong>Điểm cộng (Bonus):</strong> +${(de && de.bonusScore ? parseFloat(de.bonusScore) : 0).toFixed(1)}</p>
+                        <div style="margin-top:10px; padding:10px; background:rgba(245, 158, 11, 0.1); border-radius:8px; font-family:monospace; font-weight:700;">
+                            Dept = (Hoạt động chuyên môn) + Bonus = <strong>${deptScoreVal}</strong>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="formula-item">
-                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">3. Nhận xét từ Ban Chuyên Môn</div>
+                    <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">5. Nhận xét từ Ban Chuyên Môn</div>
                     <div style="padding:15px; background:rgba(245, 158, 11, 0.05); border-radius:12px; font-style:italic;">
                         "${deptRemarks}"
                     </div>
@@ -3543,8 +3544,15 @@ function showScoreDetail(mId) {
 
         <div id="detail-tab-ban" class="detail-tab-pane" style="${state.activeDetailTab === 'ban' ? 'display:block;' : 'display:none;'}">
             <div class="table-container" style="border:1px solid var(--border-color); border-radius:16px;">
-                <table class="data-table">
-                    <thead><tr><th>Tiêu chí đánh giá</th><th>Điểm</th><th>Thành phần</th></tr></thead>
+                <table class="data-table dept-table-themed">
+                    <thead>
+                        <tr>
+                            <th style="width:20%">NHÓM</th>
+                            <th style="width:50%">TIÊU CHÍ</th>
+                            <th style="width:15%">ĐIỂM</th>
+                            <th style="width:15%">TRỌNG SỐ</th>
+                        </tr>
+                    </thead>
                     <tbody>${deptRows}</tbody>
                 </table>
             </div>
