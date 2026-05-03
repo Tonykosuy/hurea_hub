@@ -9977,7 +9977,7 @@ async function deleteEvent(id) {
 
 function isExemptFromEval(memberId, role) {
     // Leadership roles that do NOT need to do cross-evaluations
-    const exemptRoles = ['BCN', 'TRƯỞNG BAN', 'PHÓ BAN', 'TRUONG BAN', 'PHO BAN', 'CHỦ NHIỆM', 'PHÓ CHỦ NHIỆM', 'CHỦ TỊCH', 'PHÓ CHỦ TỊCH'];
+    const exemptRoles = ['BCN', 'TRƯỞNG BAN', 'PHÓ BAN', 'TRUONG BAN', 'PHO BAN', 'CHỦ NHIỆM', 'PHÓ CHỦ NHIỆM', 'CHỦ TỊCH', 'PHÓ CHỦ TỊCH', 'CARETEAM', 'CARE TEAM', 'MENTOR'];
     const lowerRole = (role || '').toUpperCase();
     
     // Check if role name contains exempt keywords
