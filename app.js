@@ -4561,6 +4561,7 @@ let currentBatchType = 'club';
 function openBatchEvalModal(type) {
     currentBatchType = type;
     document.getElementById('batch-eval-title').innerText = type === 'club' ? 'Nhập Đánh giá CLB hàng loạt' : 'Nhập Đánh giá Ban hàng loạt';
+    document.getElementById('batch-eval-subtitle').innerText = 'Chế độ nhập nhanh dữ liệu cho nhiều thành viên';
     document.getElementById('batch-paste-area').value = '';
 
     // Clear errors
@@ -4569,8 +4570,31 @@ function openBatchEvalModal(type) {
     const errorList = document.getElementById('batch-error-list');
     if (errorList) errorList.innerHTML = '';
 
-    renderEvalGrid(type);
+    const selectionScreen = document.getElementById('batch-dept-selection');
+    const evalContainer = document.getElementById('batch-eval-container');
+
+    if (type === 'dept') {
+        selectionScreen.style.display = 'grid';
+        evalContainer.style.display = 'none';
+    } else {
+        if (selectionScreen) selectionScreen.style.display = 'none';
+        if (evalContainer) evalContainer.style.display = 'block';
+        renderEvalGrid(type);
+    }
+
     openModal('batch-eval-modal');
+}
+
+function selectBatchDept(dept) {
+    state.scoreDeptFilter = dept;
+    // Đồng bộ với filter bên ngoài nếu cần
+    const filterScoreDept = document.getElementById('filter-score-dept');
+    if (filterScoreDept) filterScoreDept.value = dept;
+
+    document.getElementById('batch-dept-selection').style.display = 'none';
+    document.getElementById('batch-eval-container').style.display = 'block';
+    document.getElementById('batch-eval-subtitle').innerText = `Đang nhập dữ liệu cho: Ban ${dept}`;
+    renderEvalGrid('dept');
 }
 
 function renderEvalGrid(type) {
@@ -4599,6 +4623,10 @@ function renderEvalGrid(type) {
         config.forEach(c => {
             html += `<th title="${c.cat}">${c.label.length > 20 ? c.label.substring(0, 17) + '...' : c.label}<br><small>(x${c.weight})</small></th>`;
         });
+        const viewDept = currentDept === 'ALL' ? 'R&R' : currentDept;
+        if (viewDept === 'L&D' || viewDept === 'EB') {
+            html += '<th>Điểm cộng</th>';
+        }
         html += '<th>Nhận xét</th></tr></thead><tbody>';
     }
 
@@ -4628,6 +4656,9 @@ function renderEvalGrid(type) {
                 const val = c[vc.id] !== undefined ? c[vc.id] : '';
                 html += `<td><input type="number" class="grid-input num-center score-val" data-field="${vc.id}" value="${val}"></td>`;
             });
+            if (viewDept === 'L&D' || viewDept === 'EB') {
+                html += `<td><input type="number" class="grid-input num-center score-val" data-field="bonus" value="${de ? de.bonusScore || '' : ''}"></td>`;
+            }
             html += `<td><input type="text" class="grid-input score-val" data-field="remarks" value="${de ? de.remarks || '' : ''}"></td>`;
         }
         html += '</tr>';
@@ -4799,16 +4830,28 @@ async function saveBatchEval() {
                 }
             });
 
-            const remarks = inputs[config.length].value;
+            let bonus = 0;
+            let remarks = '';
+
+            if (viewDept === 'L&D' || viewDept === 'EB') {
+                bonus = parseFloat(inputs[config.length].value || 0) || 0;
+                remarks = inputs[config.length + 1].value;
+            } else {
+                remarks = inputs[config.length].value;
+            }
+
             if (remarks) hasAnyData = true;
+            if (bonus !== 0) hasAnyData = true;
 
             if (hasAnyData) {
+                totalScore += bonus;
                 if (totalScore > 10) totalScore = 10;
                 records.push({
                     memberId: mId,
                     term: state.currentTerm,
                     totalScore,
                     remarks,
+                    bonusScore: bonus,
                     criteria: JSON.stringify(criteriaObj)
                 });
             }

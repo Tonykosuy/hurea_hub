@@ -2557,7 +2557,25 @@
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" style="padding:0;">
-                <div class="batch-eval-container">
+                <div id="batch-dept-selection" class="method-selection-screen" style="display:none; padding: 40px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div class="method-card" onclick="selectBatchDept('R&R')">
+                        <div class="method-icon" style="background:#f59e0b; color:#fff;"><i class="fa-solid fa-users"></i></div>
+                        <div class="method-info"><h4>Ban R&R</h4><p>Nhập điểm cho Ban R&R</p></div>
+                    </div>
+                    <div class="method-card" onclick="selectBatchDept('ER')">
+                        <div class="method-icon" style="background:#0ea5e9; color:#fff;"><i class="fa-solid fa-handshake"></i></div>
+                        <div class="method-info"><h4>Ban ER</h4><p>Nhập điểm cho Ban ER</p></div>
+                    </div>
+                    <div class="method-card" onclick="selectBatchDept('EB')">
+                        <div class="method-icon" style="background:#10b981; color:#fff;"><i class="fa-solid fa-bullhorn"></i></div>
+                        <div class="method-info"><h4>Ban EB</h4><p>Nhập điểm cho Ban EB</p></div>
+                    </div>
+                    <div class="method-card" onclick="selectBatchDept('L&D')">
+                        <div class="method-icon" style="background:#ef4444; color:#fff;"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="method-info"><h4>Ban L&D</h4><p>Nhập điểm cho Ban L&D</p></div>
+                    </div>
+                </div>
+                <div class="batch-eval-container" id="batch-eval-container">
                     <div class="batch-paste-zone">
                         <div class="paste-header">
                             <label><i class="fa-solid fa-clipboard"></i> Vùng dán dữ liệu (Ctrl+V từ
