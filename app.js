@@ -2636,13 +2636,8 @@ function getMemberProjectStats(mId) {
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
 
-            if (hasPL) {
-                const plAvg = getAvg(plScores);
-                if (plAvg !== null) categories.push(plAvg);
-            } else {
-                const othersAvg = getAvg(otherLeaderScores);
-                if (othersAvg !== null) categories.push(othersAvg);
-            }
+            const plAvg = getAvg(plScores);
+            if (plAvg !== null) categories.push(plAvg);
         } else {
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
@@ -2879,6 +2874,10 @@ function calculateFinalScores() {
 // SCORE DETAIL MODAL
 // ==========================================
 function showScoreDetail(mId) {
+    // Admin luôn thấy tên người đánh giá
+    if (state.userRole === 'admin') {
+        state.showEvalNames = true;
+    }
     const member = state.members.find(m => String(m.id) === String(mId));
     if (!member) return;
     document.getElementById('score-detail-title').innerText = 'Chi tiết điểm: ' + member.name;
@@ -2962,9 +2961,8 @@ function showScoreDetail(mId) {
         } else if (checkLeader(role)) {
             const teammatesAvg = getAvg(peerEvals.map(e => e.score));
             if (teammatesAvg !== null) categories.push(teammatesAvg);
-            const hasPL = participants.some(p => checkPL(p.role));
-            if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
-            else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
+            const plAvg = getAvg(plEvals.map(e => e.score));
+            if (plAvg !== null) categories.push(plAvg);
         } else {
             const teammatesAvg = getAvg(peerEvals.map(e => e.score));
             if (teammatesAvg !== null) categories.push(teammatesAvg);
@@ -3035,7 +3033,7 @@ function showScoreDetail(mId) {
 
                     ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
                     ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
-                    ${renderEvalRow('Leader khác', '#f97316', otherLeaderEvals)}
+                    ${checkPL(role) ? renderEvalRow('Leader khác', '#f97316', otherLeaderEvals) : ''}
                     ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
 
                     <div style="margin-top:14px; padding:12px 16px; background:rgba(14, 165, 233, 0.08); border-radius:12px; border:1px solid rgba(14, 165, 233, 0.15);">
@@ -3246,10 +3244,11 @@ function showScoreDetail(mId) {
                     <button class="pill ${state.activeDetailTab === 'appeal-hist' ? 'active' : ''}" onclick="switchDetailTab(this, 'appeal-hist')">Lịch sử Phúc khảo</button>
                 </div>
 
+                ${state.userRole === 'admin' ? `
                 <button class="btn-lux-secondary" style="font-size: 0.75rem; padding: 6px 12px; margin-left: auto; border-radius: 10px; display: flex; align-items: center; gap: 6px;" onclick="toggleEvalNames('${mId}')">
                     <i class="fa-solid ${state.showEvalNames ? 'fa-eye-slash' : 'fa-eye'}"></i> 
                     ${state.showEvalNames ? 'Ẩn danh tính' : 'Hiện danh tính'}
-                </button>
+                </button>` : ''}
             </div>
         </div>
 
@@ -3325,7 +3324,6 @@ function showScoreDetail(mId) {
                     const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
                     const plAvg = getA(pls);
                     if (plAvg !== null) cats.push(plAvg);
-                    else { const olAvg = getA(otherLeaders); if (olAvg !== null) cats.push(olAvg); }
                 } else {
                     const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
                     const mlAvg = getA(myLeaders); if (mlAvg !== null) cats.push(mlAvg);
@@ -3449,9 +3447,8 @@ function showScoreDetail(mId) {
                 } else if (checkLeader(role)) {
                     const teammatesAvg = getAvg(peerEvals.map(e => e.score));
                     if (teammatesAvg !== null) categories.push(teammatesAvg);
-                    const hasPL = participants.some(p => checkPL(p.role));
-                    if (hasPL) { const plAvg = getAvg(plEvals.map(e => e.score)); if (plAvg !== null) categories.push(plAvg); }
-                    else { const othersAvg = getAvg(otherLeaderEvals.map(e => e.score)); if (othersAvg !== null) categories.push(othersAvg); }
+                    const plAvg = getAvg(plEvals.map(e => e.score));
+                    if (plAvg !== null) categories.push(plAvg);
                 } else {
                     const teammatesAvg = getAvg(peerEvals.map(e => e.score));
                     if (teammatesAvg !== null) categories.push(teammatesAvg);
@@ -3509,7 +3506,7 @@ function showScoreDetail(mId) {
 
                             ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
                             ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
-                            ${renderEvalRow('Leader khác', '#f97316', otherLeaderEvals)}
+                            ${checkPL(role) ? renderEvalRow('Leader khác', '#f97316', otherLeaderEvals) : ''}
                             ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
 
                             <div style="margin-top:14px; padding:12px 16px; background:rgba(14, 165, 233, 0.08); border-radius:12px; border:1px solid rgba(14, 165, 233, 0.15);">
@@ -4553,6 +4550,7 @@ async function saveDeptEval() {
         document.getElementById('btn-cancel-dept-edit').style.display = 'none';
         document.getElementById('btn-delete-dept-edit').style.display = 'none';
         checkExistingScore('dept', mId);
+        calculateFinalScores();
     } catch (err) {
         showToast('Lỗi khi đồng bộ dữ liệu!', 'error');
     } finally {
@@ -4887,7 +4885,12 @@ async function saveBatchEval() {
         } else {
             records.forEach(r => {
                 state.deptScores = state.deptScores.filter(x => !(x.memberId === r.memberId && x.term === r.term));
-                state.deptScores.push(r);
+                // Parse criteria back to object for local state (backend gets the JSON string)
+                const localEntry = { ...r };
+                if (typeof localEntry.criteria === 'string') {
+                    localEntry.criteria = safeJsonParse(localEntry.criteria, {});
+                }
+                state.deptScores.push(localEntry);
             });
         }
 
@@ -4896,6 +4899,7 @@ async function saveBatchEval() {
         // Refresh detail history if needed
         const currentMid = document.getElementById(`eval-${type}-member`).value;
         if (currentMid) checkExistingScore(type, currentMid);
+        calculateFinalScores();
 
     } catch (err) {
         showToast('Lỗi khi lưu hàng loạt!', 'error');
@@ -6387,14 +6391,13 @@ function startCinematicEvaluation(prjId) {
             return isSelf || isAnyLeader;
         });
     } else if (checkLeader(raterRole)) {
-        // Leader: Self + Other Leaders + Teammates (CTs in same team) + PL
+        // Leader: Self + Teammates (CTs in same team) + PL (không đánh giá leader team khác)
         targets = participants.filter(pt => {
             if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
-            const isOtherLeader = checkLeader(pt.role) && pt.memberId !== raterId;
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
             const isMyPL = checkPL(pt.role);
-            return isSelf || isOtherLeader || isTeammate || isMyPL;
+            return isSelf || isTeammate || isMyPL;
         });
     } else {
         // Core Team: Self + Leader of their team + Teammates (CTs in same team)
