@@ -702,6 +702,7 @@
                         <button class="eval-tab" data-eval="eval-club">1. Hoạt động CLB</button>
                         <button class="eval-tab" data-eval="eval-dept">2. Hoạt động Ban</button>
                         <button class="eval-tab" data-eval="eval-project">3. Form Đánh Giá chéo</button>
+                        <button class="eval-tab" data-eval="eval-bonus">4. Điểm Cộng Cuối</button>
                     </div>
 
                     <div class="eval-content glass-panel">
@@ -790,8 +791,18 @@
 
                         <!-- CLB Eval -->
                         <div id="eval-club" class="eval-pane">
-                            <div class="pane-header">
-                                <h3>2. Đánh giá Hoạt động CLB</h3>
+                            <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h3>2. Đánh giá Hoạt động CLB</h3>
+                                </div>
+                                <div style="display:flex; gap:10px;">
+                                    <button class="btn-lux-secondary" onclick="openClubScoreChecker()" style="padding: 8px 16px; font-size: 0.8rem;">
+                                        <i class="fa-solid fa-table"></i> Kiểm tra toàn bộ điểm CLB
+                                    </button>
+                                    <button class="btn-danger-xs" onclick="confirmResetClubScores()" style="padding: 8px 14px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.8rem;">
+                                        <i class="fa-solid fa-rotate-left"></i> Reset điểm CLB
+                                    </button>
+                                </div>
                             </div>
 
                             <div id="club-method-selection" class="method-selection-screen">
@@ -809,6 +820,13 @@
                                     <div class="method-info">
                                         <h4>Nhập hàng loạt (Excel)</h4>
                                         <p>Dán dữ liệu từ Excel cho cùng lúc nhiều người</p>
+                                    </div>
+                                </div>
+                                <div class="method-card" onclick="selectEvalMethod('club', 'quick')">
+                                    <div class="method-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i class="fa-solid fa-bolt"></i></div>
+                                    <div class="method-info">
+                                        <h4>Nhập nhanh (Dán list)</h4>
+                                        <p>Dán danh sách tên để cộng/trừ điểm hàng loạt</p>
                                     </div>
                                 </div>
                             </div>
@@ -883,6 +901,63 @@
                                     </div>
                                 </div> <!-- End club-eval-form -->
                             </div> <!-- End club-form-container -->
+
+                            <div id="club-quick-paste-container" style="display:none;">
+                                <div class="selection-breadcrumb">
+                                    <button class="btn-sm btn-secondary" onclick="backToMethodSelection('club')">
+                                        <i class="fa-solid fa-arrow-left"></i> Quay lại chọn phương thức
+                                    </button>
+                                </div>
+
+                                <div class="quick-paste-setup" style="margin-bottom: 24px; background: var(--bg-panel); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color);">
+                                    <div class="setup-header" style="margin-bottom: 16px;">
+                                        <h4 style="font-size: 0.95rem; margin-bottom: 4px;"><i class="fa-solid fa-gear"></i> Cấu hình nhập nhanh</h4>
+                                        <p style="font-size: 0.8rem; color: var(--text-muted);">Chọn loại điểm và dán dữ liệu theo format: <strong>Họ tên [Tab] Điểm [Tab] Lý do</strong></p>
+                                    </div>
+                                    
+                                    <div class="category-selector" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                                        <button class="btn-cat active" onclick="setQpCategory('cross', this)">Chưa làm ĐGC (-2)</button>
+                                        <button class="btn-cat" onclick="setQpCategory('rights', this)">Ko trả quyền lợi</button>
+                                        <button class="btn-cat" onclick="setQpCategory('late', this)">Đi trễ</button>
+                                        <button class="btn-cat" onclick="setQpCategory('bonus', this)">Điểm cộng (+)</button>
+                                        <button class="btn-cat" onclick="setQpCategory('brand', this)">Hình ảnh & Thương hiệu</button>
+                                    </div>
+
+                                    <textarea id="qp-main-input" style="width:100%; height: 120px; border: 1.5px solid var(--border-color); border-radius: 12px; padding: 15px; font-size: 0.9rem;" placeholder="Nguyễn Văn A	-2	Chưa làm ĐGC..."></textarea>
+                                    
+                                    <div style="margin-top: 12px; display: flex; gap: 10px;">
+                                        <button class="btn-lux-primary" onclick="processQuickPaste()" style="margin:0; padding: 10px 20px;">
+                                            <i class="fa-solid fa-magnifying-glass"></i> Kiểm tra & Khớp dữ liệu
+                                        </button>
+                                        <button class="btn-secondary" onclick="clearQuickPaste()" style="margin:0; padding: 10px 20px;">Làm mới</button>
+                                    </div>
+                                </div>
+
+                                <div id="qp-preview-container" style="display:none;">
+                                    <div class="preview-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <h4 style="font-size: 0.95rem;"><i class="fa-solid fa-list-check"></i> Xem trước dữ liệu khớp</h4>
+                                        <div class="stats" style="font-size: 0.8rem; color: var(--text-muted);">Khớp được <strong id="qp-match-count" style="color: var(--primary);">0</strong> thành viên</div>
+                                    </div>
+                                    <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Thành viên</th>
+                                                    <th>Điểm</th>
+                                                    <th>Lý do mới</th>
+                                                    <th>Trạng thái</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="qp-preview-tbody"></tbody>
+                                        </table>
+                                    </div>
+                                    <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                                        <button class="btn-primary" id="btn-save-quick-paste" onclick="saveQuickPasteClub()">
+                                            <i class="fa-solid fa-floppy-disk"></i> Xác nhận & Lưu đè
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div> <!-- End eval-club -->
 
                         <!-- Dept Eval -->
@@ -987,6 +1062,9 @@
                                         chéo.</p>
                                 </div>
                                 <div id="btn-export-incomplete-evals" style="display:none; gap:10px;">
+                                    <button class="btn-lux-secondary" onclick="openModal('export-report-modal')" style="font-size:0.85rem; padding:8px 16px; color:#10b981; border-color:rgba(16,185,129,0.3);">
+                                        <i class="fa-solid fa-user-check"></i> Xuất DS đã ĐGC
+                                    </button>
                                     <button class="btn-lux-secondary" onclick="exportIncompleteEvaluationsPDF()" style="font-size:0.85rem; padding:8px 16px;">
                                         <i class="fa-solid fa-file-pdf"></i> Xuất PDF
                                     </button>
@@ -1029,7 +1107,58 @@
 
                                 <input type="hidden" id="eval-prj-id">
                                 <input type="hidden" id="eval-prj-rater">
+                            </div> <!-- End eval-project-setup-view -->
+                        </div> <!-- End eval-project -->
+
+                        <!-- Final Bonus Eval -->
+                        <div id="eval-bonus" class="eval-pane">
+                            <div class="pane-header">
+                                <h3>4. Điểm Cộng Cuối (Direct Adjustment)</h3>
+                                <p>Cộng/Trừ điểm trực tiếp vào kết quả cuối cùng của thành viên.</p>
                             </div>
+
+                            <div class="quick-paste-setup" style="margin-bottom: 24px; background: var(--bg-panel); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color);">
+                                <div class="setup-header" style="margin-bottom: 16px;">
+                                    <h4 style="font-size: 0.95rem; margin-bottom: 4px;"><i class="fa-solid fa-bolt"></i> Nhập nhanh điểm cộng cuối</h4>
+                                    <p style="font-size: 0.8rem; color: var(--text-muted);">Dán danh sách theo format: <strong>Họ tên [Tab] Điểm [Tab] Lý do</strong></p>
+                                </div>
+                                
+                                <textarea id="bonus-qp-input" style="width:100%; height: 120px; border: 1.5px solid var(--border-color); border-radius: 12px; padding: 15px; font-size: 0.9rem;" placeholder="Nguyễn Văn A	1.5	Thành tích xuất sắc..."></textarea>
+                                
+                                <div style="margin-top: 12px; display: flex; gap: 10px;">
+                                    <button class="btn-lux-primary" onclick="processBonusQuickPaste()" style="margin:0; padding: 10px 20px;">
+                                        <i class="fa-solid fa-magnifying-glass"></i> Kiểm tra & Khớp dữ liệu
+                                    </button>
+                                    <button class="btn-secondary" onclick="document.getElementById('bonus-qp-input').value=''; document.getElementById('bonus-qp-preview-container').style.display='none';">Làm mới</button>
+                                </div>
+                            </div>
+
+                            <div id="bonus-qp-preview-container" style="display:none;">
+                                <div class="preview-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <h4 style="font-size: 0.95rem;"><i class="fa-solid fa-list-check"></i> Xem trước dữ liệu khớp</h4>
+                                    <div class="stats" style="font-size: 0.8rem; color: var(--text-muted);">Khớp được <strong id="bonus-qp-match-count" style="color: var(--primary);">0</strong> thành viên</div>
+                                </div>
+                                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Thành viên</th>
+                                                <th>Điểm cộng</th>
+                                                <th>Lý do</th>
+                                                <th style="width:40px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="bonus-qp-preview-tbody"></tbody>
+                                    </table>
+                                </div>
+                                <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                                    <button class="btn-primary" id="btn-save-bonus-paste" onclick="saveBonusQuickPaste()">
+                                        <i class="fa-solid fa-floppy-disk"></i> Xác nhận & Lưu đè
+                                    </button>
+                                </div>
+                            </div>
+                        </div> <!-- End eval-bonus -->
+                    </div> <!-- End eval-content -->
 
                 </section>
 
@@ -2480,27 +2609,38 @@
     <div class="modal" id="export-report-modal">
         <div class="modal-wrapper" style="max-width:500px">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-file-export"></i> Xuất Báo Cáo Tổng Hợp</h3>
+                <h3><i class="fa-solid fa-file-export"></i> Xuất Báo Cáo & Danh Sách</h3>
                 <button class="close-btn" onclick="closeModal('export-report-modal')"><i
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Hệ thống sẽ tổng hợp tất cả
-                    Đánh giá chéo và Confessions trong khoảng thời gian đã chọn.</p>
-                <div class="input-group full-width">
-                    <label>Từ ngày</label>
-                    <input type="date" id="export-from-date">
+                <div class="report-option-group" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+                    <h4 style="margin-bottom: 12px; font-size: 0.95rem; color: var(--primary);"><i class="fa-solid fa-chart-line"></i> 1. Báo cáo tổng hợp (Evals & Confessions)</h4>
+                    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:12px;">Tổng hợp Đánh giá chéo và Confessions trong khoảng thời gian.</p>
+                    <div class="input-group full-width">
+                        <label>Từ ngày</label>
+                        <input type="date" id="export-from-date">
+                    </div>
+                    <div class="input-group full-width" style="margin-top:12px;">
+                        <label>Đến ngày</label>
+                        <input type="date" id="export-to-date">
+                    </div>
+                    <button class="btn-primary" onclick="generatePDFReport()" style="width: 100%; margin-top: 16px;">
+                        <i class="fa-solid fa-download"></i> Tải Báo Cáo Tổng Hợp
+                    </button>
                 </div>
-                <div class="input-group full-width" style="margin-top:16px;">
-                    <label>Đến ngày</label>
-                    <input type="date" id="export-to-date">
+
+                <div class="report-option-group">
+                    <h4 style="margin-bottom: 12px; font-size: 0.95rem; color: #10b981;"><i class="fa-solid fa-user-check"></i> 2. Danh sách ĐÃ đánh giá chéo</h4>
+                    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:12px;">Xuất danh sách những thành viên đã thực hiện ít nhất 1 lượt đánh giá chéo sau mốc thời gian này.</p>
+                    <div class="input-group full-width">
+                        <label>Sau mốc thời gian (Ngày & Giờ)</label>
+                        <input type="datetime-local" id="export-evaluators-after">
+                    </div>
+                    <button class="btn-lux-primary" onclick="exportEvaluatorsAfterTimePDF()" style="width: 100%; margin-top: 16px; background: #10b981; border-color: #10b981;">
+                        <i class="fa-solid fa-file-pdf"></i> Xuất DS đã làm ĐGC
+                    </button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('export-report-modal')">Hủy</button>
-                <button class="btn-primary" onclick="generatePDFReport()">
-                    <i class="fa-solid fa-download"></i> Tạo PDF & Tải xuống
-                </button>
             </div>
         </div>
     </div>
@@ -2982,6 +3122,112 @@
             </div>
         </div>
     </div>
+    <div id="club-score-check-modal" class="modal">
+        <div class="modal-wrapper" style="max-width: 1100px; width: 95vw; height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="modal-icon" style="background: rgba(14, 165, 233, 0.1); color: var(--primary);"><i class="fa-solid fa-table"></i></div>
+                    <div>
+                        <h3 style="margin:0;">Kiểm tra & Chỉnh sửa điểm Hoạt động CLB</h3>
+                        <p style="margin:0; font-size: 0.8rem; color: var(--text-muted);">Bảng tổng hợp điểm chi tiết - Chỉnh sửa trực tiếp như Excel</p>
+                    </div>
+                </div>
+                <span class="close" onclick="closeModal('club-score-check-modal')">&times;</span>
+            </div>
+            
+            <div class="score-check-tabs" style="display:flex; flex-wrap: wrap; align-items: center; gap:10px; padding: 12px 24px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+                <div style="display:flex; gap:8px;">
+                    <button class="pill active" onclick="switchScoreCheckTab(this, 'discipline')">Kỷ luật nội quy</button>
+                    <button class="pill" onclick="switchScoreCheckTab(this, 'bonus')">Điểm cộng / Bonus</button>
+                    <button class="pill" onclick="switchScoreCheckTab(this, 'brand')">Hình ảnh & Thương hiệu</button>
+                </div>
+                
+                <div style="margin-left: auto;">
+                    <div class="search-box-sm">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="score-check-search" placeholder="Tìm tên/Ban..." onkeyup="filterScoreCheckTable()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-body" style="flex-grow: 1; overflow: hidden; padding: 0; position: relative; background: white;">
+                <div id="score-check-table-container" style="height: 100%; overflow: auto;">
+                    <!-- Table will be rendered here -->
+                </div>
+            </div>
+
+            <div class="modal-footer" style="flex-shrink: 0; padding: 15px 24px; background: var(--bg-sidebar); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-info"></i> Thay đổi sẽ chỉ được lưu khi bạn nhấn <strong>"Lưu tất cả thay đổi"</strong>.
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-secondary" onclick="closeModal('club-score-check-modal')">Hủy bỏ</button>
+                    <button class="btn-primary" id="btn-save-all-scores" onclick="saveAllClubScores()" style="min-width: 180px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Lưu tất cả thay đổi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Club Reset Selection Modal -->
+    <div id="club-reset-modal" class="modal">
+        <div class="modal-wrapper" style="max-width: 450px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="modal-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"><i class="fa-solid fa-rotate-left"></i></div>
+                    <div>
+                        <h3 style="margin:0;">Tùy chọn Reset điểm CLB</h3>
+                        <p style="margin:0; font-size: 0.8rem; color: var(--text-muted);">Nhiệm kỳ: <strong id="reset-current-term-label"></strong></p>
+                    </div>
+                </div>
+                <span class="close" onclick="closeModal('club-reset-modal')">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="font-size: 0.9rem; margin-bottom: 20px;">Chọn các mục bạn muốn đưa về giá trị mặc định:</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <label class="check-container" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="reset-check-disc" checked style="width: 20px; height: 20px;">
+                        <div>
+                            <strong style="display: block; font-size: 0.95rem;">Điểm Kỷ luật nội quy</strong>
+                            <small style="color: var(--text-muted);">Đưa về 10 điểm và xóa tất cả ghi chú vi phạm</small>
+                        </div>
+                    </label>
+                    
+                    <label class="check-container" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="reset-check-brand" checked style="width: 20px; height: 20px;">
+                        <div>
+                            <strong style="display: block; font-size: 0.95rem;">Điểm Hình ảnh & Thương hiệu</strong>
+                            <small style="color: var(--text-muted);">Đưa về giá trị mặc định (7/10)</small>
+                        </div>
+                    </label>
+                    
+                    <label class="check-container" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="reset-check-bonus" checked style="width: 20px; height: 20px;">
+                        <div>
+                            <strong style="display: block; font-size: 0.95rem;">Điểm cộng / Bonus</strong>
+                            <small style="color: var(--text-muted);">Xóa toàn bộ điểm cộng tích lũy</small>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="margin-top: 25px; padding: 12px; background: rgba(239, 68, 68, 0.05); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.1);">
+                    <p style="margin:0; font-size: 0.8rem; color: #ef4444; font-weight: 600;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Lưu ý: Hành động này không thể hoàn tác.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-secondary" onclick="closeModal('club-reset-modal')">Hủy bỏ</button>
+                <button class="btn-primary" style="background: #ef4444; border-color: #ef4444;" onclick="executeClubReset()">
+                    Xác nhận Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <datalist id="all-members-list"></datalist>
 </body>
 
 </html>

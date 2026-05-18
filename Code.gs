@@ -26,6 +26,7 @@
             evaluations: getSheetData(ss, 'Evals'),
             clubScores: getSheetData(ss, 'ScoreClub'),
             deptScores: getSheetData(ss, 'ScoreDept'),
+            finalBonuses: getSheetData(ss, 'ScoreFinalBonus'),
             confessions: getSheetData(ss, 'Confessions'),
             evidences: getSheetData(ss, 'Evidence'),
             announcements: getSheetData(ss, 'Announcements'),
@@ -160,6 +161,10 @@
           case 'delete_score_record':
             // payload: { type: 'ScoreClub'|'ScoreDept', memberId: string, term: string }
             result = deleteScoreRecord(ss, payload.type, payload.memberId, payload.term);
+            break;
+          case 'delete_score_batch_term':
+            // payload: { type: 'ScoreClub'|'ScoreDept', term: string }
+            result = deleteScoresByTerm(ss, payload.type, payload.term);
             break;
           case 'backup_all':
             dailyBackup();
@@ -396,7 +401,22 @@
         return record;
       }
 
-      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      let headers = data[0].map(h => String(h).toLowerCase().trim());
+      
+      let columnAdded = false;
+      Object.keys(record).forEach(k => {
+        const cleanK = String(k).toLowerCase().trim();
+        if (headers.indexOf(cleanK) === -1) {
+          headers.push(cleanK);
+          columnAdded = true;
+        }
+      });
+      
+      if (columnAdded) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+        data = sheet.getDataRange().getValues();
+      }
+
       const mIndex = headers.indexOf('memberid');
       const tIndex = headers.indexOf('term');
       
@@ -437,7 +457,6 @@
       let range = sheet.getDataRange();
       let data = range.getValues();
       
-      // Ensure header/sheet initialized with first record
       if (data.length === 1 && data[0][0] === '') {
         const headers = Object.keys(records[0]);
         headers.push('updatedAt');
@@ -445,7 +464,24 @@
         data = [headers];
       }
       
-      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      let headers = data[0].map(h => String(h).toLowerCase().trim());
+      
+      let headersModified = false;
+      records.forEach(record => {
+        Object.keys(record).forEach(k => {
+          const cleanK = String(k).toLowerCase().trim();
+          if (headers.indexOf(cleanK) === -1) {
+            headers.push(cleanK);
+            headersModified = true;
+          }
+        });
+      });
+      
+      if (headersModified) {
+        sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+        data = sheet.getDataRange().getValues();
+      }
+
       const mIndex = headers.indexOf('memberid');
       const tIndex = headers.indexOf('term');
       
@@ -455,31 +491,40 @@
 
       const timestamp = new Date().toISOString();
       
+      // Process each record
       records.forEach(record => {
         record.updatedAt = timestamp;
         let rowIndex = -1;
         
+        // Find existing row
         for(let i=1; i<data.length; i++) {
           if(String(data[i][mIndex]) === String(record.memberId) && String(data[i][tIndex]) === String(record.term)) {
-            rowIndex = i + 1;
+            rowIndex = i;
             break;
           }
         }
         
         const recordValues = headers.map(h => {
           const key = Object.keys(record).find(k => k.toLowerCase().trim() === h);
-          const val = key ? record[key] : '';
+          let val = key !== undefined ? record[key] : '';
           return typeof val === 'object' ? JSON.stringify(val) : val;
         });
         
         if (rowIndex > -1) {
-          sheet.getRange(rowIndex, 1, 1, recordValues.length).setValues([recordValues]);
+          data[rowIndex] = recordValues;
         } else {
-          sheet.appendRow(recordValues);
-          // Update local data to prevent duplicate append in same batch if member entries repeated
           data.push(recordValues);
         }
       });
+      
+      // Ensure sheet has enough rows
+      const currentRows = sheet.getMaxRows();
+      if (data.length > currentRows) {
+        sheet.insertRowsAfter(currentRows, data.length - currentRows);
+      }
+      
+      // Write all data back at once
+      sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
       
       return { success: true, count: records.length };
     }
@@ -637,4 +682,24 @@
         .everyDays(1)
         .atHour(0)
         .create();
+    }
+    function deleteScoresByTerm(ss, sheetName, term) {
+      let sheet = findSheet(ss, sheetName);
+      if (!sheet) return { deleted: false };
+      
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return { deleted: false, count: 0 };
+      
+      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      const tIndex = headers.indexOf('term');
+      if (tIndex === -1) return { deleted: false, error: 'Term header not found' };
+      
+      let count = 0;
+      for(let i=data.length - 1; i>=1; i--) {
+        if (String(data[i][tIndex]) === String(term)) {
+          sheet.deleteRow(i + 1);
+          count++;
+        }
+      }
+      return { deleted: true, count: count, term: term };
     }

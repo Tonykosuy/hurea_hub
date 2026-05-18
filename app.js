@@ -4,7 +4,7 @@ let ADMIN_PASSWORD = '852007'; // Loaded from API config
 const state = {
     currentTerm: null,
     terms: [], members: [], projects: [],
-    evaluations: [], clubScores: [], deptScores: [],
+    evaluations: [], clubScores: [], deptScores: [], finalBonuses: [],
     confessions: [], evidences: {},
     commonFolders: [],
     bugReports: [],
@@ -300,6 +300,7 @@ async function loadFullDataInBackground() {
                 ...ds,
                 criteria: safeJsonParse(ds.criteria, null)
             }));
+            state.finalBonuses = normalizeDataKeys(d.finalBonuses || []);
             state.announcements = normalizeDataKeys(d.announcements || []);
             state.bugReports = normalizeDataKeys(d.bugReports || []);
             state.userPasswords = normalizeDataKeys(d.userPasswords || []);
@@ -2670,8 +2671,12 @@ function calculateMemberClubScore(mId) {
     let disc = 10;
     if (ce && ce.disciplinePoints !== undefined) {
         disc = parseFloat(ce.disciplinePoints);
+        // Repair for old bug: If score is 0 but no negative reasons exist, it should be 10
+        const hasPenalty = (ce.reasons || []).some(r => String(r).trim().startsWith('-'));
+        if (disc === 0 && !hasPenalty) {
+            disc = 10;
+        }
     }
-    disc = Math.max(0, Math.min(10, disc));
 
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
     let supportCount = 0;
@@ -2719,6 +2724,12 @@ function calculateMemberClubScore(mId) {
     return total;
 }
 
+function calculateMemberFinalBonus(mId) {
+    const term = state.currentTerm;
+    const bonus = state.finalBonuses.find(x => String(x.memberId) === String(mId) && x.term === term);
+    return bonus ? parseFloat(bonus.bonusScore || 0) : 0;
+}
+
 function getMemberFinalScore(member) {
     const mId = member.id;
     const prjStats = getMemberProjectStats(mId);
@@ -2728,7 +2739,9 @@ function getMemberFinalScore(member) {
     const clubScore = calculateMemberClubScore(mId);
     const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
     const deptScore = de ? de.totalScore : 0;
-    const total = (prjScore + clubScore + deptScore) / 3;
+    
+    const finalBonus = calculateMemberFinalBonus(mId);
+    const total = ((prjScore + clubScore + deptScore) / 3) + finalBonus;
     
     // Classification
     let gradeVi = 'Cần Cố Gắng';
@@ -2741,6 +2754,7 @@ function getMemberFinalScore(member) {
         prjScore,
         clubScore,
         deptScore,
+        finalBonus,
         total,
         projectCount,
         gradeVi,
@@ -2833,7 +2847,7 @@ function calculateFinalScores() {
 
     filtered.forEach(member => {
         const scores = getMemberFinalScore(member);
-        const { prjScore, clubScore, deptScore, total } = scores;
+        const { prjScore, clubScore, deptScore, finalBonus, total } = scores;
 
         // Classification
         let grade = 'Can co gang';
@@ -2859,12 +2873,16 @@ function calculateFinalScores() {
         const gc = gradeColors[grade] || '#ef4444';
 
         const tr = document.createElement('tr');
+        const bonusHtml = finalBonus !== 0 ? `<div style="font-size:0.75rem; color:${finalBonus > 0 ? '#10b981' : '#ef4444'}; font-weight:600;">${finalBonus > 0 ? '+' : ''}${finalBonus.toFixed(2)} Bonus</div>` : '';
         tr.innerHTML = `
             <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
             <td><span style="color:#38bdf8;font-weight:700">${prjScore.toFixed(2)}</span></td>
             <td><span style="color:#10b981;font-weight:700">${clubScore.toFixed(2)}</span></td>
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
-            <td><strong style="font-size:1.2rem;color:var(--primary)">${total.toFixed(2)}</strong></td>
+            <td>
+                <strong style="font-size:1.2rem;color:var(--primary)">${total.toFixed(2)}</strong>
+                ${bonusHtml}
+            </td>
             <td><span style="background:${gc}22;color:${gc};border:1px solid ${gc}44;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700">${gradeVi}</span></td>
             <td><button class="btn-secondary btn-sm" onclick="showScoreDetail('${member.id}')"><i class="fa-solid fa-list-ul"></i> Chi tiết</button></td>`;
         tbody.appendChild(tr);
@@ -2886,7 +2904,8 @@ function showScoreDetail(mId) {
     const clubScore = calculateMemberClubScore(mId);
     const de = state.deptScores.find(x => String(x.memberId) === String(mId) && x.term === state.currentTerm);
     const deptScore = de ? de.totalScore : 0;
-    const total = ((prjScore + clubScore + deptScore) / 3).toFixed(2);
+    const finalBonus = calculateMemberFinalBonus(mId);
+    const total = (((prjScore + clubScore + deptScore) / 3) + finalBonus).toFixed(2);
     const termProjects = state.projects.filter(p => p.term === state.currentTerm);
 
     let prjRows = '';
@@ -3051,6 +3070,11 @@ function showScoreDetail(mId) {
     const ce = state.clubScores.find(x => String(x.memberId) === String(mId) && x.term === state.currentTerm);
     // Unify discipline logic: 10 base, minus deductions if input as negative, or absolute score if 0-10
     let discVal = (ce && ce.disciplinePoints !== undefined) ? parseFloat(ce.disciplinePoints) : 10;
+    // Repair for old bug: If score is 0 but no negative reasons exist, it should be 10
+    const hasPenalty = (ce && ce.reasons || []).some(r => String(r).trim().startsWith('-'));
+    if (discVal === 0 && !hasPenalty) {
+        discVal = 10;
+    }
     let disc = discVal;
     disc = Math.max(0, Math.min(10, disc));
     let supportCount = 0;
@@ -3208,6 +3232,15 @@ function showScoreDetail(mId) {
                         <span class="stat-mini-label">ĐIỂM BAN</span>
                     </div>
                 </div>
+                ${finalBonus !== 0 ? `
+                <div class="stat-mini-card" style="margin:0; background:rgba(139, 92, 246, 0.05); border:1px solid rgba(139, 92, 246, 0.15);">
+                    <div class="stat-mini-icon" style="background:#8b5cf6;"><i class="fa-solid fa-gift"></i></div>
+                    <div class="stat-mini-info">
+                        <span class="stat-mini-val" style="color:#8b5cf6;">${finalBonus > 0 ? '+' : ''}${finalBonus.toFixed(2)}</span>
+                        <span class="stat-mini-label">ĐIỂM CỘNG CUỐI</span>
+                    </div>
+                </div>
+                ` : ''}
             </div>
 
             <div style="background: var(--bg-sidebar); padding: 24px; border-radius: 24px; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; box-shadow: var(--shadow-sm); position: relative;">
@@ -3532,6 +3565,12 @@ function showScoreDetail(mId) {
                         <tr><td>Sự kiện Tổ chức</td><td>${supportScore.toFixed(2)}/10</td><td>30%</td><td>${(parseFloat(supportScore || 0) * 0.3).toFixed(2)}</td></tr>
                         <tr><td>Chương trình Nội bộ</td><td>${inScore}/10</td><td>20%</td><td>${(parseFloat(inScore || 0) * 0.2).toFixed(2)}</td></tr>
                         <tr><td>Hình ảnh & Thương hiệu</td><td>${brand}/10</td><td>20%</td><td>${(parseFloat(brand || 0) * 0.2).toFixed(2)}</td></tr>
+                        ${ce && ce.bonusScore ? `
+                        <tr style="background:rgba(16, 185, 129, 0.05);">
+                            <td colspan="2"><strong style="color:#10b981;">Điểm cộng / Bonus</strong></td>
+                            <td class="text-center" style="color:#10b981">+${parseFloat(ce.bonusScore).toFixed(1)}</td>
+                            <td class="text-center" style="font-weight:800; color:#10b981;">${parseFloat(ce.bonusScore).toFixed(2)}</td>
+                        </tr>` : ''}
                     </tbody>
                 </table>
             </div>
@@ -4128,14 +4167,20 @@ function selectEvalMethod(type, method) {
     if (method === 'form') {
         document.getElementById(`${type}-method-selection`).style.display = 'none';
         document.getElementById(`${type}-form-container`).style.display = 'block';
-    } else {
+    } else if (method === 'batch') {
         openBatchEvalModal(type);
+    } else if (method === 'quick') {
+        document.getElementById(`${type}-method-selection`).style.display = 'none';
+        document.getElementById(`${type}-quick-paste-container`).style.display = 'block';
     }
 }
 
 function backToMethodSelection(type) {
     document.getElementById(`${type}-method-selection`).style.display = 'grid';
     document.getElementById(`${type}-form-container`).style.display = 'none';
+    if (document.getElementById(`${type}-quick-paste-container`)) {
+        document.getElementById(`${type}-quick-paste-container`).style.display = 'none';
+    }
 
     // Clear current selection
     const hiddenInput = document.getElementById(`eval-${type}-member`);
@@ -4418,6 +4463,611 @@ function cancelEvalEdit(type) {
     document.getElementById(`btn-cancel-${type}-edit`).style.display = 'none';
     document.getElementById(`btn-delete-${type}-edit`).style.display = 'none';
     checkExistingScore(type, document.getElementById(`eval-${type}-member`).value);
+}
+
+// ==========================================
+// QUICK PASTE CLUB LOGIC (REFINED)
+// ==========================================
+let currentQpCategory = 'cross';
+let qpProcessedData = [];
+
+function setQpCategory(cat, btn) {
+    currentQpCategory = cat;
+    document.querySelectorAll('.category-selector .btn-cat').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Update placeholder based on category
+    const input = document.getElementById('qp-main-input');
+    if (cat === 'cross') input.placeholder = "Nguyễn Văn A\t-2\tChưa làm ĐGC...";
+    else if (cat === 'rights') input.placeholder = "Trần Thị B\t-1\tKhông trả quyền lợi...";
+    else if (cat === 'late') input.placeholder = "Lê Văn C\t-1\tĐi trễ 15p...";
+    else if (cat === 'bonus') input.placeholder = "Phạm Văn D\t1\tĐiểm cộng hỗ trợ...";
+}
+
+function clearQuickPaste() {
+    document.getElementById('qp-main-input').value = '';
+    document.getElementById('qp-preview-tbody').innerHTML = '';
+    document.getElementById('qp-preview-container').style.display = 'none';
+    qpProcessedData = [];
+}
+
+function processQuickPaste() {
+    const rawData = document.getElementById('qp-main-input').value.trim();
+    if (!rawData) return showToast('Vui lòng dán dữ liệu!', 'error');
+
+    const lines = rawData.split('\n').map(l => l.trim()).filter(l => l !== '');
+    const tbody = document.getElementById('qp-preview-tbody');
+    tbody.innerHTML = '';
+    qpProcessedData = [];
+    let matchCount = 0;
+
+    // Populate member datalist for corrections
+    const dl = document.getElementById('all-members-list');
+    if (dl.children.length === 0) {
+        dl.innerHTML = state.members.map(m => `<option value="${m.name} (${m.dept})">${m.id}</option>`).join('');
+    }
+
+    lines.forEach((line, index) => {
+        let name = '', score = 0, reason = '';
+        
+        let parts = line.split('\t');
+        if (parts.length < 2) parts = line.split(/\s{2,}/).filter(p => p.trim() !== '');
+        
+        if (parts.length >= 1) name = parts[0].trim();
+        // Handle both dot and comma as decimal separator
+        let rawScore = (parts.length >= 2) ? parts[1].trim() : '0';
+        if (rawScore.includes(',') && !rawScore.includes('.')) {
+            rawScore = rawScore.replace(',', '.');
+        } else {
+            rawScore = rawScore.replace(/,/g, ''); // Assume comma is thousands separator if dot exists
+        }
+        score = parseFloat(rawScore) || 0;
+        
+        if (parts.length >= 3) reason = parts[2].trim();
+        
+        if (!reason) {
+            if (currentQpCategory === 'cross') reason = 'Chưa làm đánh giá chéo';
+            else if (currentQpCategory === 'rights') reason = 'Không trả quyền lợi';
+            else if (currentQpCategory === 'late') reason = 'Đi trễ';
+            else if (currentQpCategory === 'bonus') reason = 'Điểm cộng';
+            else if (currentQpCategory === 'brand') reason = 'Điểm Hình ảnh & Thương hiệu';
+        }
+
+        const member = findMemberByName(name);
+        const statusClass = member ? 'status-ok' : 'status-err';
+        const statusText = member ? '<i class="fa-solid fa-check"></i> Đã khớp' : '<i class="fa-solid fa-xmark"></i> Chưa khớp';
+        
+        if (member) matchCount++;
+
+        tbody.innerHTML += `
+            <tr class="qp-row ${!member ? 'unmatched' : ''}" data-index="${index}">
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <input type="text" class="qp-member-input" list="all-members-list" 
+                               value="${member ? member.name + ' (' + member.dept + ')' : name}" 
+                               placeholder="Tìm thành viên..." 
+                               onchange="updateQpRowStatus(this)">
+                        <input type="hidden" class="qp-member-id" value="${member ? member.id : ''}">
+                        <small class="qp-status ${statusClass}">${statusText}</small>
+                    </div>
+                </td>
+                <td style="width:100px;">
+                    <input type="number" class="qp-score-input" value="${score}" step="0.1" 
+                           style="color:${score >= 0 ? '#10b981' : '#ef4444'}; font-weight:700;">
+                </td>
+                <td>
+                    <input type="text" class="qp-reason-input" value="${reason}" placeholder="Lý do...">
+                </td>
+                <td style="width:40px;">
+                    <button class="btn-icon-danger" onclick="this.closest('tr').remove(); updateQpMatchCount();">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('qp-match-count').innerText = matchCount;
+    document.getElementById('qp-preview-container').style.display = 'block';
+    if (matchCount === 0) showToast('Vui lòng khớp thủ công các thành viên chưa tìm thấy!', 'warning');
+}
+
+function updateQpRowStatus(input) {
+    const val = input.value;
+    const datalist = document.getElementById('all-members-list');
+    const option = Array.from(datalist.options).find(o => o.value === val);
+    const row = input.closest('tr');
+    const statusEl = row.querySelector('.qp-status');
+    const hiddenId = row.querySelector('.qp-member-id');
+
+    if (option) {
+        hiddenId.value = option.innerText;
+        statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Đã khớp';
+        statusEl.className = 'qp-status status-ok';
+        row.classList.remove('unmatched');
+    } else {
+        hiddenId.value = '';
+        statusEl.innerHTML = '<i class="fa-solid fa-xmark"></i> Chưa khớp';
+        statusEl.className = 'qp-status status-err';
+        row.classList.add('unmatched');
+    }
+    
+    if (row.closest('#bonus-qp-preview-tbody')) {
+        updateBonusQpMatchCount();
+    } else {
+        updateQpMatchCount();
+    }
+}
+
+function updateQpMatchCount() {
+    const count = document.querySelectorAll('.qp-row:not(.unmatched)').length;
+    document.getElementById('qp-match-count').innerText = count;
+}
+
+async function saveQuickPasteClub() {
+    const rows = document.querySelectorAll('.qp-row');
+    const validData = [];
+    
+    rows.forEach(row => {
+        const mId = row.querySelector('.qp-member-id').value;
+        if (!mId) return;
+        
+        validData.push({
+            memberId: mId,
+            score: parseFloat(row.querySelector('.qp-score-input').value) || 0,
+            reason: row.querySelector('.qp-reason-input').value.trim(),
+            category: currentQpCategory
+        });
+    });
+
+    if (validData.length === 0) return showToast('Không có dữ liệu hợp lệ để lưu!', 'warning');
+
+    const btn = document.getElementById('btn-save-quick-paste');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+    btn.disabled = true;
+
+    try {
+        const batchMap = new Map();
+        
+        validData.forEach(item => {
+            let entry;
+            if (batchMap.has(item.memberId)) {
+                entry = batchMap.get(item.memberId);
+            } else {
+                const existing = state.clubScores.find(x => x.memberId === item.memberId && x.term === state.currentTerm);
+                if (existing) {
+                    entry = { ...existing, reasons: [...(existing.reasons || [])] };
+                } else {
+                    entry = { 
+                        id: 'cs' + Date.now() + Math.random().toString(36).substr(2, 5), 
+                        memberId: item.memberId, 
+                        term: state.currentTerm, 
+                        disciplinePoints: 10, 
+                        brandScore: 7, 
+                        bonusScore: 0,
+                        reasons: [] 
+                    };
+                }
+                batchMap.set(item.memberId, entry);
+            }
+
+            if (item.category === 'bonus') {
+                entry.bonusScore = (parseFloat(entry.bonusScore) || 0) + item.score;
+                const sign = item.score >= 0 ? '+' : '';
+                entry.reasons.push(`${sign}${item.score}: ${item.reason}`);
+            } else if (item.category === 'brand') {
+                entry.brandScore = item.score; // Overwrite for brand
+                // Don't add to reasons for brand score to avoid cluttering "Ghi chú kỷ luật"
+            } else {
+                // Deduct from current discipline points (starts at 10 if new)
+                const currentDisc = (entry.disciplinePoints !== undefined) ? parseFloat(entry.disciplinePoints) : 10;
+                entry.disciplinePoints = currentDisc + item.score;
+                const sign = item.score >= 0 ? '+' : '';
+                entry.reasons.push(`${sign}${item.score}: ${item.reason}`);
+            }
+        });
+
+        const records = Array.from(batchMap.values());
+        await syncToBackend('save_score_batch', { type: 'ScoreClub', records });
+
+        // Update local state
+        records.forEach(rec => {
+            const idx = state.clubScores.findIndex(x => x.memberId === rec.memberId && x.term === rec.term);
+            if (idx > -1) state.clubScores[idx] = rec;
+            else state.clubScores.push(rec);
+        });
+
+        showToast(`Đã lưu thành công điểm cho ${records.length} thành viên!`, 'success');
+        clearQuickPaste();
+        backToMethodSelection('club');
+        calculateFinalScores();
+
+    } catch (err) {
+        alert('Lỗi khi lưu: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// ==========================================
+// FINAL BONUS QUICK PASTE MODULE
+// ==========================================
+function processBonusQuickPaste() {
+    const rawData = document.getElementById('bonus-qp-input').value.trim();
+    if (!rawData) return showToast('Vui lòng dán dữ liệu!', 'error');
+
+    const lines = rawData.split('\n').map(l => l.trim()).filter(l => l !== '');
+    const tbody = document.getElementById('bonus-qp-preview-tbody');
+    tbody.innerHTML = '';
+    let matchCount = 0;
+
+    // Reuse members datalist for corrections
+    const dl = document.getElementById('all-members-list');
+    if (!dl || dl.children.length === 0) {
+        const container = document.body;
+        let existingDl = document.getElementById('all-members-list');
+        if (!existingDl) {
+            existingDl = document.createElement('datalist');
+            existingDl.id = 'all-members-list';
+            container.appendChild(existingDl);
+        }
+        existingDl.innerHTML = state.members.map(m => `<option value="${m.name} (${m.dept})">${m.id}</option>`).join('');
+    }
+
+    lines.forEach((line, index) => {
+        let name = '', score = 0, reason = '';
+        
+        let parts = line.split('\t');
+        if (parts.length < 2) parts = line.split(/\s{2,}/).filter(p => p.trim() !== '');
+        
+        if (parts.length >= 1) name = parts[0].trim();
+        let rawScore = (parts.length >= 2) ? parts[1].trim() : '0';
+        if (rawScore.includes(',') && !rawScore.includes('.')) {
+            rawScore = rawScore.replace(',', '.');
+        } else {
+            rawScore = rawScore.replace(/,/g, '');
+        }
+        score = parseFloat(rawScore) || 0;
+        if (parts.length >= 3) reason = parts[2].trim();
+        if (!reason) reason = 'Điểm cộng cuối';
+
+        const member = findMemberByName(name);
+        const statusClass = member ? 'status-ok' : 'status-err';
+        const statusText = member ? '<i class="fa-solid fa-check"></i> Đã khớp' : '<i class="fa-solid fa-xmark"></i> Chưa khớp';
+        
+        if (member) matchCount++;
+
+        tbody.innerHTML += `
+            <tr class="qp-row ${!member ? 'unmatched' : ''}" data-index="${index}">
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <input type="text" class="qp-member-input" list="all-members-list" 
+                               value="${member ? member.name + ' (' + member.dept + ')' : name}" 
+                               placeholder="Tìm thành viên..." 
+                               onchange="updateQpRowStatus(this)">
+                        <input type="hidden" class="qp-member-id" value="${member ? member.id : ''}">
+                        <small class="qp-status ${statusClass}">${statusText}</small>
+                    </div>
+                </td>
+                <td style="width:100px;">
+                    <input type="number" class="qp-score-input" value="${score}" step="0.1" 
+                           style="color:${score >= 0 ? '#10b981' : '#ef4444'}; font-weight:700;">
+                </td>
+                <td>
+                    <input type="text" class="qp-reason-input" value="${reason}" placeholder="Lý do...">
+                </td>
+                <td style="width:40px;">
+                    <button class="btn-icon-danger" onclick="this.closest('tr').remove(); updateBonusQpMatchCount();">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('bonus-qp-match-count').innerText = matchCount;
+    document.getElementById('bonus-qp-preview-container').style.display = 'block';
+    if (matchCount === 0) showToast('Vui lòng khớp thủ công các thành viên chưa tìm thấy!', 'warning');
+}
+
+function updateBonusQpMatchCount() {
+    const count = document.querySelectorAll('#bonus-qp-preview-tbody .qp-row:not(.unmatched)').length;
+    document.getElementById('bonus-qp-match-count').innerText = count;
+}
+
+async function saveBonusQuickPaste() {
+    const rows = document.querySelectorAll('#bonus-qp-preview-tbody .qp-row');
+    const records = [];
+    
+    rows.forEach(row => {
+        const mId = row.querySelector('.qp-member-id').value;
+        if (!mId) return;
+        
+        records.push({
+            memberId: mId,
+            term: state.currentTerm,
+            bonusScore: parseFloat(row.querySelector('.qp-score-input').value) || 0,
+            reason: row.querySelector('.qp-reason-input').value.trim()
+        });
+    });
+
+    if (records.length === 0) return showToast('Không có dữ liệu hợp lệ để lưu!', 'warning');
+
+    const btn = document.getElementById('btn-save-bonus-paste');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+    btn.disabled = true;
+
+    try {
+        await syncToBackend('save_score_batch', { type: 'ScoreFinalBonus', records });
+
+        // Update local state
+        records.forEach(rec => {
+            const idx = state.finalBonuses.findIndex(x => String(x.memberId) === String(rec.memberId) && x.term === rec.term);
+            if (idx > -1) state.finalBonuses[idx] = rec;
+            else state.finalBonuses.push(rec);
+        });
+
+        showToast(`Đã lưu thành công điểm cộng cuối cho ${records.length} thành viên!`, 'success');
+        document.getElementById('bonus-qp-input').value = '';
+        document.getElementById('bonus-qp-preview-container').style.display = 'none';
+        calculateFinalScores();
+
+    } catch (err) {
+        alert('Lỗi khi lưu: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// ==========================================
+// RESET CLUB SCORES LOGIC
+// ==========================================
+function confirmResetClubScores() {
+    document.getElementById('reset-current-term-label').innerText = state.currentTerm;
+    openModal('club-reset-modal');
+}
+
+async function executeClubReset() {
+    const resetDisc = document.getElementById('reset-check-disc').checked;
+    const resetBrand = document.getElementById('reset-check-brand').checked;
+    const resetBonus = document.getElementById('reset-check-bonus').checked;
+
+    if (!resetDisc && !resetBrand && !resetBonus) {
+        return showToast('Vui lòng chọn ít nhất một mục để reset!', 'warning');
+    }
+
+    const pass = prompt('VUI LÒNG NHẬP MẬT KHẨU ADMIN ĐỂ XÁC NHẬN RESET:');
+    if (pass === null) return;
+    
+    if (pass !== state.config.adminPassword) {
+        return showToast('Mật khẩu không chính xác!', 'error');
+    }
+
+    if (!confirm('Bạn có chắc chắn muốn reset các mục đã chọn? Hành động này sẽ thay đổi dữ liệu của toàn bộ thành viên.')) {
+        return;
+    }
+
+    closeModal('club-reset-modal');
+    showToast('Đang thực hiện reset dữ liệu...', 'info');
+
+    try {
+        const scoresToUpdate = state.clubScores.filter(s => s.term === state.currentTerm);
+        
+        if (scoresToUpdate.length === 0) {
+            return showToast('Không có dữ liệu điểm CLB để reset trong nhiệm kỳ này.', 'info');
+        }
+
+        // If resetting EVERYTHING, we can just delete. 
+        // But if selective, we update the existing records.
+        const isFullReset = resetDisc && resetBrand && resetBonus;
+
+        if (isFullReset) {
+            await syncToBackend('delete_score_batch_term', { 
+                type: 'ScoreClub', 
+                term: state.currentTerm 
+            });
+            state.clubScores = state.clubScores.filter(s => s.term !== state.currentTerm);
+        } else {
+            const updatedRecords = scoresToUpdate.map(s => {
+                const rec = { ...s };
+                if (resetDisc) {
+                    rec.disciplinePoints = 10;
+                    // Keep non-penalty reasons if any, but usually discipline reasons are all penalties
+                    rec.reasons = (rec.reasons || []).filter(r => !String(r).trim().startsWith('-'));
+                }
+                if (resetBrand) {
+                    rec.brandScore = 7;
+                }
+                if (resetBonus) {
+                    rec.bonusScore = 0;
+                    // Remove bonus reasons
+                    rec.reasons = (rec.reasons || []).filter(r => !String(r).trim().startsWith('+'));
+                }
+                return rec;
+            });
+
+            await syncToBackend('save_score_batch', { type: 'ScoreClub', records: updatedRecords });
+            
+            // Update local state
+            updatedRecords.forEach(rec => {
+                const idx = state.clubScores.findIndex(x => x.id === rec.id);
+                if (idx > -1) state.clubScores[idx] = rec;
+            });
+        }
+
+        showToast('Đã reset các mục đã chọn thành công!', 'success');
+        calculateFinalScores();
+        
+    } catch (err) {
+        alert('Lỗi khi reset: ' + err.message);
+    }
+}
+
+// ==========================================
+// EXCEL-STYLE SCORE CHECKER LOGIC
+// ==========================================
+let currentScoreCheckTab = 'discipline';
+
+function openClubScoreChecker() {
+    openModal('club-score-check-modal');
+    renderScoreCheckTab('discipline');
+}
+
+function switchScoreCheckTab(btn, tab) {
+    currentScoreCheckTab = tab;
+    document.querySelectorAll('.score-check-tabs .pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    renderScoreCheckTab(tab);
+}
+
+function renderScoreCheckTab(tab) {
+    const container = document.getElementById('score-check-table-container');
+    const sortedMembers = [...state.members].sort((a, b) => (a.dept || '').localeCompare(b.dept || ''));
+    
+    let headers = '';
+    if (tab === 'discipline') {
+        headers = `<th>Thành viên</th><th>Ban</th><th style="width:120px;">Điểm Kỷ luật</th><th>Ghi chú (Lý do)</th>`;
+    } else if (tab === 'bonus') {
+        headers = `<th>Thành viên</th><th>Ban</th><th style="width:120px;">Điểm Cộng</th><th>Lý do cộng</th>`;
+    } else if (tab === 'brand') {
+        headers = `<th>Thành viên</th><th>Ban</th><th style="width:120px;">Hình ảnh (0-10)</th>`;
+    }
+
+    let rows = sortedMembers.map(m => {
+        const score = state.clubScores.find(s => s.memberId === m.id && s.term === state.currentTerm) || {
+            disciplinePoints: 10, bonusScore: 0, brandScore: 7, reasons: []
+        };
+        
+        let inputs = '';
+        if (tab === 'discipline') {
+            inputs = `
+                <td><input type="number" class="excel-input score-val" data-mid="${m.id}" value="${score.disciplinePoints || 0}" step="0.5"></td>
+                <td><input type="text" class="excel-input score-reason" data-mid="${m.id}" value="${(score.reasons || []).join('; ')}"></td>
+            `;
+        } else if (tab === 'bonus') {
+            inputs = `
+                <td><input type="number" class="excel-input score-val" data-mid="${m.id}" value="${score.bonusScore || 0}" step="0.5"></td>
+                <td><input type="text" class="excel-input score-reason" data-mid="${m.id}" value="${(score.reasons || []).filter(r => r.includes('+')).join('; ')}"></td>
+            `;
+        } else if (tab === 'brand') {
+            inputs = `
+                <td><input type="number" class="excel-input score-val" data-mid="${m.id}" value="${score.brandScore || 0}" step="0.5" min="0" max="10"></td>
+            `;
+        }
+
+        return `
+            <tr class="score-check-row">
+                <td style="font-weight:600;">${m.name}</td>
+                <td><small>${m.dept}</small></td>
+                ${inputs}
+            </tr>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <table class="excel-table">
+            <thead><tr>${headers}</tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+function filterScoreCheckTable() {
+    const q = document.getElementById('score-check-search').value.toLowerCase();
+    const rows = document.querySelectorAll('.score-check-row');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+    });
+}
+
+async function saveAllClubScores() {
+    const btn = document.getElementById('btn-save-all-scores');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu hệ thống...';
+    btn.disabled = true;
+
+    try {
+        const rows = document.querySelectorAll('.score-check-row');
+        const records = [];
+        
+        rows.forEach(row => {
+            const mId = row.querySelector('.score-val').getAttribute('data-mid');
+            const scoreVal = parseFloat(row.querySelector('.score-val').value) || 0;
+            const reasonInput = row.querySelector('.score-reason');
+            const reasonVal = reasonInput ? reasonInput.value.split(';').map(r => r.trim()).filter(r => r !== '') : null;
+
+            let entry = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+            if (!entry) {
+                entry = { 
+                    id: 'cs' + Date.now() + Math.random().toString(36).substr(2, 5), 
+                    memberId: mId, 
+                    term: state.currentTerm, 
+                    disciplinePoints: 10, brandScore: 7, bonusScore: 0, reasons: [] 
+                };
+            } else {
+                entry = { ...entry, reasons: [...(entry.reasons || [])] };
+            }
+
+            if (currentScoreCheckTab === 'discipline') {
+                entry.disciplinePoints = scoreVal;
+                if (reasonVal !== null) entry.reasons = reasonVal;
+            } else if (currentScoreCheckTab === 'bonus') {
+                entry.bonusScore = scoreVal;
+                // Merge bonus reasons if needed, or just overwrite as Excel style suggests
+                if (reasonVal !== null) {
+                    // Filter out existing bonus reasons and add new ones
+                    const nonBonus = entry.reasons.filter(r => !r.includes('+'));
+                    entry.reasons = [...nonBonus, ...reasonVal];
+                }
+            } else if (currentScoreCheckTab === 'brand') {
+                entry.brandScore = scoreVal;
+            }
+
+            records.push(entry);
+        });
+
+        await syncToBackend('save_score_batch', { type: 'ScoreClub', records });
+
+        // Update local state
+        records.forEach(rec => {
+            const idx = state.clubScores.findIndex(x => x.memberId === rec.memberId && x.term === rec.term);
+            if (idx > -1) state.clubScores[idx] = rec;
+            else state.clubScores.push(rec);
+        });
+
+        showToast(`Đã lưu thành công dữ liệu tab ${currentScoreCheckTab}!`, 'success');
+        calculateFinalScores();
+        closeModal('club-score-check-modal');
+
+    } catch (err) {
+        alert('Lỗi khi lưu bảng Excel: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function findMemberByName(query) {
+    if (!query) return null;
+    const qNorm = removeDiacritics(query.toLowerCase().trim());
+    
+    // Exact match (norm)
+    let match = state.members.find(m => removeDiacritics(m.name.toLowerCase()) === qNorm);
+    if (match) return match;
+
+    // MSSV match
+    match = state.members.find(m => m.mssv && m.mssv.toString() === query.trim());
+    if (match) return match;
+    
+    match = state.members.find(m => m.studentId && m.studentId.toString() === query.trim());
+    if (match) return match;
+
+    return null;
 }
 
 async function saveClubEval() {
@@ -6299,7 +6949,7 @@ function renderEvaluationTasks() {
             pendingList.appendChild(card);
         } else {
             // Member View: Actionable Tasks & History
-            const evalRecord = state.evaluations.find(ev =>
+            const evalRecord = (state.evaluations || []).find(ev =>
                 String(ev.prjId || ev.prjid).trim() === prjIdStr &&
                 String(ev.raterId || ev.raterid).trim() === myIdStr
             );
@@ -6329,7 +6979,7 @@ function renderEvaluationTasks() {
                         </div>
                         <div>
                             <div class="history-project-name">${p.name}</div>
-                            <div class="history-date">Hoàn thành lúc: ${new Date(evalRecord.createdAt).toLocaleDateString('vi-VN')}</div>
+                            <div class="history-date">Hoàn thành lúc: ${new Date(evalRecord.createdAt).toLocaleString('vi-VN')}</div>
                         </div>
                     </div>
                     <div class="history-actions">
@@ -7519,23 +8169,6 @@ function isBoardMember() {
     return bcnNames.includes(state.currentUser.name.toLowerCase().trim());
 }
 
-function isExemptFromEval(memberId, role) {
-    const member = state.members.find(m => String(m.id) === String(memberId));
-    if (!member) return false;
-
-    // Check Dept (BCN is exempt)
-    const dept = (getMemberDept(member) || '').toUpperCase();
-    if (dept === 'BCN') return true;
-
-    // Check Role (Trưởng ban, Phó ban are exempt)
-    if (role) {
-        const lower = role.toLowerCase().trim();
-        const leadershipKeywords = ['trưởng ban', 'phó ban', 'leader', 'tl', 'nhóm trưởng', 'pl', 'project leader', 'trưởng dự án'];
-        if (leadershipKeywords.some(key => lower.includes(key))) return true;
-    }
-
-    return false;
-}
 
 function updateHeaderUser() {
     const name = state.currentUser ? state.currentUser.name : 'Guest';
@@ -8252,8 +8885,10 @@ function processTeamBatchPaste() {
 function getIncompleteEvalsData(targetPrjId = null) {
     if (!state.currentUser || state.userRole !== 'admin') return null;
 
-    const term = state.currentTerm || 'Unknown';
-    let projects = state.projects.filter(p => p.term === term);
+    const termId = state.currentTerm || 'Unknown';
+    const termName = state.terms.find(t => t.id === termId)?.name || termId;
+    
+    let projects = state.projects.filter(p => p.term === termId || p.term === termName);
     if (targetPrjId) {
         projects = projects.filter(p => String(p.id).trim() === String(targetPrjId).trim());
     }
@@ -8271,27 +8906,28 @@ function getIncompleteEvalsData(targetPrjId = null) {
     };
 
     const getRequiredTargets = (raterId, participants) => {
-        const raterPt = participants.find(pt => String(pt.memberId).trim() === String(raterId).trim());
+        const rIdStr = String(raterId).trim();
+        const raterPt = participants.find(pt => String(pt.memberId).trim() === rIdStr);
         if (!raterPt) return [];
 
         const raterRole = raterPt.role || 'Thành viên';
         const raterTeam = raterPt.teamName;
 
-        if (isExemptFromEval(raterId, raterRole)) return [];
+        if (isExemptFromEval(rIdStr, raterRole)) return [];
         if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(raterRole)) return [];
 
         let targets = [];
         if (checkPL(raterRole)) {
             targets = participants.filter(pt => {
                 if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
-                const isSelf = pt.memberId === raterId;
+                const isSelf = String(pt.memberId).trim() === rIdStr;
                 const isAnyLeader = checkLeader(pt.role);
                 return isSelf || isAnyLeader;
             });
         } else if (checkLeader(raterRole)) {
             targets = participants.filter(pt => {
                 if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
-                const isSelf = pt.memberId === raterId;
+                const isSelf = String(pt.memberId).trim() === rIdStr;
                 const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
                 const isMyPL = checkPL(pt.role);
                 return isSelf || isTeammate || isMyPL;
@@ -8299,9 +8935,10 @@ function getIncompleteEvalsData(targetPrjId = null) {
         } else {
             targets = participants.filter(pt => {
                 if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
-                const isSelf = pt.memberId === raterId;
+                const ptIdStr = String(pt.memberId).trim();
+                const isSelf = ptIdStr === rIdStr;
                 const isMyLeader = pt.teamName === raterTeam && checkLeader(pt.role);
-                const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && pt.memberId !== raterId;
+                const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role) && ptIdStr !== rIdStr;
                 const isPL = checkPL(pt.role);
                 return (isSelf || isMyLeader || isTeammate) && !isPL;
             });
@@ -8310,8 +8947,9 @@ function getIncompleteEvalsData(targetPrjId = null) {
         const unique = [];
         const seen = new Set();
         targets.forEach(t => {
-            if (!seen.has(t.memberId)) {
-                seen.add(t.memberId);
+            const tid = String(t.memberId).trim();
+            if (!seen.has(tid)) {
+                seen.add(tid);
                 unique.push(t);
             }
         });
@@ -8331,16 +8969,12 @@ function getIncompleteEvalsData(targetPrjId = null) {
             const rId = String(rater.memberId).trim();
             const role = rater.role || '';
             if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(role) || isExemptFromEval(rId, role)) return;
-            const required = getRequiredTargets(rId, participants);
-            const missed = required.filter(target => {
-                const tId = String(target.memberId).trim();
-                return !evaluations.some(ev =>
-                    String(ev.prjId || ev.prjid).trim() === prjIdStr &&
-                    String(ev.raterId || ev.raterid).trim() === rId &&
-                    String(ev.targetId || ev.targetid).trim() === tId
-                );
-            });
-            if (missed.length > 0) {
+            const hasDoneAny = evaluations.some(ev =>
+                String(ev.prjId || ev.prjid).trim() === prjIdStr &&
+                String(ev.raterId || ev.raterid).trim() === rId
+            );
+            
+            if (!hasDoneAny) {
                 if (!raterMap.has(rId)) {
                     const member = state.members.find(m => String(m.id) === rId);
                     raterMap.set(rId, {
@@ -8351,7 +8985,7 @@ function getIncompleteEvalsData(targetPrjId = null) {
                 }
                 raterMap.get(rId).missedProjects.push({
                     prjName: p.name,
-                    missedNames: missed.map(m => getNameFromId(m.memberId, m.name)).join(', ')
+                    missedNames: "Chưa thực hiện đánh giá"
                 });
             }
         });
@@ -8363,7 +8997,7 @@ function getIncompleteEvalsData(targetPrjId = null) {
         deptGroups[info.dept].push(info);
     });
 
-    return { raterMap, deptGroups, term, projects };
+    return { raterMap, deptGroups, term: termName, projects };
 }
 
 async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
@@ -8448,13 +9082,18 @@ async function exportIncompleteEvaluationsPDF(targetPrjId = null) {
         pagebreak: { mode: ['css', 'legacy'] }
     };
 
+    showToast('Đang tạo báo cáo PDF...', 'info');
+
     try {
-        showToast('Đang tạo báo cáo PDF...', 'info');
-        await html2pdf().set(opt).from(reportContainer).save();
+        // Direct HTML string export is more robust than DOM elements for hidden content
+        const styledHtml = `<div style="width: 750px; padding: 20px; background: #fff;">${html}</div>`;
+        await html2pdf().set(opt).from(styledHtml).save();
         showToast('Xuất báo cáo thành công!', 'success');
     } catch (err) {
         console.error('PDF Export Error:', err);
         showToast('Lỗi khi xuất PDF. Vui lòng thử lại.', 'error');
+    } finally {
+        reportContainer.innerHTML = '';
     }
 }
 
@@ -8501,6 +9140,164 @@ function exportIncompleteEvaluationsExcel(targetPrjId = null) {
     link.click();
     document.body.removeChild(link);
     showToast('Tải xuống báo cáo Excel thành công!', 'success');
+}
+
+/**
+ * Xuất danh sách PDF những người đã thực hiện ít nhất 1 lượt đánh giá chéo sau một mốc thời gian.
+ */
+async function exportEvaluatorsAfterTimePDF() {
+    const afterTimeVal = document.getElementById('export-evaluators-after').value;
+    if (!afterTimeVal) {
+        return showToast('Vui lòng chọn mốc thời gian!', 'error');
+    }
+
+    const cutoff = new Date(afterTimeVal);
+    if (isNaN(cutoff.getTime())) {
+        return showToast('Định dạng thời gian không hợp lệ!', 'error');
+    }
+
+    const evals = state.evaluations || [];
+    
+    // Lọc các đánh giá chéo có createdAt sau mốc thời gian
+    const filteredEvals = evals.filter(ev => {
+        const createdAt = new Date(ev.createdAt);
+        return !isNaN(createdAt.getTime()) && createdAt > cutoff;
+    });
+
+    if (filteredEvals.length === 0) {
+        return showToast('Không tìm thấy lượt đánh giá nào sau mốc thời gian này.', 'info');
+    }
+
+    // Nhóm theo Ban -> Rater
+    const deptMap = new Map();
+    
+    filteredEvals.forEach(ev => {
+        const rId = String(ev.raterId || ev.raterid).trim();
+        if (!rId || rId === 'undefined') return;
+
+        const member = state.members.find(m => String(m.id).trim() === rId);
+        const deptName = (member ? member.dept : '') || (ev.raterRole ? ev.raterRole.split(' - ')[1] : 'Khác');
+        const raterName = member ? member.name : (ev.raterName || 'Không rõ tên');
+        
+        if (!deptMap.has(deptName)) deptMap.set(deptName, new Map());
+        const raterMap = deptMap.get(deptName);
+        
+        if (!raterMap.has(rId)) {
+            raterMap.set(rId, {
+                name: raterName,
+                evals: []
+            });
+        }
+        
+        const raterEntry = raterMap.get(rId);
+        const prj = state.projects.find(p => String(p.id) === String(ev.prjId));
+        const prjName = prj ? prj.name : 'Dự án ẩn';
+        const evDate = new Date(ev.createdAt);
+        const timeStr = `${evDate.getHours().toString().padStart(2, '0')}:${evDate.getMinutes().toString().padStart(2, '0')} ${evDate.getDate()}/${evDate.getMonth() + 1}`;
+        
+        raterEntry.evals.push(`${prjName} [${timeStr}]`);
+    });
+
+    // Tạo template HTML cho PDF
+    const term = state.terms.find(t => t.id === state.currentTerm)?.name || state.currentTerm;
+    const formattedCutoff = cutoff.toLocaleString('vi-VN');
+    
+    let html = `
+        <div style="padding:30px; font-family: 'Times New Roman', serif; color: #1e293b; background: #fff;">
+            <div style="text-align:center; border-bottom: 2px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 25px;">
+                <h1 style="margin:0; font-size: 22px; text-transform: uppercase; color: #0369a1;">BÁO CÁO TIẾN ĐỘ ĐÁNH GIÁ CHÉO</h1>
+                <p style="margin:8px 0 0 0; font-size: 14px; color: #64748b;">
+                    Dữ liệu trích xuất sau: <strong>${formattedCutoff}</strong>
+                </p>
+                <p style="margin:4px 0 0 0; font-size: 12px; color: #94a3b8;">
+                    Nhiệm kỳ: ${term} | Xuất lúc: ${new Date().toLocaleString('vi-VN')}
+                </p>
+            </div>
+    `;
+
+    // Sắp xếp các ban theo tên
+    const sortedDepts = Array.from(deptMap.keys()).sort();
+    
+    if (sortedDepts.length === 0) {
+        return showToast('Không có dữ liệu hợp lệ để xuất.', 'info');
+    }
+
+    sortedDepts.forEach(dept => {
+        html += `
+            <div style="margin-bottom: 30px;">
+                <h2 style="font-size: 16px; color: #0369a1; border-left: 4px solid #0ea5e9; padding-left: 10px; margin-bottom: 10px; text-transform: uppercase;">
+                    Ban: ${dept}
+                </h2>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0; width: 30%; font-size: 13px;">Họ và tên</th>
+                            <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0; font-size: 13px;">Chương trình đánh giá chéo [Thời gian hoàn thành]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        const raterMap = deptMap.get(dept);
+        const sortedRaters = Array.from(raterMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+        sortedRaters.forEach(rater => {
+            // Loại bỏ các chương trình trùng lặp cho cùng 1 rater (nếu có lỗi data)
+            const uniqueEvals = [...new Set(rater.evals)];
+            html += `
+                <tr>
+                    <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight: bold; font-size: 13px; color: #0f172a;">${rater.name}</td>
+                    <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-size: 12px; color: #475569; line-height: 1.5;">
+                        ${uniqueEvals.join('<br>')}
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    html += `
+            <div style="margin-top: 40px; text-align: right; padding-right: 50px;">
+                <p style="margin: 0; font-weight: bold; font-size: 14px;">Người lập báo cáo</p>
+                <div style="height: 60px;"></div>
+                <p style="margin: 0; font-weight: bold;">__________________________</p>
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                Hệ thống HUREA Hub - Báo cáo tự động
+            </div>
+        </div>
+    `;
+
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `DS_Thanh_Vien_Da_DGC_Sau_${afterTimeVal.replace(/[:T]/g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    showToast('Đang tạo báo cáo PDF...', 'info');
+
+    try {
+        // Direct HTML string export for maximum reliability
+        const styledHtml = `
+            <div style="width: 750px; background: #fff; margin: 0 auto; color: #1e293b;">
+                ${html}
+            </div>
+        `;
+        
+        await html2pdf().set(opt).from(styledHtml).save();
+        showToast('Đã tải xuống danh sách thành công!', 'success');
+    } catch (err) {
+        console.error('PDF Export Error:', err);
+        showToast('Lỗi khi xuất PDF: ' + err.message, 'error');
+    }
 }
 
 // ==========================================
@@ -9976,18 +10773,25 @@ async function deleteEvent(id) {
 }
 
 function isExemptFromEval(memberId, role) {
-    // Leadership roles that do NOT need to do cross-evaluations
-    const exemptRoles = ['BCN', 'TRƯỞNG BAN', 'PHÓ BAN', 'TRUONG BAN', 'PHO BAN', 'CHỦ NHIỆM', 'PHÓ CHỦ NHIỆM', 'CHỦ TỊCH', 'PHÓ CHỦ TỊCH', 'CARETEAM', 'CARE TEAM', 'MENTOR'];
-    const lowerRole = (role || '').toUpperCase();
-    
-    // Check if role name contains exempt keywords
-    const isExemptRole = exemptRoles.some(r => lowerRole.includes(r));
-    
-    // Also check if member is explicitly in BCN department
     const member = state.members.find(m => String(m.id) === String(memberId));
-    const isBCNMember = member && (getMemberDept(member) === 'BCN' || getMemberDept(member) === 'Ban Chủ Nhiệm');
     
-    return isExemptRole || isBCNMember;
+    // Check Dept (BCN is exempt)
+    const dept = (member ? getMemberDept(member) : '').toUpperCase();
+    if (dept === 'BCN' || dept === 'BAN CHỦ NHIỆM') return true;
+
+    // Check Role
+    if (role) {
+        const lower = role.toLowerCase().trim();
+        const exemptKeywords = [
+            'trưởng ban', 'phó ban', 'truong ban', 'pho ban', 
+            'chủ nhiệm', 'phó chủ nhiệm', 'chu nhiem', 'pho chu nhiem',
+            'chủ tịch', 'phó chủ tịch', 'chu tich', 'pho chu tich',
+            'careteam', 'care team', 'mentor', 'pl', 'project leader', 'trưởng dự án'
+        ];
+        if (exemptKeywords.some(key => lower.includes(key))) return true;
+    }
+
+    return false;
 }
 
 // Re-updating renderFeedbacks to include Care/Mentor messages
