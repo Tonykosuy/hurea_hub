@@ -8255,8 +8255,8 @@ function applyPermissions(role) {
         // Evaluation Tabs visibility
         document.querySelectorAll('.eval-tab').forEach(tab => {
             const evalTarget = tab.getAttribute('data-eval');
-            if (evalTarget === 'eval-club' || evalTarget === 'eval-dept') {
-                // Both Club and Dept Evals are for Admin only now
+            if (evalTarget === 'eval-club' || evalTarget === 'eval-dept' || evalTarget === 'eval-bonus') {
+                // Club, Dept, and Final Bonus Evals are for Admin only
                 tab.style.display = 'none';
             } else {
                 // Peer Eval (360) is for everyone
@@ -8297,8 +8297,8 @@ function applyPermissions(role) {
         // Evaluation Tabs visibility
         document.querySelectorAll('.eval-tab').forEach(tab => {
             const evalTarget = tab.getAttribute('data-eval');
-            if (evalTarget === 'eval-club') {
-                tab.style.display = 'none'; // Only Admin does Club Eval
+            if (evalTarget === 'eval-club' || evalTarget === 'eval-bonus') {
+                tab.style.display = 'none'; // Only Admin does Club Eval and Final Bonus Adjustments
             } else {
                 tab.style.display = ''; // Show Dept Eval and Peer Eval
             }
@@ -8416,25 +8416,30 @@ calculateFinalScores = function () {
         const member = state.currentUser;
         const mId = member.id;
 
-        const prjScore = calculateMemberProjectScore(mId);
-        const clubScore = calculateMemberClubScore(mId);
-        const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-        const deptScore = de ? de.totalScore : 0;
-        const total = (prjScore + clubScore + deptScore) / 3;
+        const scores = getMemberFinalScore(member);
+        const { prjScore, clubScore, deptScore, finalBonus, total } = scores;
+
         let grade = 'Can co gang';
         let gradeVi = 'Cần Cố Gắng';
         if (total >= 8.5) { grade = 'Xuat Sac'; gradeVi = 'Xuất Sắc'; }
         else if (total >= 7) { grade = 'Kha'; gradeVi = 'Khá'; }
         else if (total >= 5) { grade = 'Dat'; gradeVi = 'Đạt'; }
+
         const gradeColors = { 'Xuat Sac': '#f59e0b', 'Kha': '#10b981', 'Dat': '#0D8ABC', 'Can co gang': '#ef4444' };
         const gc = gradeColors[grade] || '#ef4444';
+
         const tr = document.createElement('tr');
+        const bonusHtml = finalBonus !== 0 ? `<div style="font-size:0.75rem; color:${finalBonus > 0 ? '#10b981' : '#ef4444'}; font-weight:600;">${finalBonus > 0 ? '+' : ''}${finalBonus.toFixed(2)} Bonus</div>` : '';
+
         tr.innerHTML = `
-            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept} - ${member.class}</span></td>
+            <td><strong>${member.name}</strong><br><span style="font-size:0.75rem;color:var(--text-muted)">Ban ${member.dept || '---'} - ${member.class || '---'}</span></td>
             <td><span style="color:#38bdf8;font-weight:700">${prjScore.toFixed(2)}</span></td>
             <td><span style="color:#10b981;font-weight:700">${clubScore.toFixed(2)}</span></td>
             <td><span style="color:#f59e0b;font-weight:700">${deptScore.toFixed(2)}</span></td>
-            <td><strong style="font-size:1.2rem;color:var(--primary)">${total.toFixed(2)}</strong></td>
+            <td>
+                <strong style="font-size:1.2rem;color:var(--primary)">${total.toFixed(2)}</strong>
+                ${bonusHtml}
+            </td>
             <td><span style="background:${gc}22;color:${gc};border:1px solid ${gc}44;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700">${gradeVi}</span></td>
             <td><button class="btn-secondary btn-sm" onclick="showScoreDetail('${mId}')"><i class="fa-solid fa-list-ul"></i> Chi tiết</button></td>`;
         tbody.appendChild(tr);
@@ -8645,6 +8650,343 @@ function processBulkSelect() {
     }
 }
 
+// ==========================================
+// QUICK PASSWORD ACTIONS TOOLKIT
+// ==========================================
+state.qpMatchedMembers = [];
+
+function openQuickPasswordModal() {
+    document.getElementById('qp-paste-input').value = '';
+    
+    // Reset views to Step 1
+    document.getElementById('qp-step-1').style.display = 'block';
+    document.getElementById('qp-step-2').style.display = 'none';
+    
+    document.getElementById('qp-footer-step-1').style.display = 'flex';
+    document.getElementById('qp-footer-step-2').style.display = 'none';
+    
+    state.qpMatchedMembers = [];
+    openModal('quick-password-modal');
+}
+
+function closeQuickPasswordModal() {
+    closeModal('quick-password-modal');
+}
+
+function goBackToQpStep1() {
+    document.getElementById('qp-step-1').style.display = 'block';
+    document.getElementById('qp-step-2').style.display = 'none';
+    
+    document.getElementById('qp-footer-step-1').style.display = 'flex';
+    document.getElementById('qp-footer-step-2').style.display = 'none';
+}
+
+function toggleQpFormatInput() {
+    const isCustom = document.querySelector('input[name="qp-format-type"]:checked').value === 'custom';
+    document.getElementById('qp-default-password-input').disabled = !isCustom;
+}
+
+function processQuickPasswordMatch() {
+    const text = document.getElementById('qp-paste-input').value;
+    if (!text.trim()) {
+        showToast('Vui lòng dán danh sách tên hoặc MSSV!', 'warning');
+        return;
+    }
+
+    const inputLines = text.split('\n').map(n => n.trim()).filter(n => n !== '');
+    state.qpMatchedMembers = [];
+
+    inputLines.forEach(line => {
+        const query = line.toLowerCase();
+        // Match by exact name, MSSV, ID, or partial name
+        const found = state.members.find(m => 
+            m.name.toLowerCase() === query ||
+            (m.studentId && m.studentId.toString().toLowerCase() === query) ||
+            (m.id && m.id.toLowerCase() === query) ||
+            m.name.toLowerCase().includes(query)
+        );
+
+        if (found && !state.qpMatchedMembers.some(m => m.id === found.id)) {
+            state.qpMatchedMembers.push(found);
+        }
+    });
+
+    if (state.qpMatchedMembers.length === 0) {
+        showToast('Không tìm thấy thành viên nào khớp với danh sách!', 'error');
+        return;
+    }
+
+    // Move to Step 2
+    document.getElementById('qp-step-1').style.display = 'none';
+    document.getElementById('qp-step-2').style.display = 'flex';
+    
+    document.getElementById('qp-footer-step-1').style.display = 'none';
+    document.getElementById('qp-footer-step-2').style.display = 'flex';
+    
+    document.getElementById('qp-match-count').innerText = state.qpMatchedMembers.length;
+    
+    toggleQpFormatInput();
+    renderQuickPasswordMatchedList();
+    showToast(`Đã khớp thành công ${state.qpMatchedMembers.length} thành viên!`, 'success');
+}
+
+function renderQuickPasswordMatchedList() {
+    const tbody = document.getElementById('qp-matched-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    state.qpMatchedMembers.forEach(m => {
+        const authRec = state.userPasswords.find(p => String(p.memberId) === String(m.id));
+        const hasPassword = !!authRec;
+        const passValStr = authRec ? authRec.password : '';
+        const passValDisplay = authRec ? '••••••••' : '<span style="color:#ef4444">Chưa có</span>';
+        const mDept = getMemberDept(m);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight:600;">${m.name}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">MSSV: ${m.studentId || 'Chưa rõ'}</div>
+            </td>
+            <td><span class="version-badge">${mDept}</span></td>
+            <td>
+                <span class="status-pill ${hasPassword ? 'status-active' : 'status-pending'}">
+                    ${hasPassword ? 'Đã có' : 'Chưa có'}
+                </span>
+            </td>
+            <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="qp-pass-display-${m.id}" data-pass="${passValStr}">${passValDisplay}</span>
+                    ${authRec ? `<button class="btn-icon" onclick="toggleQpPassReveal('${m.id}')" title="Hiện/Ẩn"><i class="fa-solid fa-eye" style="color:var(--text-muted); font-size: 0.85rem;"></i></button>` : ''}
+                </div>
+            </td>
+            <td style="text-align:center;">
+                <div style="display:flex; gap:6px; justify-content:center;">
+                    <button class="btn-secondary btn-sm" onclick="quickFormatIndividualPassword('${m.id}')" title="Format mật khẩu thành viên" style="padding: 4px 8px; font-size: 0.75rem;">
+                        <i class="fa-solid fa-rotate"></i> Reset
+                    </button>
+                    <button class="btn-icon-v2 btn-danger" onclick="quickDeleteIndividualPassword('${m.id}')" title="Xóa mật khẩu thành viên" style="width: 28px; height: 28px;">
+                        <i class="fa-solid fa-trash-can" style="font-size: 0.75rem;"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleQpPassReveal(mId) {
+    const span = document.getElementById('qp-pass-display-' + mId);
+    if (!span) return;
+    const realPass = span.getAttribute('data-pass');
+    if (span.innerText === '••••••••') {
+        span.innerText = realPass;
+    } else {
+        span.innerText = '••••••••';
+    }
+}
+
+async function quickDeleteIndividualPassword(mId) {
+    const member = state.qpMatchedMembers.find(m => String(m.id) === String(mId));
+    const authRec = state.userPasswords.find(p => String(p.memberId) === String(mId));
+
+    if (!authRec) {
+        showToast('Thành viên này chưa có mật khẩu để xóa!', 'warning');
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn xóa mật khẩu của thành viên "${member ? member.name : mId}"?`)) {
+        return;
+    }
+
+    showToast('Đang xóa mật khẩu...', 'info');
+
+    try {
+        await syncToBackend('delete_user_password', { id: authRec.id });
+        state.userPasswords = state.userPasswords.filter(p => String(p.memberId) !== String(mId));
+        
+        showToast('Đã xóa mật khẩu thành công!', 'success');
+        renderQuickPasswordMatchedList();
+        renderPasswordManagement();
+    } catch (e) {
+        console.error(e);
+        showToast('Lỗi khi xóa mật khẩu: ' + e.message, 'error');
+    }
+}
+
+async function quickFormatIndividualPassword(mId) {
+    const member = state.qpMatchedMembers.find(m => String(m.id) === String(mId));
+    if (!member) return;
+
+    const formatType = document.querySelector('input[name="qp-format-type"]:checked').value;
+    let passwordValue = '';
+
+    if (formatType === 'custom') {
+        passwordValue = document.getElementById('qp-default-password-input').value.trim();
+        if (!passwordValue || passwordValue.length < 4) {
+            showToast('Mật khẩu định dạng phải từ 4 ký tự trở lên!', 'error');
+            return;
+        }
+    } else {
+        passwordValue = (member.studentId || '').toString().trim();
+        if (!passwordValue) {
+            showToast(`Thành viên ${member.name} chưa có thông tin MSSV để format!`, 'error');
+            return;
+        }
+    }
+
+    if (!confirm(`Bạn có chắc muốn format mật khẩu của "${member.name}" thành "${passwordValue}"?`)) {
+        return;
+    }
+
+    showToast('Đang format mật khẩu...', 'info');
+
+    try {
+        let authRec = state.userPasswords.find(p => String(p.memberId) === String(mId));
+        if (authRec) {
+            authRec.password = passwordValue;
+        } else {
+            authRec = {
+                id: 'auth_' + Date.now(),
+                memberId: mId,
+                name: member.name,
+                password: passwordValue,
+                createdAt: new Date().toISOString()
+            };
+            state.userPasswords.push(authRec);
+        }
+
+        await syncToBackend('update_user_password', authRec);
+        
+        showToast('Đã format mật khẩu thành công!', 'success');
+        renderQuickPasswordMatchedList();
+        renderPasswordManagement();
+    } catch (e) {
+        console.error(e);
+        showToast('Lỗi khi format mật khẩu: ' + e.message, 'error');
+    }
+}
+
+async function bulkDeleteMatchedPasswords() {
+    const activeAuthRecs = state.qpMatchedMembers
+        .map(m => state.userPasswords.find(p => String(p.memberId) === String(m.id)))
+        .filter(Boolean);
+
+    if (activeAuthRecs.length === 0) {
+        showToast('Không có thành viên nào trong danh sách hiện tại đang có mật khẩu!', 'warning');
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa mật khẩu của toàn bộ ${activeAuthRecs.length} thành viên trong danh sách này?\nHành động này không thể hoàn tác.`)) {
+        return;
+    }
+
+    showToast('Đang xóa hàng loạt mật khẩu...', 'info');
+
+    try {
+        const idsToDelete = activeAuthRecs.map(r => r.id);
+        await syncToBackend('delete_user_passwords_batch', { ids: idsToDelete });
+
+        // Update local state
+        state.userPasswords = state.userPasswords.filter(p => !idsToDelete.includes(p.id));
+
+        showToast(`Đã xóa thành công ${idsToDelete.length} mật khẩu!`, 'success');
+        renderQuickPasswordMatchedList();
+        renderPasswordManagement();
+    } catch (e) {
+        console.error(e);
+        showToast('Lỗi khi xóa hàng loạt: ' + e.message, 'error');
+    }
+}
+
+async function bulkFormatMatchedPasswords() {
+    const formatType = document.querySelector('input[name="qp-format-type"]:checked').value;
+    let customPassword = '';
+
+    if (formatType === 'custom') {
+        customPassword = document.getElementById('qp-default-password-input').value.trim();
+        if (!customPassword || customPassword.length < 4) {
+            showToast('Mật khẩu định dạng phải từ 4 ký tự trở lên!', 'error');
+            return;
+        }
+    }
+
+    const recordsToSync = [];
+    const localUpdates = [];
+    let mssvMissingCount = 0;
+
+    state.qpMatchedMembers.forEach(m => {
+        let passwordValue = '';
+        if (formatType === 'custom') {
+            passwordValue = customPassword;
+        } else {
+            passwordValue = (m.studentId || '').toString().trim();
+            if (!passwordValue) {
+                mssvMissingCount++;
+                return; // Skip members with no MSSV when formatting by MSSV
+            }
+        }
+
+        let authRec = state.userPasswords.find(p => String(p.memberId) === String(m.id));
+        if (authRec) {
+            const updated = { ...authRec, password: passwordValue };
+            recordsToSync.push(updated);
+            localUpdates.push(updated);
+        } else {
+            const created = {
+                id: 'auth_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                memberId: m.id,
+                name: m.name,
+                password: passwordValue,
+                createdAt: new Date().toISOString()
+            };
+            recordsToSync.push(created);
+            localUpdates.push(created);
+        }
+    });
+
+    if (recordsToSync.length === 0) {
+        showToast('Không có thành viên nào đủ điều kiện để format (Có thể do toàn bộ danh sách thiếu MSSV)!', 'warning');
+        return;
+    }
+
+    let confirmMsg = `Bạn có chắc chắn muốn format mật khẩu cho ${recordsToSync.length} thành viên trong danh sách?\n`;
+    if (formatType === 'mssv' && mssvMissingCount > 0) {
+        confirmMsg += `Lưu ý: Có ${mssvMissingCount} thành viên bị bỏ qua vì không có MSSV.\n`;
+    }
+    confirmMsg += `Mật khẩu mới sẽ là: ${formatType === 'custom' ? `"${customPassword}"` : 'MSSV tương ứng'}.`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    showToast('Đang format hàng loạt mật khẩu...', 'info');
+
+    try {
+        await syncToBackend('save_batch', {
+            sheetName: 'UserAuth',
+            records: recordsToSync
+        });
+
+        // Update state locally
+        localUpdates.forEach(updated => {
+            const idx = state.userPasswords.findIndex(p => String(p.memberId) === String(updated.memberId));
+            if (idx > -1) {
+                state.userPasswords[idx] = updated;
+            } else {
+                state.userPasswords.push(updated);
+            }
+        });
+
+        showToast(`Đã format thành công ${recordsToSync.length} mật khẩu!`, 'success');
+        renderQuickPasswordMatchedList();
+        renderPasswordManagement();
+    } catch (e) {
+        console.error(e);
+        showToast('Lỗi khi format hàng loạt: ' + e.message, 'error');
+    }
+}
+
 function togglePassReveal(mId) {
     const span = document.getElementById('pass-display-' + mId);
     if (!span) return;
@@ -8716,6 +9058,35 @@ async function saveUserPasswordAdmin() {
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
+    }
+}
+
+async function resetUserPassword(mId) {
+    const member = state.members.find(m => String(m.id) === String(mId));
+    const authRec = state.userPasswords.find(p => String(p.memberId) === String(mId));
+
+    if (!authRec) {
+        showToast('Thành viên này chưa có mật khẩu để xóa!', 'warning');
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa mật khẩu của thành viên "${member ? member.name : mId}"?\nSau khi xóa, thành viên sẽ không thể đăng nhập cho tới khi tạo mật khẩu mới.`)) {
+        return;
+    }
+
+    showToast('Đang tiến hành xóa mật khẩu...', 'info');
+
+    try {
+        await syncToBackend('delete_user_password', { id: authRec.id });
+
+        // Remove locally
+        state.userPasswords = state.userPasswords.filter(p => String(p.memberId) !== String(mId));
+
+        showToast(`Đã xóa thành công mật khẩu của ${member ? member.name : mId}`, 'success');
+        renderPasswordManagement();
+    } catch (e) {
+        console.error('Error deleting user password:', e);
+        showToast('Lỗi khi đồng bộ Google Sheets: ' + e.message, 'error');
     }
 }
 

@@ -136,6 +136,17 @@
           case 'update_user_password':
             result = saveRowData(ss, 'UserAuth', payload);
             break;
+          case 'delete_user_password':
+            result = deleteRowData(ss, 'UserAuth', payload.id);
+            break;
+          case 'delete_user_passwords_batch':
+            if (Array.isArray(payload.ids)) {
+              payload.ids.forEach(id => deleteRowData(ss, 'UserAuth', id));
+              result = { count: payload.ids.length };
+            } else {
+              throw new Error('Payload format error: Expected array in ids');
+            }
+            break;
           case 'update_admin_password':
             result = updateAdminConfig(ss, 'adminPassword', payload.password);
             break;

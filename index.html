@@ -1613,6 +1613,9 @@
                             <button class="btn-lux-primary" onclick="openBulkSelectModal()" style="background: var(--secondary); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: none; padding: 10px 20px; font-size: 0.9rem;">
                                 <i class="fa-solid fa-paste"></i> Chọn nhanh
                             </button>
+                            <button class="btn-lux-primary" onclick="openQuickPasswordModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border:none; padding: 10px 20px; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);">
+                                <i class="fa-solid fa-bolt"></i> Xử lý nhanh
+                            </button>
                             <button class="btn-lux-primary" onclick="exportSelectedPasswords()" style="background: var(--primary); color: white; border:none; padding: 10px 20px; font-size: 0.9rem;">
                                 <i class="fa-solid fa-file-export"></i> Xuất đã chọn
                             </button>
@@ -2988,7 +2991,7 @@
 
     <!-- ===== SCORE APPEAL MODAL (PHÚC KHẢO) ===== -->
     <div id="score-appeal-modal" class="modal">
-        <div class="modal-content glass-panel" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 500px; background: #ffffff !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0,0,0,0.1); color: #0f172a !important;">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-file-signature"></i> Phúc khảo điểm</h3>
                 <span class="close-modal" onclick="closeModal('score-appeal-modal')">&times;</span>
@@ -3066,6 +3069,109 @@
                 <button class="btn-primary" onclick="processBulkSelect()">
                     <i class="fa-solid fa-check-double"></i> Xác nhận chọn
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== QUICK PASSWORD ACTIONS TOOLKIT MODAL ===== -->
+    <div id="quick-password-modal" class="modal">
+        <div class="modal-wrapper glass-panel modal-lg" style="max-width: 800px; display: flex; flex-direction: column; max-height: 90vh;">
+            <div class="modal-header" style="flex-shrink: 0; padding: 20px 24px; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="modal-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; width: 40px; height: 40px; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size: 1.25rem;">Hộp công cụ Mật khẩu Nhanh</h3>
+                        <p style="margin:0; font-size: 0.8rem; color: var(--text-muted);">Khớp danh sách, xóa hoặc cấp lại mật khẩu hàng loạt</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeQuickPasswordModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Step 1: Input list of names / MSSV -->
+            <div id="qp-step-1" class="modal-body" style="padding: 24px; overflow-y: auto;">
+                <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px; line-height: 1.5;">
+                    Dán danh sách <strong>Họ tên</strong> hoặc <strong>MSSV</strong> từ Excel (mỗi người một dòng) để hệ thống tự động tìm kiếm và khớp thông tin thành viên:
+                </p>
+                <div class="input-group full-width" style="margin-bottom:0;">
+                    <textarea id="qp-paste-input" rows="12" style="width:100%; border-radius:12px; border:1.5px solid var(--border-color); background: var(--bg-panel); color: var(--text-main); padding:16px; font-family:inherit; font-size:0.95rem; resize: none; transition: border-color 0.2s;" placeholder="Nguyễn Văn A&#10;2024001&#10;Trần Thị B..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Step 2: Interactive control panel with matched list -->
+            <div id="qp-step-2" class="modal-body" style="padding: 0; display: none; flex-direction: column; overflow: hidden; height: 100%;">
+                <!-- Panel stats & bulk controls -->
+                <div style="padding: 16px 24px; background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 16px; flex-shrink: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="font-size: 0.95rem;">
+                            Đã khớp: <strong id="qp-match-count" style="color: #f59e0b; font-size: 1.1rem;">0</strong> thành viên phù hợp
+                        </div>
+                        
+                        <!-- Bulk Actions -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn-lux-primary" onclick="bulkDeleteMatchedPasswords()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; box-shadow: none;">
+                                <i class="fa-solid fa-trash-can"></i> Xóa hết trong DS
+                            </button>
+                            <button class="btn-lux-primary" onclick="bulkFormatMatchedPasswords()" style="background: #10b981; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; box-shadow: none;">
+                                <i class="fa-solid fa-rotate"></i> Format hết trong DS
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Format settings -->
+                    <div class="glass-panel" style="padding: 12px 16px; border-radius: 10px; background: rgba(255,255,255,0.01); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Cấu hình Format:</span>
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main);">
+                                <input type="radio" name="qp-format-type" value="custom" checked onchange="toggleQpFormatInput()" style="accent-color:#10b981;"> Mật khẩu mặc định:
+                            </label>
+                            <input type="text" id="qp-default-password-input" class="lux-input" value="123456" style="width: 120px; padding: 4px 8px; font-size: 0.85rem; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: white;">
+                            
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); margin-left: 8px;">
+                                <input type="radio" name="qp-format-type" value="mssv" onchange="toggleQpFormatInput()" style="accent-color:#10b981;"> Format theo MSSV
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table of Matched Members -->
+                <div style="flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.1);">
+                    <table class="data-table" style="margin-bottom: 0;">
+                        <thead style="position: sticky; top: 0; background: var(--bg-sidebar); z-index: 10;">
+                            <tr>
+                                <th style="padding: 12px 16px; text-align: left;">Thành viên</th>
+                                <th style="padding: 12px 16px; text-align: left;">Ban</th>
+                                <th style="padding: 12px 16px; text-align: left;">Trạng thái</th>
+                                <th style="padding: 12px 16px; text-align: left;">Mật khẩu hiện tại</th>
+                                <th style="padding: 12px 16px; text-align: center; width: 120px;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qp-matched-tbody">
+                            <!-- JS populated matched rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer" id="qp-modal-footer" style="flex-shrink: 0; padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+                <!-- Step 1 Footer buttons -->
+                <div id="qp-footer-step-1" style="display: flex; gap: 12px;">
+                    <button class="btn-secondary" onclick="closeQuickPasswordModal()">Hủy</button>
+                    <button class="btn-primary" onclick="processQuickPasswordMatch()">
+                        <i class="fa-solid fa-magnifying-glass"></i> Khớp danh sách
+                    </button>
+                </div>
+                <!-- Step 2 Footer buttons -->
+                <div id="qp-footer-step-2" style="display: none; justify-content: space-between; width: 100%; align-items: center;">
+                    <button class="btn-secondary" onclick="goBackToQpStep1()">
+                        <i class="fa-solid fa-arrow-left"></i> Nhập danh sách khác
+                    </button>
+                    <button class="btn-primary" onclick="closeQuickPasswordModal()" style="background: var(--primary);">
+                        Hoàn tất <i class="fa-solid fa-check" style="margin-left: 6px;"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
