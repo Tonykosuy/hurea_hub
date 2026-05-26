@@ -3755,358 +3755,594 @@ function showScoreDetail(mId) {
     openModal('score-detail-modal');
 }
 
+// ==========================================
+// PDF EXPORT - PREMIUM GOLDEN THEME
+// ==========================================
+
+function _preparePDFData(mId) {
+    const member = state.members.find(m => m.id === mId);
+    if (!member) return null;
+
+    const prjScore = calculateMemberProjectScore(mId);
+    const clubScore = calculateMemberClubScore(mId);
+    const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+    const deptScore = de ? de.totalScore : 0;
+    const total = ((prjScore + clubScore + deptScore) / 3).toFixed(2);
+
+    const evals = state.evaluations.filter(e => e.targetId === mId);
+    let c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0, c6 = 0, c7 = 0;
+    if (evals.length > 0) {
+        c1 = evals.reduce((s, e) => s + (e.c1 || 0), 0) / evals.length;
+        c2 = evals.reduce((s, e) => s + (e.c2 || 0), 0) / evals.length;
+        c3 = evals.reduce((s, e) => s + (e.c3 || 0), 0) / evals.length;
+        c4 = evals.reduce((s, e) => s + (e.c4 || 0), 0) / evals.length;
+        c5 = evals.reduce((s, e) => s + (e.c5 || 0), 0) / evals.length;
+        c6 = evals.reduce((s, e) => s + (e.c6 || 0), 0) / evals.length;
+        c7 = evals.reduce((s, e) => s + (e.c7 || 0), 0) / evals.length;
+    }
+
+    const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
+    const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons : [];
+    const reasonsText = reasons.length > 0 ? reasons.join('; ') : 'Chấp hành tốt các quy định.';
+    const deptCri = de && de.criteria ? de.criteria : null;
+    const deptRemarksText = (de && de.remarks) ? de.remarks : 'Thành viên hoàn thành tốt các nhiệm vụ được giao, có tinh thần trách nhiệm cao trong công việc.';
+
+    let supportCount = 0, coreteamCount = 0, internalCheckinCount = 0;
+    const termProjects = state.projects.filter(p => p.term === state.currentTerm);
+    termProjects.forEach(prj => {
+        const participants = ensureArray(prj.participants);
+        const pt = participants.find(p => p.memberId === mId);
+        if (!pt) return;
+        if (pt.role === 'SUPPORT') supportCount++;
+        else if (pt.role === 'CHECKIN') { if (prj.type === 'internal') internalCheckinCount++; }
+        else coreteamCount++;
+    });
+
+    const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
+    const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
+    const supportScore = (sBase * 0.3) + (cBase * 0.7);
+    const inScore = internalCheckinCount >= 3 ? 10 : (internalCheckinCount === 2 ? 9 : (internalCheckinCount === 1 ? 8 : 7));
+    const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
+
+    let disc = 10;
+    if (ce && ce.disciplinePoints !== undefined) disc = parseFloat(ce.disciplinePoints);
+    disc = Math.max(0, Math.min(10, disc));
+
+    const clubBonusScore = parseFloat((ce ? ce.bonusScore : 0) || 0);
+    const deptBonusScore = parseFloat(de ? (de.bonusScore || (deptCri ? deptCri.bonus : 0) || 0) : 0);
+
+    const memberProjects = state.projects.filter(prj => {
+        const participants = ensureArray(prj.participants);
+        return participants.some(p => p.memberId === mId) && prj.term === state.currentTerm;
+    }).map(prj => {
+        const pt = ensureArray(prj.participants).find(p => p.memberId === mId);
+        let roleName = 'Thành viên';
+        if (pt) {
+            if (pt.role === 'PL') roleName = 'Project Leader';
+            if (pt.role === 'TL') roleName = 'Team Leader';
+            if (pt.role === 'SP' || pt.role === 'SUPPORT') roleName = 'Hỗ trợ';
+            if (pt.role === 'CHECKIN') roleName = 'Check-in';
+        }
+        return { name: prj.name, role: roleName };
+    });
+
+    let dRule = 10, dWork = 8, dRel = 8;
+    if (deptCri) {
+        let rList = [], wList = [], relList = [];
+        for (let k in deptCri) {
+            if (k === 'bonus') continue;
+            let val = parseFloat(deptCri[k]);
+            if (isNaN(val)) continue;
+            if (k.endsWith('_rule')) rList.push(val);
+            else if (k.endsWith('_head') || k.endsWith('_mem') || k.endsWith('_sup') || k.endsWith('_rel')) relList.push(val);
+            else wList.push(val);
+        }
+        if (rList.length) dRule = rList.reduce((a, b) => a + b) / rList.length;
+        if (wList.length) dWork = wList.reduce((a, b) => a + b) / wList.length;
+        if (relList.length) dRel = relList.reduce((a, b) => a + b) / relList.length;
+    }
+
+    return {
+        member, prjScore, clubScore, deptScore, total,
+        c1, c2, c3, c4, c5, c6, c7,
+        ce, de, deptCri, reasons, reasonsText, deptRemarksText,
+        disc, supportScore, inScore, brand,
+        clubBonusScore, deptBonusScore,
+        supportCount, coreteamCount, internalCheckinCount,
+        memberProjects,
+        radarRuleS: (disc + dRule) / 2,
+        radarWorkS: dWork,
+        radarRelS: (brand + dRel) / 2,
+        radarClubS: (supportScore + inScore) / 2,
+        radarPrjS: prjScore
+    };
+}
+
+function _generatePDFChartImage(data) {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 400;
+        canvas.style.display = 'none';
+        document.body.appendChild(canvas);
+
+        new Chart(canvas, {
+            type: 'radar',
+            data: {
+                labels: ['Dự án', 'Kỷ luật', 'Chuyên môn', 'HĐ CLB', 'Quan hệ'],
+                datasets: [{
+                    label: 'Năng lực',
+                    data: [data.radarPrjS, data.radarRuleS, data.radarWorkS, data.radarClubS, data.radarRelS],
+                    backgroundColor: 'rgba(197, 160, 89, 0.25)',
+                    borderColor: '#c5a059',
+                    borderWidth: 3,
+                    pointRadius: 6,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#c5a059',
+                    pointBorderWidth: 3
+                }]
+            },
+            options: {
+                animation: false,
+                responsive: false,
+                scales: {
+                    r: {
+                        min: 0, max: 10,
+                        ticks: { display: false },
+                        grid: { color: 'rgba(197, 160, 89, 0.15)' },
+                        angleLines: { color: 'rgba(197, 160, 89, 0.15)' },
+                        pointLabels: {
+                            font: { size: 15, weight: 'bold', family: 'Times New Roman' },
+                            color: '#8e6d2c'
+                        }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            },
+            plugins: [{
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, chart.width, chart.height);
+                }
+            }]
+        });
+
+        setTimeout(() => {
+            const img = canvas.toDataURL('image/png');
+            document.body.removeChild(canvas);
+            resolve(img);
+        }, 600);
+    });
+}
+
+function _buildPremiumPDFHTML(data, chartImgUrl) {
+    const d = data;
+    const m = d.member;
+
+    // Styles
+    const S = {
+        gold: '#c5a059',
+        goldDark: '#8e6d2c',
+        goldRich: '#d4af37',
+        goldScore: '#b8860b',
+        goldLight: '#e8d5b5',
+        goldVLight: '#f5e6c8',
+        cream: '#fffdf5',
+        creamAlt: '#faf6eb',
+        darkBrown: '#2c1810',
+        navy1: '#1a1a2e',
+        navy2: '#16213e',
+        navy3: '#0f3460'
+    };
+
+    const thStyle = `padding: 10px 12px; font-size: 13px; font-weight: 700; color: #fff; text-align: center; border: 1px solid ${S.goldDark}; background: linear-gradient(135deg, ${S.gold}, ${S.goldRich});`;
+    const thLeftStyle = `padding: 10px 12px; font-size: 13px; font-weight: 700; color: #fff; text-align: left; border: 1px solid ${S.goldDark}; background: linear-gradient(135deg, ${S.gold}, ${S.goldRich});`;
+    const tdStyle = `padding: 9px 12px; font-size: 13px; border: 1px solid ${S.goldLight}; color: ${S.darkBrown};`;
+    const tdBoldStyle = `padding: 9px 12px; font-size: 13px; border: 1px solid ${S.goldLight}; color: ${S.darkBrown}; font-weight: 700;`;
+    const tdCatStyle = `padding: 9px 12px; font-size: 12px; font-weight: 700; border: 1px solid ${S.goldLight}; background: ${S.creamAlt}; color: ${S.goldDark}; text-transform: uppercase;`;
+    const tdScoreStyle = `padding: 9px 12px; font-size: 14px; font-weight: 800; border: 1px solid ${S.goldLight}; color: ${S.goldScore}; text-align: center;`;
+    const totalRowStyle = `background: linear-gradient(135deg, ${S.cream}, ${S.goldVLight});`;
+
+    const sectionTitle = (icon, text) => `
+        <div style="background: linear-gradient(90deg, ${S.gold}, ${S.goldRich}); padding: 10px 16px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; color: #fff;">${icon}</span>
+            <span style="font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 1.5px; text-transform: uppercase;">${text}</span>
+        </div>`;
+
+    // Project rows with weighted scores
+    const prjCriteria = [
+        { cat: 'THÁI ĐỘ', label: 'Nhiệt tình, chủ động trong công việc', w: 0.15, val: d.c1, rowspan: 3 },
+        { cat: '', label: 'Trách nhiệm, kịp tiến độ, đúng deadline', w: 0.20, val: d.c2 },
+        { cat: '', label: 'Tư duy tích cực, đề xuất và tiếp thu ý kiến', w: 0.10, val: d.c3 },
+        { cat: 'KỸ NĂNG LÀM VIỆC', label: 'Trình độ, chuyên môn phục vụ công việc', w: 0.10, val: d.c4, rowspan: 1 },
+        { cat: 'CHẤT LƯỢNG CÔNG VIỆC', label: 'Đầu tư nghiên cứu', w: 0.10, val: d.c5, rowspan: 2 },
+        { cat: '', label: 'Mức độ hoàn thành công việc', w: 0.20, val: d.c6 },
+        { cat: 'MỐI QUAN HỆ', label: 'Với Care/Leader, thành viên trong coreteam', w: 0.15, val: d.c7, rowspan: 1 },
+    ];
+
+    let prjRowsHtml = '';
+    prjCriteria.forEach(cr => {
+        const weighted = (cr.val * cr.w).toFixed(2);
+        let catCell = '';
+        if (cr.cat) {
+            catCell = `<td ${cr.rowspan > 1 ? `rowspan="${cr.rowspan}"` : ''} style="${tdCatStyle} text-align: center; width: 18%;">${cr.cat}</td>`;
+        }
+        prjRowsHtml += `<tr>
+            ${catCell}
+            <td style="${tdStyle} text-align: left;">${cr.label}</td>
+            <td style="${tdStyle} text-align: center; font-weight: 600;">${cr.w}</td>
+            <td style="${tdScoreStyle}">${cr.val.toFixed(2)}</td>
+            <td style="${tdScoreStyle}">${weighted}</td>
+        </tr>`;
+    });
+
+    // Club section
+    const clubCriteria = [
+        { cat: 'TINH THẦN TRÁCH NHIỆM', label: 'Chấp hành kỷ luật, nội quy, văn hóa CLB', w: 0.30, val: d.disc },
+        { cat: 'THAM GIA & HỖ TRỢ', label: 'Tổ chức, hỗ trợ các chương trình của CLB', w: 0.30, val: d.supportScore },
+        { cat: 'HOẠT ĐỘNG NỘI BỘ', label: 'Tích cực tham gia chương trình nội bộ', w: 0.20, val: d.inScore },
+        { cat: 'PHÁT TRIỂN HÌNH ẢNH', label: 'Tuyên truyền, phát triển hình ảnh CLB', w: 0.20, val: d.brand },
+    ];
+
+    let clubRowsHtml = '';
+    clubCriteria.forEach(cr => {
+        const weighted = (cr.val * cr.w).toFixed(2);
+        clubRowsHtml += `<tr>
+            <td style="${tdCatStyle} text-align: center; width: 22%;">${cr.cat}</td>
+            <td style="${tdStyle} text-align: left;">${cr.label}</td>
+            <td style="${tdStyle} text-align: center; font-weight: 600;">${cr.w}</td>
+            <td style="${tdScoreStyle}">${cr.val.toFixed(2)}</td>
+            <td style="${tdScoreStyle}">${weighted}</td>
+        </tr>`;
+    });
+
+    // Bonus row for club
+    if (d.clubBonusScore !== 0) {
+        clubRowsHtml += `<tr>
+            <td style="${tdCatStyle} text-align: center;">ĐIỂM CỘNG</td>
+            <td style="${tdStyle} text-align: left;">Điểm cộng đóng góp đặc biệt</td>
+            <td style="${tdStyle} text-align: center;">—</td>
+            <td colspan="2" style="${tdScoreStyle} color: #16a34a;">${d.clubBonusScore > 0 ? '+' : ''}${d.clubBonusScore.toFixed(2)}</td>
+        </tr>`;
+    }
+
+    // Dept section
+    let deptRowsHtml = '';
+    const dept = (m.dept || '').trim();
+    const criteriaList = DEPT_EVAL_CONFIG[dept];
+    if (criteriaList && d.deptCri) {
+        try {
+            // Group by category
+            let lastCat = '';
+            let catCounts = {};
+            criteriaList.forEach(c => { catCounts[c.cat] = (catCounts[c.cat] || 0) + 1; });
+
+            criteriaList.forEach(c => {
+                const val = parseFloat(d.deptCri[c.id] || 0);
+                const weighted = (val * c.weight).toFixed(2);
+                let catCell = '';
+                if (c.cat !== lastCat) {
+                    catCell = `<td rowspan="${catCounts[c.cat]}" style="${tdCatStyle} text-align: center; width: 22%;">${c.cat}</td>`;
+                    lastCat = c.cat;
+                }
+                deptRowsHtml += `<tr>
+                    ${catCell}
+                    <td style="${tdStyle} text-align: left;">${c.label}</td>
+                    <td style="${tdStyle} text-align: center; font-weight: 600;">${c.weight}</td>
+                    <td style="${tdScoreStyle}">${val.toFixed(2)}</td>
+                    <td style="${tdScoreStyle}">${weighted}</td>
+                </tr>`;
+            });
+
+            if (d.deptBonusScore !== 0) {
+                deptRowsHtml += `<tr>
+                    <td style="${tdCatStyle} text-align: center;">ĐIỂM CỘNG</td>
+                    <td style="${tdStyle} text-align: left;">Điểm cộng đóng góp</td>
+                    <td style="${tdStyle} text-align: center;">—</td>
+                    <td colspan="2" style="${tdScoreStyle} color: #16a34a;">${d.deptBonusScore > 0 ? '+' : ''}${d.deptBonusScore.toFixed(2)}</td>
+                </tr>`;
+            }
+        } catch (e) {
+            deptRowsHtml = `<tr><td colspan="5" style="${tdStyle} text-align: center;">Lỗi hiển thị tiêu chí.</td></tr>`;
+        }
+    } else {
+        deptRowsHtml = `<tr><td colspan="5" style="${tdStyle} text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">Chưa có đánh giá Ban.</td></tr>`;
+    }
+
+    // Projects list
+    const projectRowsHtml = d.memberProjects.length > 0
+        ? d.memberProjects.map((p, i) => `<tr style="background: ${i % 2 === 0 ? '#fff' : S.cream};">
+            <td style="${tdStyle} text-align: center; font-weight: 600;">${i + 1}</td>
+            <td style="${tdStyle} text-align: left; font-weight: 600;">${p.name}</td>
+            <td style="${tdStyle} text-align: center;">${p.role}</td>
+        </tr>`).join('')
+        : `<tr><td colspan="3" style="${tdStyle} text-align: center; padding: 16px; color: #94a3b8; font-style: italic;">Chưa tham gia chương trình nào</td></tr>`;
+
+    // Discipline reasons
+    let reasonsHtml = '';
+    if (d.reasons.length > 0) {
+        reasonsHtml = `
+        <div style="margin-top: 10px; padding: 12px 16px; background: #fff5f5; border: 1px solid #fca5a5; border-left: 4px solid #ef4444; border-radius: 6px;">
+            <div style="font-size: 12px; font-weight: 700; color: #dc2626; margin-bottom: 6px;">⚠ LÝ DO TRỪ ĐIỂM KỶ LUẬT:</div>
+            <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #7f1d1d; line-height: 1.6;">
+                ${d.reasons.map(r => `<li>${r}</li>`).join('')}
+            </ul>
+        </div>`;
+    }
+
+    // Ranking label
+    const totalNum = parseFloat(d.total);
+    let rankLabel = 'ĐANG XEM XÉT';
+    let rankColor = '#94a3b8';
+    let rankBg = '#f1f5f9';
+    if (totalNum >= 9) { rankLabel = 'XUẤT SẮC'; rankColor = '#b8860b'; rankBg = 'linear-gradient(135deg, #fef3c7, #fde68a)'; }
+    else if (totalNum >= 8) { rankLabel = 'TỐT'; rankColor = '#16a34a'; rankBg = '#f0fdf4'; }
+    else if (totalNum >= 7) { rankLabel = 'KHÁ'; rankColor = '#2563eb'; rankBg = '#eff6ff'; }
+    else if (totalNum >= 5) { rankLabel = 'TRUNG BÌNH'; rankColor = '#ea580c'; rankBg = '#fff7ed'; }
+    else { rankLabel = 'CẦN CẢI THIỆN'; rankColor = '#dc2626'; rankBg = '#fef2f2'; }
+
+    return `
+    <div id="premium-pdf-content" style="width: 210mm; min-height: 297mm; font-family: 'Times New Roman', Georgia, serif; color: ${S.darkBrown}; background: #ffffff; position: relative;">
+
+        <!-- ===== HEADER ===== -->
+        <div style="background: linear-gradient(135deg, ${S.navy1} 0%, ${S.navy2} 50%, ${S.navy3} 100%); padding: 28px 35px; text-align: center; position: relative;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, ${S.gold}, #f0d78c, ${S.gold});"></div>
+            <div style="font-size: 14px; color: ${S.gold}; letter-spacing: 4px; margin-bottom: 6px;">✦ ✦ ✦</div>
+            <h1 style="font-family: 'Times New Roman', serif; color: #ffffff !important; font-size: 24px; font-weight: 700; letter-spacing: 3px; margin: 0 0 6px 0; text-transform: uppercase;">CLB CHUYÊN VIÊN NHÂN SỰ TẬP SỰ HuReA</h1>
+            <div style="width: 120px; height: 2px; background: linear-gradient(90deg, transparent, ${S.goldRich}, transparent); margin: 8px auto;"></div>
+            <h2 style="font-family: 'Times New Roman', serif; color: #ffffff !important; font-size: 20px; font-weight: 600; letter-spacing: 2px; margin: 0;">BẢNG ĐÁNH GIÁ NHÂN SỰ</h2>
+            <p style="color: #ffffff !important; font-size: 12px; margin: 8px 0 0 0; letter-spacing: 1.5px; text-transform: uppercase;">NHIỆM KỲ ${state.currentTerm || 'N/A'}</p>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, ${S.gold}, #f0d78c, ${S.gold});"></div>
+        </div>
+
+        <!-- ===== BODY ===== -->
+        <div style="padding: 22px 28px;">
+
+            <!-- SECTION: INFO + LEGEND -->
+            <div style="display: flex; gap: 16px; margin-bottom: 20px; page-break-inside: avoid;">
+                <table style="width: 55%; border-collapse: collapse; border: 2px solid ${S.gold}; border-radius: 4px; overflow: hidden;">
+                    <thead><tr><th colspan="2" style="background: linear-gradient(90deg, ${S.gold}, ${S.goldRich}); color: #fff; padding: 10px 14px; font-size: 14px; font-weight: 700; text-align: left; letter-spacing: 1px;">★ THÔNG TIN CÁ NHÂN</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; width: 35%; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Họ & Tên</td>
+                            <td style="padding: 8px 14px; font-size: 15px; font-weight: 800; color: ${S.goldDark}; border: 1px solid ${S.goldLight}; letter-spacing: 0.5px;">${m.name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Lớp - Khóa</td>
+                            <td style="padding: 8px 14px; font-size: 13px; border: 1px solid ${S.goldLight};">${m.class || '-'} - K${m.cohort || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Chức danh</td>
+                            <td style="padding: 8px 14px; font-size: 13px; font-weight: 600; border: 1px solid ${S.goldLight};">${m.role || 'CTV'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Ban hoạt động</td>
+                            <td style="padding: 8px 14px; font-size: 13px; font-weight: 600; color: ${S.gold}; border: 1px solid ${S.goldLight};">${m.dept || '-'}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table style="width: 45%; border-collapse: collapse; border: 2px solid ${S.gold}; border-radius: 4px; overflow: hidden;">
+                    <thead><tr><th colspan="2" style="background: linear-gradient(90deg, ${S.gold}, ${S.goldRich}); color: #fff; padding: 10px 14px; font-size: 14px; font-weight: 700; text-align: left; letter-spacing: 1px;">★ QUY ƯỚC ĐÁNH GIÁ</th></tr></thead>
+                    <tbody>
+                        <tr><td colspan="2" style="font-size: 12px; line-height: 1.7; background: ${S.cream}; padding: 10px 14px; border: 1px solid ${S.goldLight}; color: ${S.darkBrown};">
+                            <strong>•</strong> Điểm đánh giá trên <strong>thang điểm 10</strong><br>
+                            <strong>•</strong> Làm tròn đến <strong>số thập phân thứ 2</strong><br>
+                            <strong>•</strong> Mỗi chỉ tiêu có <strong>trọng số tương ứng</strong><br>
+                            <strong>•</strong> Cột <strong>ĐTB</strong> = Điểm × Trọng số<br>
+                            <strong>•</strong> Đánh giá theo nguyên tắc <strong>công bằng & khách quan</strong>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SECTION: PROJECT SCORES -->
+            <div style="page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('📋', 'ĐÁNH GIÁ THAM GIA TỔ CHỨC PROJECT')}
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid ${S.gold};">
+                    <thead>
+                        <tr>
+                            <th style="${thStyle} width: 18%;">TIÊU CHÍ</th>
+                            <th style="${thLeftStyle} width: 37%;">CHỈ TIÊU</th>
+                            <th style="${thStyle} width: 10%;">TRỌNG SỐ</th>
+                            <th style="${thStyle} width: 15%;">ĐIỂM</th>
+                            <th style="${thStyle} width: 15%;">ĐTB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${prjRowsHtml}
+                        <tr style="${totalRowStyle}">
+                            <td colspan="3" style="padding: 11px 14px; font-size: 14px; font-weight: 800; color: ${S.goldDark}; border: 2px solid ${S.gold}; text-align: right; letter-spacing: 1px;">ĐIỂM TRUNG BÌNH PROJECT ▸</td>
+                            <td colspan="2" style="padding: 11px 14px; font-size: 18px; font-weight: 900; color: ${S.goldScore}; border: 2px solid ${S.gold}; text-align: center; letter-spacing: 1px;">${d.prjScore.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SECTION: CLUB SCORES -->
+            <div style="page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('🏆', 'ĐÁNH GIÁ HOẠT ĐỘNG TRONG CLB')}
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid ${S.gold}; margin-bottom: ${d.reasons.length > 0 ? '4px' : '0'};">
+                    <thead>
+                        <tr>
+                            <th style="${thStyle} width: 22%;">TIÊU CHÍ</th>
+                            <th style="${thLeftStyle} width: 33%;">CHỈ TIÊU</th>
+                            <th style="${thStyle} width: 10%;">TRỌNG SỐ</th>
+                            <th style="${thStyle} width: 15%;">ĐIỂM</th>
+                            <th style="${thStyle} width: 15%;">ĐTB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${clubRowsHtml}
+                        <tr style="${totalRowStyle}">
+                            <td colspan="3" style="padding: 11px 14px; font-size: 14px; font-weight: 800; color: ${S.goldDark}; border: 2px solid ${S.gold}; text-align: right; letter-spacing: 1px;">ĐIỂM TRUNG BÌNH CLB ▸</td>
+                            <td colspan="2" style="padding: 11px 14px; font-size: 18px; font-weight: 900; color: ${S.goldScore}; border: 2px solid ${S.gold}; text-align: center; letter-spacing: 1px;">${d.clubScore.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                ${reasonsHtml}
+            </div>
+
+            <!-- SECTION: DEPT SCORES -->
+            <div style="page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('🏢', 'ĐÁNH GIÁ HOẠT ĐỘNG TRONG BAN ' + (m.dept || '').toUpperCase())}
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid ${S.gold};">
+                    <thead>
+                        <tr>
+                            <th style="${thStyle} width: 22%;">TIÊU CHÍ</th>
+                            <th style="${thLeftStyle} width: 33%;">CHỈ TIÊU</th>
+                            <th style="${thStyle} width: 10%;">TRỌNG SỐ</th>
+                            <th style="${thStyle} width: 15%;">ĐIỂM</th>
+                            <th style="${thStyle} width: 15%;">ĐTB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${deptRowsHtml}
+                        <tr style="${totalRowStyle}">
+                            <td colspan="3" style="padding: 11px 14px; font-size: 14px; font-weight: 800; color: ${S.goldDark}; border: 2px solid ${S.gold}; text-align: right; letter-spacing: 1px;">ĐIỂM TRUNG BÌNH BAN ▸</td>
+                            <td colspan="2" style="padding: 11px 14px; font-size: 18px; font-weight: 900; color: ${S.goldScore}; border: 2px solid ${S.gold}; text-align: center; letter-spacing: 1px;">${d.deptScore.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SECTION: SUMMARY & STATS -->
+            <div style="page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('⭐', 'BẢNG ĐIỂM TỔNG HỢP')}
+                <div style="border: 2px solid ${S.gold}; border-top: none; background: #fff; padding: 16px;">
+                    <table style="width: 100%; border-collapse: collapse; border: none;">
+                        <tbody>
+                            <tr>
+                                <td style="width: 65%; vertical-align: top; padding-right: 16px;">
+                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid ${S.goldLight};">
+                                        <tbody>
+                                            <tr style="background: #fff;">
+                                                <td style="padding: 10px 12px; font-size: 13px; font-weight: 700; border: 1px solid ${S.goldLight}; width: 70%; color: ${S.darkBrown};">📋 Đánh giá Tham gia tổ chức Project</td>
+                                                <td style="padding: 10px 12px; font-size: 15px; font-weight: 800; border: 1px solid ${S.goldLight}; text-align: center; color: ${S.goldScore};">${d.prjScore.toFixed(2)}</td>
+                                            </tr>
+                                            <tr style="background: ${S.cream};">
+                                                <td style="padding: 10px 12px; font-size: 13px; font-weight: 700; border: 1px solid ${S.goldLight}; color: ${S.darkBrown};">🏆 Đánh giá Hoạt động trong CLB</td>
+                                                <td style="padding: 10px 12px; font-size: 15px; font-weight: 800; border: 1px solid ${S.goldLight}; text-align: center; color: ${S.goldScore};">${d.clubScore.toFixed(2)}</td>
+                                            </tr>
+                                            <tr style="background: #fff;">
+                                                <td style="padding: 10px 12px; font-size: 13px; font-weight: 700; border: 1px solid ${S.goldLight}; color: ${S.darkBrown};">🏢 Đánh giá Hoạt động trong Ban</td>
+                                                <td style="padding: 10px 12px; font-size: 15px; font-weight: 800; border: 1px solid ${S.goldLight}; text-align: center; color: ${S.goldScore};">${d.deptScore.toFixed(2)}</td>
+                                            </tr>
+                                            <tr style="background: linear-gradient(135deg, ${S.goldVLight}, ${S.goldLight});">
+                                                <td style="padding: 12px 12px; font-size: 14px; font-weight: 900; border: 1px solid ${S.gold}; color: ${S.goldDark}; letter-spacing: 1px;">★ ĐIỂM TRUNG BÌNH TỔNG HỢP</td>
+                                                <td style="padding: 12px 12px; font-size: 18px; font-weight: 900; border: 1px solid ${S.gold}; text-align: center; color: ${S.goldScore}; letter-spacing: 1px;">${d.total}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                                <td style="width: 35%; vertical-align: top;">
+                                    <!-- RANKING BADGE -->
+                                    <div style="margin-bottom: 12px; margin-top: 8px;">
+                                        <div style="display: block; padding: 12px 16px; background: ${rankBg}; border: 2px solid ${rankColor}; border-radius: 6px; text-align: center;">
+                                            <div style="font-size: 11px; color: ${rankColor}; text-transform: uppercase; margin-bottom: 6px; font-weight: 700;">Xếp loại</div>
+                                            <div style="font-size: 16px; font-weight: 800; color: ${rankColor}; letter-spacing: 1px;">${rankLabel}</div>
+                                        </div>
+                                    </div>
+                                    <!-- STATS -->
+                                    <table style="width: 100%; border-collapse: collapse; border: none;">
+                                        <tbody>
+                                            <tr>
+                                                <td style="width: 33%; padding: 0 4px;">
+                                                    <div style="text-align: center; padding: 8px 4px; background: ${S.cream}; border: 1px solid ${S.goldLight}; border-radius: 4px;">
+                                                        <div style="font-size: 9px; font-weight: 700; color: ${S.goldDark}; text-transform: uppercase; margin-bottom: 4px;">Hỗ trợ CT</div>
+                                                        <div style="font-size: 14px; font-weight: 800; color: ${S.goldScore};">${d.supportCount}</div>
+                                                    </div>
+                                                </td>
+                                                <td style="width: 33%; padding: 0 4px;">
+                                                    <div style="text-align: center; padding: 8px 4px; background: ${S.cream}; border: 1px solid ${S.goldLight}; border-radius: 4px;">
+                                                        <div style="font-size: 9px; font-weight: 700; color: ${S.goldDark}; text-transform: uppercase; margin-bottom: 4px;">Coreteam</div>
+                                                        <div style="font-size: 14px; font-weight: 800; color: ${S.goldScore};">${d.coreteamCount}</div>
+                                                    </div>
+                                                </td>
+                                                <td style="width: 33%; padding: 0 4px;">
+                                                    <div style="text-align: center; padding: 8px 4px; background: ${S.cream}; border: 1px solid ${S.goldLight}; border-radius: 4px;">
+                                                        <div style="font-size: 9px; font-weight: 700; color: ${S.goldDark}; text-transform: uppercase; margin-bottom: 4px;">Check-in NB</div>
+                                                        <div style="font-size: 14px; font-weight: 800; color: ${S.goldScore};">${d.internalCheckinCount}</div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION: RADAR CHART -->
+            <div style="page-break-before: always; page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('📊', 'PHÂN TÍCH NĂNG LỰC CÁ NHÂN')}
+                <div style="text-align: center; padding: 16px 0; border: 2px solid ${S.gold}; border-top: none; background: #fff;">
+                    <img src="${chartImgUrl}" style="width: 380px; height: auto;">
+                </div>
+            </div>
+
+            <!-- SECTION: COMMENTS -->
+            <div style="page-break-inside: avoid; margin-bottom: 18px;">
+                ${sectionTitle('💬', 'NHẬN XÉT CHUNG')}
+                <div style="border: 2px solid ${S.gold}; border-top: none; padding: 16px 18px; background: #fff;">
+                    <div style="font-size: 13px; font-weight: 700; color: ${S.goldDark}; margin-bottom: 8px;">Trưởng/Phó Ban ${m.dept || '---'} đánh giá:</div>
+                    <div style="font-size: 13px; line-height: 1.7; color: ${S.darkBrown}; padding: 10px 14px; background: ${S.cream}; border-radius: 4px; border-left: 4px solid ${S.gold}; font-style: italic;">
+                        ${d.deptRemarksText}
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: PROGRAMS LIST -->
+            <div style="page-break-inside: avoid; margin-bottom: 20px;">
+                ${sectionTitle('📁', 'CÁC CHƯƠNG TRÌNH ĐÃ THAM GIA HỖ TRỢ')}
+                <table style="width: 100%; border-collapse: collapse; border: 2px solid ${S.gold};">
+                    <thead>
+                        <tr>
+                            <th style="${thStyle} width: 8%;">STT</th>
+                            <th style="${thLeftStyle} width: 65%;">TÊN CHƯƠNG TRÌNH</th>
+                            <th style="${thStyle} width: 27%;">VAI TRÒ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${projectRowsHtml}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- FOOTER -->
+            <div style="text-align: center; padding: 14px 0; border-top: 2px solid ${S.goldLight};">
+                <div style="font-size: 11px; color: ${S.gold}; letter-spacing: 2px;">✦ ✦ ✦</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Tài liệu được tạo tự động bởi hệ thống HuReA Hub — ${new Date().toLocaleDateString('vi-VN')}</div>
+            </div>
+        </div>
+    </div>`;
+}
+
 async function downloadPDF(mId) {
     try {
-        const member = state.members.find(m => m.id === mId);
-        if (!member) {
+        const data = _preparePDFData(mId);
+        if (!data) {
             showToast('Không tìm thấy thành viên để xuất báo cáo.', 'error');
             return;
         }
 
         showToast('Đang chuẩn bị dữ liệu báo cáo...', 'info');
+        const chartImgUrl = await _generatePDFChartImage(data);
 
-        // Data Calculation
-        const prjScore = calculateMemberProjectScore(mId);
-        const clubScore = calculateMemberClubScore(mId);
-        const de = state.deptScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-        const deptScore = de ? de.totalScore : 0;
-        const total = ((prjScore + clubScore + deptScore) / 3).toFixed(2);
-
-        const evals = state.evaluations.filter(e => e.targetId === mId);
-        let c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0, c6 = 0, c7 = 0;
-        if (evals.length > 0) {
-            c1 = evals.reduce((s, e) => s + (e.c1 || 0), 0) / evals.length;
-            c2 = evals.reduce((s, e) => s + (e.c2 || 0), 0) / evals.length;
-            c3 = evals.reduce((s, e) => s + (e.c3 || 0), 0) / evals.length;
-            c4 = evals.reduce((s, e) => s + (e.c4 || 0), 0) / evals.length;
-            c5 = evals.reduce((s, e) => s + (e.c5 || 0), 0) / evals.length;
-            c6 = evals.reduce((s, e) => s + (e.c6 || 0), 0) / evals.length;
-            c7 = evals.reduce((s, e) => s + (e.c7 || 0), 0) / evals.length;
-        }
-
-        const ce = state.clubScores.find(x => x.memberId === mId && x.term === state.currentTerm);
-        const reasons = (ce && ce.reasons && ce.reasons.length > 0) ? ce.reasons.join(', ') : 'Chấp hành tốt các quy định.';
-        const deptCri = de && de.criteria ? de.criteria : null;
-        const deptRemarksText = (de && de.remarks) ? de.remarks : 'Thành viên hoàn thành tốt các nhiệm vụ được giao, có tinh thần trách nhiệm cao trong công việc.';
-
-        // Automated Club Scoring Calculation for PDF
-        let supportCount = 0;
-        let coreteamCount = 0;
-        let internalCheckinCount = 0;
-        const termProjects = state.projects.filter(p => p.term === state.currentTerm);
-        termProjects.forEach(prj => {
-            const participants = ensureArray(prj.participants);
-            const pt = participants.find(p => p.memberId === mId);
-            if (!pt) return;
-
-            if (pt.role === 'SUPPORT') {
-                supportCount++;
-            } else if (pt.role === 'CHECKIN') {
-                if (prj.type === 'internal') internalCheckinCount++;
-            } else {
-                coreteamCount++;
-            }
-        });
-
-        const sBase = supportCount >= 2 ? 10 : (supportCount === 1 ? 9 : 8);
-        const cBase = coreteamCount >= 3 ? 10 : (coreteamCount === 2 ? 9 : (coreteamCount === 1 ? 8 : 6));
-        const supportScore = (sBase * 0.3) + (cBase * 0.7);
-
-        const inScore = internalCheckinCount >= 3 ? 10 : (internalCheckinCount === 2 ? 9 : (internalCheckinCount === 1 ? 8 : 7));
-        const brand = ce ? parseFloat(ce.brandScore ?? 7) : 7;
-
-        let disc = 10;
-        if (ce && ce.disciplinePoints !== undefined) {
-            disc = parseFloat(ce.disciplinePoints);
-        }
-        disc = Math.max(0, Math.min(10, disc));
-
-        showToast('Đang tạo biểu đồ phân tích...', 'info');
-
-        // Generate Radar Chart Image for PDF
-        const generateChartDataURL = () => {
-            return new Promise((resolve) => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 600;
-                canvas.height = 400;
-                canvas.style.display = 'none';
-                document.body.appendChild(canvas);
-
-                let dRule = 10, dWork = 8, dRel = 8;
-                if (deptCri) {
-                    let rList = [], wList = [], relList = [];
-                    for (let k in deptCri) {
-                        if (k === 'bonus') continue;
-                        let val = parseFloat(deptCri[k]);
-                        if (isNaN(val)) continue;
-                        if (k.endsWith('_rule')) rList.push(val);
-                        else if (k.endsWith('_head') || k.endsWith('_mem') || k.endsWith('_sup') || k.endsWith('_rel')) relList.push(val);
-                        else wList.push(val);
-                    }
-                    if (rList.length) dRule = rList.reduce((a, b) => a + b) / rList.length;
-                    if (wList.length) dWork = wList.reduce((a, b) => a + b) / wList.length;
-                    if (relList.length) dRel = relList.reduce((a, b) => a + b) / relList.length;
-                }
-
-                const ruleS = (disc + dRule) / 2;
-                const workS = dWork;
-                const relS = (brand + dRel) / 2;
-                const clubS = (supportScore + inScore) / 2;
-                const prjS = prjScore; // already on scale 10
-
-                new Chart(canvas, {
-                    type: 'radar',
-                    data: {
-                        labels: ['Dự án', 'Kỷ luật', 'Chuyên môn', 'HĐ CLB', 'Quan hệ'],
-                        datasets: [{
-                            label: 'Năng lực',
-                            data: [prjS, ruleS, workS, clubS, relS],
-                            backgroundColor: 'rgba(197, 160, 89, 0.35)',
-                            borderColor: '#c5a059',
-                            borderWidth: 3,
-                            pointRadius: 5,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#c5a059',
-                            pointBorderWidth: 2
-                        }]
-                    },
-                    options: {
-                        animation: false,
-                        responsive: false,
-                        scales: {
-                            r: {
-                                min: 0, max: 10,
-                                ticks: { display: false },
-                                grid: { color: 'rgba(197, 160, 89, 0.15)' },
-                                angleLines: { color: 'rgba(197, 160, 89, 0.15)' },
-                                pointLabels: {
-                                    font: { size: 14, weight: 'bold', family: 'Times New Roman' },
-                                    color: '#8e6d2c'
-                                }
-                            }
-                        },
-                        plugins: { legend: { display: false } }
-                    },
-                    plugins: [{
-                        beforeDraw: (chart) => {
-                            const ctx = chart.ctx;
-                            ctx.fillStyle = "white";
-                            ctx.fillRect(0, 0, chart.width, chart.height);
-                        }
-                    }]
-                });
-
-                setTimeout(() => {
-                    const img = canvas.toDataURL('image/png');
-                    document.body.removeChild(canvas);
-                    resolve(img);
-                }, 600);
-            });
-        };
-
-        const chartImgUrl = await generateChartDataURL();
         const wrapper = document.getElementById('individual-report-template');
         if (!wrapper) {
             showToast('Không tìm thấy khung mẫu báo cáo (template).', 'error');
             return;
         }
 
-        const memberProjects = state.projects.filter(prj => {
-            const participants = ensureArray(prj.participants);
-            return participants.some(p => p.memberId === mId) && prj.term === state.currentTerm;
-        }).map(prj => {
-            const pt = ensureArray(prj.participants).find(p => p.memberId === mId);
-            let roleName = 'Thành viên';
-            if (pt) {
-                if (pt.role === 'PL') roleName = 'Project Leader';
-                if (pt.role === 'TL') roleName = 'Team Leader';
-                if (pt.role === 'SP' || pt.role === 'SUPPORT') roleName = 'Hỗ trợ';
-                if (pt.role === 'CHECKIN') roleName = 'Check-in';
-            }
-            return { name: prj.name, role: roleName };
-        });
-
-        const projectRowsHtml = memberProjects.length > 0
-            ? memberProjects.map(p => `<tr><td>${p.name}</td><td>${p.role}</td></tr>`).join('')
-            : '<tr><td colspan="2">Chưa tham gia chương trình nào</td></tr>';
-
-        wrapper.innerHTML = `
-            <div class="report-formal-wrapper" id="premium-pdf-content">
-                <div class="report-gold-header">
-                    <h1>CLB CHUYÊN VIÊN NHÂN SỰ TẬP SỰ HuReA</h1>
-                    <h2>BẢNG ĐÁNH GIÁ NHÂN SỰ </h2>
-                </div>
-
-                <div class="report-content-container">
-                    <div class="report-section-wrapper">
-                        <div class="report-two-col">
-                            <table class="report-info-table">
-                                <thead><tr><th colspan="2">THÔNG TIN CÁ NHÂN</th></tr></thead>
-                                <tbody>
-                                    <tr><td class="label">Họ & Tên</td><td class="value">${member.name}</td></tr>
-                                    <tr><td class="label">Lớp - Khóa</td><td class="value">${member.class || '-'} - K${member.cohort || '-'}</td></tr>
-                                    <tr><td class="label">Chức danh</td><td class="value">${member.role || 'CTV'}</td></tr>
-                                    <tr><td class="label">Ban hoạt động</td><td class="value">${member.dept || '-'}</td></tr>
-                                </tbody>
-                            </table>
-                            <table class="report-info-table">
-                                <thead><tr><th colspan="2">QUY ƯỚC ĐÁNH GIÁ</th></tr></thead>
-                                <tbody>
-                                    <tr><td colspan="2" style="font-size: 10px; line-height: 1.4; background:#fffdf1;">
-                                        • Điểm được đánh giá trên thang điểm 10<br>
-                                        • Điểm được làm tròn đến số thập phân thứ 2<br>
-                                        • Mỗi chỉ tiêu đánh giá có trọng số tương ứng<br>
-                                        • Công tác đánh giá dựa trên nguyên tắc công bằng và khách quan
-                                    </td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header">THAM GIA TỔ CHỨC PROJECT</div>
-                        <table class="report-section-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:20%">TIÊU CHÍ</th>
-                                    <th style="width:50%">CHỈ TIÊU</th>
-                                    <th style="width:10%">TRỌNG SỐ</th>
-                                    <th style="width:20%">KẾT QUẢ ĐÁNH GIÁ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td rowspan="3" class="row-category">THÁI ĐỘ</td><td class="text-left">Nhiệt tình, chủ động trong công việc</td><td>0.15</td><td>${c1.toFixed(2)}</td></tr>
-                                <tr><td class="text-left">Trách nhiệm, kịp tiến độ, đúng deadline</td><td>0.2</td><td>${c2.toFixed(2)}</td></tr>
-                                <tr><td class="text-left">Tư duy tích cực, đề xuất và tiếp thu ý kiến</td><td>0.1</td><td>${c3.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">KỸ NĂNG LÀM VIỆC</td><td class="text-left">Trình độ, chuyên môn phục vụ for công việc</td><td>0.1</td><td>${c4.toFixed(2)}</td></tr>
-                                <tr><td rowspan="2" class="row-category">CHẤT LƯỢNG CÔNG VIỆC</td><td class="text-left">Đầu tư nghiên cứu</td><td>0.1</td><td>${c5.toFixed(2)}</td></tr>
-                                <tr><td class="text-left">Mức độ hoàn thành công việc</td><td>0.2</td><td>${c6.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">MỐI QUAN HỆ TRONG PROJECT</td><td class="text-left">Với Care/Leader, thành viên trong coreteam</td><td>0.15</td><td>${c7.toFixed(2)}</td></tr>
-                                <tr class="row-total">
-                                    <td colspan="2">ĐIỂM TRUNG BÌNH</td>
-                                    <td colspan="2" class="score-red">${prjScore.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header">HOẠT ĐỘNG TRONG CLB</div>
-                        <table class="report-section-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:25%">TIÊU CHÍ</th>
-                                    <th style="width:45%">CHỈ TIÊU</th>
-                                    <th style="width:10%">TRỌNG SỐ</th>
-                                    <th style="width:20%">BỘ PHẬN TOTAL REWARDS ĐÁNH GIÁ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td class="row-category">TINH THẦN TRÁCH NHIỆM</td><td class="text-left">Chấp hành kỷ luật, nội quy, văn hóa CLB</td><td>0.3</td><td>${disc.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">THAM GIA VÀ HỖ TRỢ CÁC CÔNG VIỆC CỦA CLB</td><td class="text-left">Tổ chức, hỗ trợ các chương trình của CLB</td><td>0.3</td><td>${supportScore.toFixed(2)}</td></tr>
-                                <tr><td>&nbsp;</td><td class="text-left">Tích cực tham gia chương trình nội bộ</td><td>0.2</td><td>${inScore.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">PHÁT TRIỂN HÌNH ẢNH CLB</td><td class="text-left">Tuyên truyền, phát triển hình ảnh CLB</td><td>0.2</td><td>${brand.toFixed(2)}</td></tr>
-                                <tr><td class="row-category">MẶT KHÁC</td><td colspan="2">Điểm cộng</td><td>${parseFloat((ce ? ce.disciplinePoints : 0) || 0).toFixed(2)}</td></tr>
-                                <tr class="row-total">
-                                    <td colspan="2">ĐIỂM TRUNG BÌNH</td>
-                                    <td colspan="2" class="score-red">${clubScore.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header">PHÂN TÍCH NĂNG LỰC CÁ NHÂN</div>
-                        <div class="report-radar-wrapper">
-                            <img src="${chartImgUrl}" style="width: 360px; height: auto;">
-                        </div>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header">HOẠT ĐỘNG TRONG BAN</div>
-                        <table class="report-section-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:25%">TIÊU CHÍ</th>
-                                    <th style="width:45%">CHỈ TIÊU</th>
-                                    <th style="width:10%">TRỌNG SỐ</th>
-                                    <th style="width:20%">TRƯỞNG/PHÓ BAN ĐÁNH GIÁ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${(() => {
-                const dept = (member.dept || '').trim();
-                const criteriaList = DEPT_EVAL_CONFIG[dept];
-                if (!criteriaList || !deptCri) return '<tr><td colspan="4" style="text-align:center; padding: 15px;">Chưa có đánh giá Ban.</td></tr>';
-
-                try {
-                    let rows = criteriaList.map(c => {
-                        const val = parseFloat(deptCri[c.id] || 0);
-                        return `<tr><td colspan="2" class="text-left">${c.label}</td><td>${c.weight}</td><td>${val.toFixed(2)}</td></tr>`;
-                    }).join('');
-
-                    const bVal = parseFloat(de.bonusScore || (deptCri ? deptCri.bonus : 0) || 0);
-                    if (bVal !== 0) {
-                        rows += `<tr><td colspan="2" class="text-left">Điểm cộng đóng góp</td><td>-</td><td>${bVal.toFixed(2)}</td></tr>`;
-                    }
-                    return rows;
-                } catch (e) {
-                    return '<tr><td colspan="4">Lỗi hiển thị tiêu chí.</td></tr>';
-                }
-            })()}
-                                <tr class="row-total">
-                                    <td colspan="2">ĐIỂM TRUNG BÌNH</td>
-                                    <td colspan="2" class="score-red">${deptScore.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="report-page-break"></div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header" style="margin-top:20px;">BẢNG ĐIỂM TỔNG HỢP</div>
-                        <table class="report-section-table">
-                            <tbody>
-                                <tr><td class="text-left" style="width:70%">Đánh giá Tham gia tổ chức Project</td><td>${prjScore.toFixed(2)}</td></tr>
-                                <tr><td class="text-left">Đánh giá Hoạt động trong CLB</td><td>${clubScore.toFixed(2)}</td></tr>
-                                <tr><td class="text-left">Đánh giá Hoạt động trong Ban</td><td>${deptScore.toFixed(2)}</td></tr>
-                                <tr class="row-total" style="background: #fff9ea;">
-                                    <td class="text-left">ĐIỂM TRUNG BÌNH</td>
-                                    <td class="score-red" style="font-size: 16px;">${total}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <div class="report-gold-sub-header">NHẬT XÉT CHUNG CỦA CLB</div>
-                        <div class="report-comment-box">
-                            <div class="report-comment-label">Trưởng/phó ban ${member.dept || '---'} đánh giá</div>
-                            <div class="report-comment-content">
-                                ${deptRemarksText}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="report-section-wrapper">
-                        <table class="report-footer-table">
-                            <thead>
-                                <tr><th colspan="2" style="background: linear-gradient(90deg, #c5a059, #e8d5b5); color: #fff;">CÁC CHƯƠNG TRÌNH ĐÃ THAM GIA HỖ TRỢ</th></tr>
-                                <tr><th style="background: #f1f1f1;">TÊN CHƯƠNG TRÌNH</th><th style="background: #f1f1f1;">VAI TRÒ</th></tr>
-                            </thead>
-                            <tbody>
-                                ${projectRowsHtml}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        `;
+        showToast('Đang tạo biểu đồ phân tích...', 'info');
+        wrapper.innerHTML = _buildPremiumPDFHTML(data, chartImgUrl);
 
         const opt = {
             margin: [0, 0],
-            filename: `Bao_Cao_${member.name.replace(/ /g, '_')}_Pro.pdf`,
+            filename: `BaoCao_${data.member.name.replace(/ /g, '_')}_Premium.pdf`,
             image: { type: 'jpeg', quality: 1.0 },
             html2canvas: {
                 scale: 2,
@@ -4115,7 +4351,8 @@ async function downloadPDF(mId) {
                 backgroundColor: '#ffffff',
                 logging: false
             },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
         };
 
         const element = document.getElementById('premium-pdf-content');
@@ -4128,7 +4365,7 @@ async function downloadPDF(mId) {
         showToast('Đang khởi tạo tệp PDF...', 'info');
 
         await html2pdf().set(opt).from(element).save();
-        showToast('Xuất báo cáo PDF thành công!', 'success');
+        showToast('Xuất báo cáo PDF Premium thành công!', 'success');
 
     } catch (err) {
         console.error('PDF Export Error:', err);
@@ -4148,6 +4385,127 @@ function exportIndividualPDFFromModal() {
         downloadPDF(state.currentDetailMemberId);
     }
 }
+
+// ==========================================
+// BULK PDF EXPORT BY DEPARTMENT
+// ==========================================
+
+function openBulkExportModal() {
+    openModal('bulk-pdf-modal');
+}
+
+async function executeBulkPDFExport() {
+    const deptSelect = document.getElementById('bulk-pdf-dept-select');
+    const selectedDept = deptSelect ? deptSelect.value : 'ALL';
+
+    let members = state.members.filter(m => m.status !== 'inactive');
+    if (selectedDept !== 'ALL') {
+        members = members.filter(m => (m.dept || '').trim() === selectedDept);
+    }
+
+    if (members.length === 0) {
+        showToast('Không có thành viên nào trong ban đã chọn.', 'error');
+        return;
+    }
+
+    const progressBar = document.getElementById('bulk-pdf-progress');
+    const progressText = document.getElementById('bulk-pdf-progress-text');
+    const progressContainer = document.getElementById('bulk-pdf-progress-container');
+    const btnExport = document.getElementById('btn-execute-bulk-pdf');
+
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (btnExport) { btnExport.disabled = true; btnExport.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...'; }
+
+    try {
+        if (typeof JSZip === 'undefined') {
+            showToast('Thư viện JSZip chưa được tải. Vui lòng thử lại sau.', 'error');
+            return;
+        }
+
+        const zip = new JSZip();
+        const deptLabel = selectedDept === 'ALL' ? 'TatCa' : selectedDept.replace('&', '');
+        let completed = 0;
+        let failed = 0;
+
+        for (let i = 0; i < members.length; i++) {
+            const member = members[i];
+
+            if (progressText) progressText.textContent = `Đang xuất: ${member.name} (${i + 1}/${members.length})`;
+            if (progressBar) progressBar.style.width = `${((i + 1) / members.length * 100).toFixed(0)}%`;
+
+            try {
+                const data = _preparePDFData(member.id);
+                if (!data) { failed++; continue; }
+
+                const chartImgUrl = await _generatePDFChartImage(data);
+                const htmlContent = _buildPremiumPDFHTML(data, chartImgUrl);
+
+                const wrapper = document.getElementById('individual-report-template');
+                wrapper.innerHTML = htmlContent;
+                const element = document.getElementById('premium-pdf-content');
+                element.parentElement.style.display = 'block';
+
+                const opt = {
+                    margin: [0, 0],
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                };
+
+                const blob = await html2pdf().set(opt).from(element).output('blob');
+                const safeName = member.name.replace(/[^a-zA-Z0-9À-ỹ\s]/g, '').replace(/\s+/g, '_');
+                zip.file(`BaoCao_${safeName}.pdf`, blob);
+
+                wrapper.innerHTML = '';
+                element.parentElement.style.display = 'none';
+                completed++;
+            } catch (memberErr) {
+                console.error(`Error exporting PDF for ${member.name}:`, memberErr);
+                failed++;
+            }
+
+            // Small delay to prevent UI freeze
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        if (completed === 0) {
+            showToast('Không thể xuất bất kỳ báo cáo nào.', 'error');
+            return;
+        }
+
+        if (progressText) progressText.textContent = 'Đang nén file ZIP...';
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+            if (progressBar) progressBar.style.width = `${metadata.percent.toFixed(0)}%`;
+        });
+
+        const now = new Date();
+        const dateStr = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
+        const fileName = `BaoCao_Ban_${deptLabel}_${dateStr}.zip`;
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(link.href);
+
+        let msg = `Xuất thành công ${completed} báo cáo PDF!`;
+        if (failed > 0) msg += ` (${failed} báo cáo bị lỗi)`;
+        showToast(msg, 'success');
+
+        closeModal('bulk-pdf-modal');
+
+    } catch (err) {
+        console.error('Bulk PDF Export Error:', err);
+        showToast('Lỗi khi xuất PDF hàng loạt: ' + err.message, 'error');
+    } finally {
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (progressBar) progressBar.style.width = '0%';
+        if (btnExport) { btnExport.disabled = false; btnExport.innerHTML = '<i class="fa-solid fa-download"></i> Bắt đầu xuất'; }
+    }
+}
+
 
 function switchDetailTab(btn, paneId) {
     state.activeDetailTab = paneId;

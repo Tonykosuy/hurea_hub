@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script defer src="app.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap"
@@ -720,6 +721,10 @@
                                     <button class="btn-lux-primary" onclick="exportScoreboardToPDF()"
                                         style="background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; margin-top:0; padding: 10px 20px;">
                                         <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                                    </button>
+                                    <button class="btn-lux-primary" onclick="openBulkExportModal()"
+                                        style="background: linear-gradient(135deg, #c5a059, #d4af37); border: none; margin-top:0; padding: 10px 20px; box-shadow: 0 4px 12px rgba(197, 160, 89, 0.3);">
+                                        <i class="fa-solid fa-file-zipper"></i> Xuất PDF Hàng Loạt
                                     </button>
                                 </div>
                             </div>
@@ -1685,6 +1690,56 @@
     <div id="individual-report-wrapper" style="display:none;">
         <div id="individual-report-template" class="report-luxury-container">
             <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- Modal: Bulk PDF Export -->
+    <div class="modal" id="bulk-pdf-modal">
+        <div class="modal-wrapper" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px;height:40px;background:linear-gradient(135deg, #c5a059, #d4af37);border-radius:12px;display:flex;justify-content:center;align-items:center;color:white;font-size:1.2rem;box-shadow:0 4px 12px rgba(197,160,89,0.3);">
+                        <i class="fa-solid fa-file-zipper"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;">Xuất PDF Hàng Loạt</h3>
+                        <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Xuất báo cáo Premium cho toàn bộ thành viên theo ban</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeModal('bulk-pdf-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label style="font-weight:700; font-size: 0.9rem;"><i class="fa-solid fa-building-columns"></i> Chọn Ban cần xuất</label>
+                    <select id="bulk-pdf-dept-select" style="width:100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-sub); color: var(--text-main); font-size: 0.95rem;">
+                        <option value="ALL">📋 Tất cả các Ban</option>
+                        <option value="L&D">🎓 Ban L&D</option>
+                        <option value="R&R">🎯 Ban R&R</option>
+                        <option value="ER">🤝 Ban ER</option>
+                        <option value="EB">📢 Ban EB</option>
+                    </select>
+                </div>
+                <div style="padding: 14px 16px; background: rgba(197, 160, 89, 0.08); border: 1px solid rgba(197, 160, 89, 0.2); border-radius: 12px; margin-bottom: 16px;">
+                    <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+                        <strong style="color: #c5a059;"><i class="fa-solid fa-circle-info"></i> Lưu ý:</strong><br>
+                        • Mỗi thành viên sẽ được xuất 1 file PDF riêng<br>
+                        • Tất cả được gom vào 1 file <strong>.ZIP</strong> để tải về<br>
+                        • Quá trình có thể mất vài phút tùy số lượng
+                    </div>
+                </div>
+                <div id="bulk-pdf-progress-container" style="display: none; margin-bottom: 16px;">
+                    <div id="bulk-pdf-progress-text" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">Đang chuẩn bị...</div>
+                    <div style="width: 100%; height: 10px; background: rgba(197, 160, 89, 0.1); border-radius: 10px; overflow: hidden;">
+                        <div id="bulk-pdf-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c5a059, #d4af37); border-radius: 10px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('bulk-pdf-modal')">Hủy</button>
+                <button class="btn-lux-primary" id="btn-execute-bulk-pdf" onclick="executeBulkPDFExport()" style="background: linear-gradient(135deg, #c5a059, #d4af37); border: none; margin-top:0; padding: 10px 24px; box-shadow: 0 4px 12px rgba(197, 160, 89, 0.3);">
+                    <i class="fa-solid fa-download"></i> Bắt đầu xuất
+                </button>
+            </div>
         </div>
     </div>
 
