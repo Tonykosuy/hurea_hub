@@ -4109,8 +4109,8 @@ function _buildPremiumPDFHTML(data, chartImgUrl) {
                             <td style="padding: 8px 14px; font-size: 15px; font-weight: 800; color: ${S.goldDark}; border: 1px solid ${S.goldLight}; letter-spacing: 0.5px;">${m.name}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Lớp - Khóa</td>
-                            <td style="padding: 8px 14px; font-size: 13px; border: 1px solid ${S.goldLight};">${m.class || '-'} - K${m.cohort || '-'}</td>
+                            <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Lớp</td>
+                            <td style="padding: 8px 14px; font-size: 13px; border: 1px solid ${S.goldLight};">${m.class || '-'}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 14px; font-weight: 700; font-size: 13px; background: ${S.creamAlt}; border: 1px solid ${S.goldLight};">Chức danh</td>
@@ -4457,8 +4457,8 @@ async function executeBulkPDFExport() {
                 const safeName = member.name.replace(/[^a-zA-Z0-9À-ỹ\s]/g, '').replace(/\s+/g, '_');
                 zip.file(`BaoCao_${safeName}.pdf`, blob);
 
-                wrapper.innerHTML = '';
                 element.parentElement.style.display = 'none';
+                wrapper.innerHTML = '';
                 completed++;
             } catch (memberErr) {
                 console.error(`Error exporting PDF for ${member.name}:`, memberErr);
