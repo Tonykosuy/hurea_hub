@@ -100,6 +100,45 @@ function ensureObject(val) {
     return {};
 }
 
+function normalizeProjectData(p) {
+    if (!p) return p;
+    let plIds = safeJsonParse(p.plIds, null);
+    if (!plIds) {
+        if (typeof p.plIds === 'string' && p.plIds.trim()) {
+            plIds = p.plIds.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (Array.isArray(p.plIds)) {
+            plIds = p.plIds.map(id => String(id).trim());
+        } else {
+            plIds = [];
+        }
+    } else if (Array.isArray(plIds)) {
+        plIds = plIds.map(id => String(id).trim());
+    } else {
+        plIds = [];
+    }
+
+    if (p.plId && !plIds.includes(String(p.plId).trim())) {
+        plIds.unshift(String(p.plId).trim());
+    }
+
+    const participants = safeJsonParse(p.participants, p.participants || []);
+    const teams = safeJsonParse(p.teams, p.teams || []);
+
+    ensureArray(participants).forEach(pt => {
+        if (pt && pt.role === 'PL' && pt.memberId && !plIds.includes(String(pt.memberId).trim())) {
+            plIds.push(String(pt.memberId).trim());
+        }
+    });
+
+    return {
+        ...p,
+        plId: plIds.length > 0 ? plIds[0] : (p.plId || ''),
+        plIds: plIds,
+        teams: ensureArray(teams),
+        participants: ensureArray(participants)
+    };
+}
+
 function getInitials(name) {
     if (!name) return '?';
     const parts = name.trim().split(' ');
@@ -285,7 +324,7 @@ async function loadFullDataInBackground() {
         const d = await r.json();
         if (d.status === 'success') {
             state.terms = normalizeDataKeys(d.terms || []); state.members = normalizeDataKeys(d.members || []);
-            state.projects = normalizeDataKeys(d.projects || []);
+            state.projects = normalizeDataKeys(d.projects || []).map(normalizeProjectData);
             state.evaluations = normalizeDataKeys(d.evaluations || []).map(ev => ({
                 ...ev,
                 careMessages: safeJsonParse(ev.careMessages, {}),
@@ -760,7 +799,7 @@ function saveMember() {
     closeModal('member-modal'); renderMembers(); populateSelectDropdowns(); renderEvidenceFolders();
 }
 
-function processBatchMembers() {
+async function processBatchMembers() {
     const raw = document.getElementById('bm-data').value.trim();
     if (!raw) return alert('Vui lòng paste dữ liệu!');
     const lines = raw.split('\n');
@@ -822,8 +861,9 @@ function processBatchMembers() {
 
     if (added.length > 0) {
         showToast(`Đang gửi ${added.length} thành viên lên hệ thống...`, 'info');
-        syncToBackend('save_batch', { sheetName: 'Members', records: added }, (res) => {
-            if (res && res.status === 'success') {
+        try {
+            await syncToBackend('save_batch', { sheetName: 'Members', records: added });
+
                 state.members.push(...added);
                 document.getElementById('bm-data').value = '';
                 closeModal('batch-member-modal');
@@ -832,10 +872,9 @@ function processBatchMembers() {
                 let msg = `✅ Đã lưu thành công ${added.length} thành viên lên Google Sheets.`;
                 if (dupes.length > 0) msg += `\n⚠️ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`;
                 alert(msg);
-            } else {
+        } catch (err) {
                 showToast('Lỗi khi lưu danh sách thành viên hàng loạt!', 'error');
             }
-        });
     } else if (dupes.length > 0) {
         alert(`⚠️ Toàn bộ ${dupes.length} tên BỊ BỎ QUA vì đã tồn tại:\n${dupes.join(', ')}`);
     }
@@ -1075,8 +1114,9 @@ function editProjectV2(id) {
     const p = state.projects.find(x => x.id === id);
     if (!p) return;
 
-    // Deep clone to avoid direct state mutation during edit
-    state.activeProjectData = JSON.parse(JSON.stringify(p));
+    // Deep clone normalized project data
+    const norm = normalizeProjectData(p);
+    state.activeProjectData = JSON.parse(JSON.stringify(norm));
 
     // Support legacy plId conversion to plIds
     if (state.activeProjectData.plId && (!state.activeProjectData.plIds || state.activeProjectData.plIds.length === 0)) {
@@ -1736,7 +1776,6 @@ function saveSelectedRole() {
         if (!team.members.find(m => m.memberId === memberId)) {
             team.members.push({ memberId, role });
         } else {
-            // Update role if already exists (optional, depends on preference)
             const tm = team.members.find(m => m.memberId === memberId);
             tm.role = role;
         }
@@ -1758,18 +1797,15 @@ async function saveProjectV2() {
 
     if (!p.name) return showToast('Vui lòng nhập tên chương trình!', 'error');
 
-    // Ensure we send plIds (multi-PL support)
-    // We can also keep plId (first one) for very old logic compatibility if needed
     if (p.plIds && p.plIds.length > 0) {
         p.plId = p.plIds[0];
     } else {
         p.plId = '';
     }
 
-    // Legacy support: We still keep p.participants as a flat list for scoring logic
     const allParticipants = [];
-    p.teams.forEach(t => {
-        t.members.forEach(tm => {
+    (p.teams || []).forEach(t => {
+        (t.members || []).forEach(tm => {
             allParticipants.push({
                 memberId: tm.memberId,
                 role: tm.role,
@@ -1777,35 +1813,31 @@ async function saveProjectV2() {
             });
         });
     });
-    // Add PLs to participants if not already there (optional, but good for tracking)
+
     (p.plIds || []).forEach(id => {
-        if (!allParticipants.some(x => x.memberId === id)) {
+        if (!allParticipants.some(x => x.memberId === id && x.role === 'PL')) {
             allParticipants.push({ memberId: id, role: 'PL', teamName: 'Leadership' });
         }
     });
 
-    // Add CARE list
     (p.careIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id && x.role === 'CARE')) {
             allParticipants.push({ memberId: id, role: 'CARE', teamName: 'Care Team' });
         }
     });
 
-    // Add SUPPORT list
     (p.supportIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id && x.role === 'SUPPORT')) {
             allParticipants.push({ memberId: id, role: 'SUPPORT', teamName: 'Hỗ trợ' });
         }
     });
 
-    // Add CHECKIN list
     (p.checkinIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id && x.role === 'CHECKIN')) {
             allParticipants.push({ memberId: id, role: 'CHECKIN', teamName: 'Checkin' });
         }
     });
 
-    // Add MENTOR list
     (p.mentorIds || []).forEach(id => {
         if (!allParticipants.some(x => x.memberId === id && x.role === 'MENTOR')) {
             allParticipants.push({ memberId: id, role: 'MENTOR', teamName: 'Mentors' });
@@ -1820,10 +1852,10 @@ async function saveProjectV2() {
         if (!p.id) p.id = 'p_' + Date.now();
         await syncToBackend('save_project', p);
 
-        // Update local state
+        const normP = normalizeProjectData(p);
         const idx = state.projects.findIndex(x => x.id === p.id);
-        if (idx > -1) state.projects[idx] = p;
-        else state.projects.push(p);
+        if (idx > -1) state.projects[idx] = normP;
+        else state.projects.push(normP);
 
         showToast(isUpdate ? 'Đã cập nhật & ghi đè thành công!' : 'Đã lưu thành công!', 'success');
         closeModal('project-modal');
@@ -1975,7 +2007,7 @@ function saveTerm() {
 }
 
 // BATCH PROJECT LOGIC
-function processBatchProjects() {
+async function processBatchProjects() {
     const data = document.getElementById('bp-data').value.trim();
     if (!data) {
         showToast('Vui lòng nhập danh sách dự án!', 'error');
@@ -2002,17 +2034,19 @@ function processBatchProjects() {
         teams: []
     }));
 
-    syncToBackend('save_batch', { sheetName: 'Projects', records: newProjects }, (res) => {
-        if (res && res.status === 'success') {
+    try {
+        await syncToBackend('save_batch', { sheetName: 'Projects', records: newProjects });
+
             state.projects.push(...newProjects);
             showToast(`Đã tạo thành công ${newProjects.length} dự án!`, 'success');
             closeModal('batch-project-modal');
             document.getElementById('bp-data').value = '';
-            fetchData();
-        } else {
+            renderProjects();
+            updateDashboardStats();
+    } catch (err) {
             showToast('Lỗi khi tạo dự án hàng loạt!', 'error');
-        }
-    });
+            console.error(err);
+    }
 }
 
 // BATCH TEAM MEMBER LOGIC
@@ -7228,8 +7262,12 @@ function renderEvaluationTasks() {
     const isAdmin = state.userRole === 'admin';
     const myProjects = state.projects.filter(p => {
         if (isAdmin) return true;
-        const parts = ensureArray(p.participants);
         const myId = String(state.currentUser.id).trim();
+        const plIds = ensureArray(p.plIds || (p.plId ? [p.plId] : [])).map(id => String(id).trim());
+        if (plIds.includes(myId)) return true;
+
+        const parts = ensureArray(p.participants);
+
         return parts.some(pt => {
             const isMe = String(pt.memberId).trim() === myId;
             if (!isMe) return false;
@@ -7366,7 +7404,13 @@ function startCinematicEvaluation(prjId) {
 
     const participants = ensureArray(prj.participants);
     const raterId = state.currentUser.id;
-    const raterPt = participants.find(pt => String(pt.memberId) === String(raterId));
+    let raterPt = participants.find(pt => String(pt.memberId) === String(raterId));
+
+    const plIds = ensureArray(prj.plIds || (prj.plId ? [prj.plId] : [])).map(id => String(id).trim());
+    if (!raterPt && plIds.includes(String(raterId).trim())) {
+        raterPt = { memberId: raterId, role: 'PL', teamName: 'Leadership' };
+        participants.push(raterPt);
+    }
 
     if (!raterPt) {
         alert('Bạn không có tên trong danh sách tham gia dự án này!');
@@ -7400,7 +7444,8 @@ function startCinematicEvaluation(prjId) {
             if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isAnyLeader = checkLeader(pt.role);
-            return isSelf || isAnyLeader;
+            const isCoPL = checkPL(pt.role);
+            return isSelf || isAnyLeader || isCoPL;
         });
     } else if (checkLeader(raterRole)) {
         // Leader: Self + Teammates (CTs in same team) + PL (không đánh giá leader team khác)
@@ -9636,7 +9681,11 @@ function getIncompleteEvalsData(targetPrjId = null) {
 
     const getRequiredTargets = (raterId, participants) => {
         const rIdStr = String(raterId).trim();
-        const raterPt = participants.find(pt => String(pt.memberId).trim() === rIdStr);
+        let raterPt = participants.find(pt => String(pt.memberId).trim() === rIdStr);
+        const plIds = ensureArray(p.plIds || (p.plId ? [p.plId] : [])).map(id => String(id).trim());
+        if (!raterPt && plIds.includes(rIdStr)) {
+            raterPt = { memberId: raterId, role: 'PL', teamName: 'Leadership' };
+        }
         if (!raterPt) return [];
 
         const raterRole = raterPt.role || 'Thành viên';
@@ -9651,7 +9700,8 @@ function getIncompleteEvalsData(targetPrjId = null) {
                 if (['SP', 'SUPPORT', 'CHECKIN', 'MENTOR'].includes(pt.role)) return false;
                 const isSelf = String(pt.memberId).trim() === rIdStr;
                 const isAnyLeader = checkLeader(pt.role);
-                return isSelf || isAnyLeader;
+                const isCoPL = checkPL(pt.role);
+                return isSelf || isAnyLeader || isCoPL;
             });
         } else if (checkLeader(raterRole)) {
             targets = participants.filter(pt => {
@@ -11515,7 +11565,7 @@ function isExemptFromEval(memberId, role) {
             'trưởng ban', 'phó ban', 'truong ban', 'pho ban', 
             'chủ nhiệm', 'phó chủ nhiệm', 'chu nhiem', 'pho chu nhiem',
             'chủ tịch', 'phó chủ tịch', 'chu tich', 'pho chu tich',
-            'careteam', 'care team', 'mentor', 'pl', 'project leader', 'trưởng dự án'
+            'careteam', 'care team', 'mentor'
         ];
         if (exemptKeywords.some(key => lower.includes(key))) return true;
     }
