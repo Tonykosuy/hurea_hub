@@ -1982,10 +1982,16 @@
                                     <div id="p-pl-list" class="pl-list-container">
                                         <!-- Multi PLs rendered here -->
                                     </div>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')"
-                                        title="Thêm/Chọn PL">
-                                        <i class="fa-solid fa-user-plus"></i> Thêm PL
-                                    </button>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('PL')"
+                                            title="Thêm/Chọn PL">
+                                            <i class="fa-solid fa-user-plus"></i> Thêm PL
+                                        </button>
+                                        <button type="button" class="btn-picker-mini" onclick="openQuickPasteModal('PL')"
+                                            title="Dán danh sách PL" style="background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                                            <i class="fa-solid fa-paste"></i> Dán DS
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2023,10 +2029,16 @@
                                 <div
                                     style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
                                     <strong><i class="fa-solid fa-heart-pulse"></i> Danh sách Care Team</strong>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CARE')"
-                                        title="Thêm Care Team">
-                                        <i class="fa-solid fa-user-plus"></i> Thêm người
-                                    </button>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CARE')"
+                                            title="Thêm Care Team">
+                                            <i class="fa-solid fa-user-plus"></i> Thêm người
+                                        </button>
+                                        <button type="button" class="btn-picker-mini" onclick="openQuickPasteModal('CARE')"
+                                            title="Dán danh sách Care Team" style="background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                                            <i class="fa-solid fa-paste"></i> Dán DS
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="p-care-list" class="pl-list-container" style="width:100%;">
                                     <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
@@ -2041,10 +2053,16 @@
                                 <div
                                     style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
                                     <strong><i class="fa-solid fa-hands-holding-circle"></i> Nhân sự Hỗ trợ</strong>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('SUPPORT')"
-                                        title="Thêm Nhân sự hỗ trợ">
-                                        <i class="fa-solid fa-user-plus"></i> Thêm người
-                                    </button>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('SUPPORT')"
+                                            title="Thêm Nhân sự hỗ trợ">
+                                            <i class="fa-solid fa-user-plus"></i> Thêm người
+                                        </button>
+                                        <button type="button" class="btn-picker-mini" onclick="openQuickPasteModal('SUPPORT')"
+                                            title="Dán danh sách Hỗ trợ" style="background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                                            <i class="fa-solid fa-paste"></i> Dán DS
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="p-support-list" class="pl-list-container" style="width:100%;">
                                     <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
@@ -2059,10 +2077,16 @@
                                 <div
                                     style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
                                     <strong><i class="fa-solid fa-qrcode"></i> Danh sách Check-in</strong>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CHECKIN')"
-                                        title="Thêm Check-in">
-                                        <i class="fa-solid fa-user-plus"></i> Thêm người
-                                    </button>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('CHECKIN')"
+                                            title="Thêm Check-in">
+                                            <i class="fa-solid fa-user-plus"></i> Thêm người
+                                        </button>
+                                        <button type="button" class="btn-picker-mini" onclick="openQuickPasteModal('CHECKIN')"
+                                            title="Dán danh sách Check-in" style="background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                                            <i class="fa-solid fa-paste"></i> Dán DS
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="p-checkin-list" class="pl-list-container" style="width:100%;">
                                     <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
@@ -2077,10 +2101,16 @@
                                 <div
                                     style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:12px;">
                                     <strong><i class="fa-solid fa-user-graduate"></i> Danh sách Mentor</strong>
-                                    <button type="button" class="btn-picker-mini" onclick="openMemberPicker('MENTOR')"
-                                        title="Thêm Mentor">
-                                        <i class="fa-solid fa-user-plus"></i> Thêm người
-                                    </button>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" class="btn-picker-mini" onclick="openMemberPicker('MENTOR')"
+                                            title="Thêm Mentor">
+                                            <i class="fa-solid fa-user-plus"></i> Thêm người
+                                        </button>
+                                        <button type="button" class="btn-picker-mini" onclick="openQuickPasteModal('MENTOR')"
+                                            title="Dán danh sách Mentor" style="background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                                            <i class="fa-solid fa-paste"></i> Dán DS
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="p-mentor-list" class="pl-list-container" style="width:100%;">
                                     <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Chưa
@@ -2135,9 +2165,9 @@
                 </div>
                 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div style="display:flex; gap:8px;">
-                        <button class="btn-primary-xs" onclick="openModal('batch-team-member-modal')"
-                            style="padding: 10px 16px;">
-                            <i class="fa-solid fa-paste"></i> Nhập nhanh từ Excel
+                        <button class="btn-primary-xs" onclick="openQuickPasteModal()"
+                            style="padding: 10px 16px; background:linear-gradient(135deg, #0ea5e9, #2563eb); color:white;">
+                            <i class="fa-solid fa-paste"></i> Nhập nhanh / Dán danh sách
                         </button>
                     </div>
                 </div>
@@ -2240,31 +2270,51 @@
 
     <!-- Modal: Batch Team Members Picker -->
     <div class="modal" id="batch-team-member-modal">
-        <div class="modal-wrapper modal-lg">
+        <div class="modal-wrapper modal-lg" style="max-width: 650px;">
             <div class="modal-header">
-                <h3>Nhập Nhân sự vào Team hàng loạt</h3>
+                <h3 style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-paste" style="color:var(--primary);"></i>
+                    <span id="btm-modal-title">Dán &amp; Khớp Nhân Sự Nhanh</span>
+                </h3>
                 <button class="close-btn" onclick="closeModal('batch-team-member-modal')"><i
                         class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:16px; font-size:0.9rem; color:var(--text-muted);">
-                    Dán danh sách <strong>Họ tên</strong> (hoặc MSSV), mỗi dòng một người.
-                </p>
-                <textarea id="btm-data" rows="12" placeholder="Nguyễn Văn A&#10;Trần Thị B"
-                    style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:20px; font-family:monospace; resize:y;"></textarea>
+                <div id="btm-target-banner" style="margin-bottom:14px; padding:10px 14px; background:rgba(14, 165, 233, 0.08); border-radius:10px; border:1px solid rgba(14, 165, 233, 0.2); font-size:0.9rem; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fa-solid fa-layer-group" style="margin-right:6px;"></i>Đang thêm vào: <strong id="btm-target-desc">Team</strong></span>
+                </div>
 
-                <div id="btm-error-log" class="paste-error-log" style="display:none; margin-top:16px;">
-                    <div class="error-log-header">
+                <div id="btm-role-selector-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding:10px 14px; background:var(--bg-sub); border-radius:10px; border:1px solid var(--border-color);">
+                    <label style="font-size:0.85rem; font-weight:600; margin:0; display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> Vai trò mặc định trong Team:
+                    </label>
+                    <select id="btm-default-role" class="styled-select" style="padding:6px 14px; font-size:0.85rem; font-weight:600; min-width:140px;">
+                        <option value="Core Team" selected>Core Team</option>
+                        <option value="Leader">Leader</option>
+                    </select>
+                </div>
+
+                <p style="margin-bottom:10px; font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+                    Dán danh sách <strong>Họ tên</strong> (hoặc MSSV / copy cột từ Excel), mỗi người một dòng.<br>
+                    <span style="font-size:0.8rem; color:#10b981;"><i class="fa-solid fa-circle-check"></i> Tự động chuẩn hóa dấu tiếng Việt, bỏ số thứ tự (1., 2.), bỏ dấu câu cuối dòng (như dấu chấm .), tự nhận diện nếu có ghi chú Leader.</span>
+                </p>
+                <textarea id="btm-data" rows="10" placeholder="Phạm Thị Mai Phương&#10;Nguyễn Thị Thanh Lam&#10;Hồ Đặng Nam Phương&#10;Phan Nguyễn Vân Anh&#10;Ngô Xuân Phúc."
+                    style="width:100%; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-panel); color:var(--text-main); padding:16px; font-family:inherit; font-size:0.92rem; line-height:1.6; resize:y;"></textarea>
+
+                <div id="btm-error-log" class="paste-error-log" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.2);">
+                    <div class="error-log-header" style="color:var(--accent-red); font-weight:700; font-size:0.88rem; display:flex; align-items:center; gap:8px;">
                         <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>Không tìm thấy các nhân sự này (Vui lòng kiểm tra lại Họ tên & Ban):</span>
+                        <span>Không tìm thấy các nhân sự này (đã thêm các bạn còn lại):</span>
                     </div>
-                    <ul id="btm-error-list" style="margin:10px 0 0 20px; color:var(--accent-red); font-size:0.85rem;">
+                    <ul id="btm-error-list" style="margin:8px 0 0 20px; color:var(--accent-red); font-size:0.85rem;">
                     </ul>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('batch-team-member-modal')">Quay lại</button>
-                <button class="btn-lux-primary" onclick="processBatchTeamMembers()">Khớp & Chọn Nhân sự</button>
+            <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                <button class="btn-secondary" onclick="closeModal('batch-team-member-modal')">Đóng</button>
+                <button class="btn-lux-primary" id="btn-btm-submit" onclick="processBatchTeamMembers()" style="margin:0; padding:10px 20px;">
+                    <i class="fa-solid fa-bolt"></i> Khớp &amp; Thêm Vào Chương Trình
+                </button>
             </div>
         </div>
     </div>

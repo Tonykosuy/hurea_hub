@@ -100,6 +100,76 @@ function ensureObject(val) {
     return {};
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function cleanInputLine(raw) {
+    if (!raw) return '';
+    let line = String(raw).replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\u00A0/g, ' ').trim();
+    // Remove leading numbering or bullet marks: e.g. "1. ", "1/ ", "1) ", "1- ", "- ", "* ", "• ", "+ "
+    line = line.replace(/^(\d+[\.\)\/\-\:\s]+|[\-\*\•\+\>\#]\s*)/, '').trim();
+    // Remove trailing punctuations: e.g. ".", ",", ";", ":"
+    line = line.replace(/[\.\,\;\:\!\?\*]+$/, '').trim();
+    // Normalize multi-spaces
+    line = line.replace(/\s+/g, ' ');
+    return line.normalize ? line.normalize('NFC') : line;
+}
+
+function findMemberFromQuery(query, members) {
+    if (!query || !members || !members.length) return null;
+    const clean = cleanInputLine(query);
+    if (!clean) return null;
+
+    // Handle columns copied from Excel (tab or semicolon separated)
+    const rawParts = query.split(/[\t;]/).map(p => cleanInputLine(p)).filter(Boolean);
+    const joinedParts = rawParts.length > 1 ? cleanInputLine(rawParts.join(' ')) : null;
+
+    const candidates = [clean];
+    if (joinedParts && joinedParts !== clean) candidates.push(joinedParts);
+    rawParts.forEach(p => { if (!candidates.includes(p)) candidates.push(p); });
+
+    // Stripped parenthetical notes: e.g. "Phạm Thị Mai Phương (Leader)" or "(ER)"
+    const strippedParentheses = clean.replace(/\s*[\(\[].*?[\)\]]\s*$/, '').trim();
+    if (strippedParentheses && !candidates.includes(strippedParentheses)) candidates.push(strippedParentheses);
+
+    // Stripped hyphenated notes: e.g. "Phạm Thị Mai Phương - Leader"
+    const strippedHyphen = clean.replace(/\s*[-–—]\s*(Leader|Core Team|L&D|ER|R&R|EB|Thành viên|Ban .*).*$/i, '').trim();
+    if (strippedHyphen && !candidates.includes(strippedHyphen)) candidates.push(strippedHyphen);
+
+    for (const cand of candidates) {
+        if (!cand) continue;
+        const candNorm = cand.toLowerCase();
+        const candNoAccent = typeof removeDiacritics === 'function' ? removeDiacritics(candNorm).trim() : candNorm;
+
+        // 1. MSSV / StudentId match
+        let m = members.find(x => (x.mssv && String(x.mssv).trim().toLowerCase() === candNorm) ||
+                                  (x.studentId && String(x.studentId).trim().toLowerCase() === candNorm));
+        if (m) return { member: m, matchedBy: 'mssv' };
+
+        // 2. Exact match Name (Unicode NFC, case-insensitive)
+        m = members.find(x => {
+            if (!x.name) return false;
+            const xName = (x.name.normalize ? x.name.normalize('NFC') : x.name).toLowerCase().trim();
+            return xName === candNorm;
+        });
+        if (m) return { member: m, matchedBy: 'exact_name' };
+
+        // 3. Accentless match Name
+        if (candNoAccent.length >= 3 && typeof removeDiacritics === 'function') {
+            m = members.find(x => {
+                if (!x.name) return false;
+                const xNameNorm = x.name.normalize ? x.name.normalize('NFC') : x.name;
+                return removeDiacritics(xNameNorm.toLowerCase()).trim() === candNoAccent;
+            });
+            if (m) return { member: m, matchedBy: 'accentless_name' };
+        }
+    }
+
+    return null;
+}
+
 function normalizeProjectData(p) {
     if (!p) return p;
     let plIds = safeJsonParse(p.plIds, null);
@@ -1456,6 +1526,9 @@ function renderTeamsV2() {
                     <button type="button" class="btn-premium-xs btn-add-ns" onclick="openMemberPicker('Team', '${team.id}')" title="Thêm nhân sự">
                         <i class="fa-solid fa-user-plus"></i> NS
                     </button>
+                    <button type="button" class="btn-premium-xs btn-paste-ns" onclick="openQuickPasteModal('Team', '${team.id}')" title="Dán danh sách nhân sự" style="background:linear-gradient(135deg, #0ea5e9, #2563eb);">
+                        <i class="fa-solid fa-paste"></i> Dán DS
+                    </button>
                     <button type="button" class="btn-premium-xs btn-delete-team" onclick="deleteTeamV2('${team.id}')" title="Xóa team">
                         <i class="fa-solid fa-trash-alt"></i>
                     </button>
@@ -2044,59 +2117,203 @@ async function processBatchProjects() {
             renderProjects();
             updateDashboardStats();
     } catch (err) {
-            showToast('Lỗi khi tạo dự án hàng loạt!', 'error');
-            console.error(err);
+        showToast('Lỗi khi tạo dự án hàng loạt!', 'error');
+        console.error(err);
     }
 }
 
-// BATCH TEAM MEMBER LOGIC
+// BATCH / QUICK PASTE MEMBER LOGIC
+function openQuickPasteModal(type = null, teamId = null) {
+    if (type) {
+        state.mpTarget = { type, teamId };
+    }
+    if (!state.mpTarget) {
+        state.mpTarget = { type: 'Team', teamId: null };
+    }
+
+    const { type: targetType, teamId: targetTeamId } = state.mpTarget;
+    const modalTitle = document.getElementById('btm-modal-title');
+    const targetDesc = document.getElementById('btm-target-desc');
+    const roleRow = document.getElementById('btm-role-selector-row');
+    const errorLog = document.getElementById('btm-error-log');
+
+    if (errorLog) errorLog.style.display = 'none';
+
+    if (targetType === 'Team') {
+        const team = (state.activeProjectData && state.activeProjectData.teams) ? state.activeProjectData.teams.find(t => t.id === targetTeamId) : null;
+        const teamName = team ? team.name : 'Team';
+        if (modalTitle) modalTitle.innerText = `Nhập nhanh Nhân sự vào Team: ${teamName}`;
+        if (targetDesc) targetDesc.innerText = `Team "${teamName}"`;
+        if (roleRow) roleRow.style.display = 'flex';
+    } else if (targetType === 'PL') {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Ban Chỉ Huy (Project Leader)';
+        if (targetDesc) targetDesc.innerText = 'Ban Chỉ Huy (PL)';
+        if (roleRow) roleRow.style.display = 'none';
+    } else if (targetType === 'CARE') {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Danh sách Care Team';
+        if (targetDesc) targetDesc.innerText = 'Care Team';
+        if (roleRow) roleRow.style.display = 'none';
+    } else if (targetType === 'SUPPORT') {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Nhân sự Hỗ trợ';
+        if (targetDesc) targetDesc.innerText = 'Nhân sự Hỗ trợ';
+        if (roleRow) roleRow.style.display = 'none';
+    } else if (targetType === 'CHECKIN') {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Danh sách Check-in';
+        if (targetDesc) targetDesc.innerText = 'Danh sách Check-in';
+        if (roleRow) roleRow.style.display = 'none';
+    } else if (targetType === 'MENTOR') {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Danh sách Mentor';
+        if (targetDesc) targetDesc.innerText = 'Danh sách Mentor';
+        if (roleRow) roleRow.style.display = 'none';
+    } else {
+        if (modalTitle) modalTitle.innerText = 'Nhập nhanh Nhân sự';
+        if (targetDesc) targetDesc.innerText = 'Chương trình';
+        if (roleRow) roleRow.style.display = 'none';
+    }
+
+    const dataInput = document.getElementById('btm-data');
+    if (dataInput) dataInput.value = '';
+    openModal('batch-team-member-modal');
+}
+
 function processBatchTeamMembers() {
-    const data = document.getElementById('btm-data').value.trim();
-    if (!data) {
-        showToast('Vui lòng nhập danh sách nhân sự!', 'error');
+    const rawData = document.getElementById('btm-data').value;
+    if (!rawData || !rawData.trim()) {
+        showToast('Vui lòng dán danh sách nhân sự!', 'warning');
         return;
     }
 
-    const lines = data.split('\n').map(l => l.trim()).filter(l => l !== '');
+    if (!state.activeProjectData) state.activeProjectData = {};
+
+    const { type, teamId } = state.mpTarget || { type: 'Team' };
+    const defaultRole = document.getElementById('btm-default-role') ? document.getElementById('btm-default-role').value : 'Core Team';
+
+    const lines = rawData.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const matched = [];
     const errors = [];
-    let addedCount = 0;
+    const seenMemberIds = new Set();
 
     lines.forEach(line => {
-        const query = line.trim().toLowerCase();
+        // Detect role override from the line (e.g., "Phạm Thị Mai Phương - Leader")
+        let role = defaultRole;
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('leader') || lowerLine.includes('trưởng nhóm') || lowerLine.includes('nhóm trưởng')) {
+            role = 'Leader';
+        }
 
-        // Find match by name or studentId
-        const match = state.members.find(m =>
-            m.name.toLowerCase() === query ||
-            (m.studentId && m.studentId.toString().toLowerCase() === query) ||
-            (m.mssv && m.mssv.toString().toLowerCase() === query)
-        );
-
-        if (match) {
-            if (!state.selectedPickerIds.includes(match.id)) {
-                state.selectedPickerIds.push(match.id);
-                addedCount++;
+        const matchResult = findMemberFromQuery(line, state.members);
+        if (matchResult && matchResult.member) {
+            const m = matchResult.member;
+            if (!seenMemberIds.has(m.id)) {
+                seenMemberIds.add(m.id);
+                matched.push({ member: m, role, originalLine: line });
             }
         } else {
             errors.push(line);
         }
     });
 
+    if (matched.length === 0) {
+        const errorLog = document.getElementById('btm-error-log');
+        const errorList = document.getElementById('btm-error-list');
+        if (errorLog && errorList) {
+            errorList.innerHTML = errors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
+            errorLog.style.display = 'block';
+        }
+        showToast(`Không tìm thấy nhân sự nào trong ${lines.length} dòng!`, 'error');
+        return;
+    }
+
+    // Apply matched members directly to target
+    if (type === 'Team') {
+        if (!state.activeProjectData.teams) state.activeProjectData.teams = [];
+        let team = state.activeProjectData.teams.find(t => t.id === teamId);
+        if (!team) {
+            if (state.activeProjectData.teams.length > 0) {
+                team = state.activeProjectData.teams[0];
+            } else {
+                team = { id: 't_' + Date.now(), name: 'Team 1', members: [] };
+                state.activeProjectData.teams.push(team);
+            }
+        }
+        team.members = ensureArray(team.members);
+        matched.forEach(item => {
+            const existing = team.members.find(tm => tm.memberId === item.member.id);
+            if (existing) {
+                existing.role = item.role;
+            } else {
+                team.members.push({ memberId: item.member.id, role: item.role });
+            }
+        });
+        renderTeamsV2();
+    } else if (type === 'PL') {
+        if (!state.activeProjectData.plIds) state.activeProjectData.plIds = [];
+        matched.forEach(item => {
+            if (!state.activeProjectData.plIds.includes(item.member.id)) {
+                state.activeProjectData.plIds.push(item.member.id);
+            }
+        });
+        renderPLList();
+    } else if (type === 'CARE') {
+        if (!state.activeProjectData.careIds) state.activeProjectData.careIds = [];
+        matched.forEach(item => {
+            if (!state.activeProjectData.careIds.includes(item.member.id)) {
+                state.activeProjectData.careIds.push(item.member.id);
+            }
+        });
+        renderCareList();
+    } else if (type === 'SUPPORT') {
+        if (!state.activeProjectData.supportIds) state.activeProjectData.supportIds = [];
+        matched.forEach(item => {
+            if (!state.activeProjectData.supportIds.includes(item.member.id)) {
+                state.activeProjectData.supportIds.push(item.member.id);
+            }
+        });
+        renderSupportList();
+    } else if (type === 'CHECKIN') {
+        if (!state.activeProjectData.checkinIds) state.activeProjectData.checkinIds = [];
+        matched.forEach(item => {
+            if (!state.activeProjectData.checkinIds.includes(item.member.id)) {
+                state.activeProjectData.checkinIds.push(item.member.id);
+            }
+        });
+        renderCheckinList();
+    } else if (type === 'MENTOR') {
+        if (!state.activeProjectData.mentorIds) state.activeProjectData.mentorIds = [];
+        matched.forEach(item => {
+            if (!state.activeProjectData.mentorIds.includes(item.member.id)) {
+                state.activeProjectData.mentorIds.push(item.member.id);
+            }
+        });
+        renderMentorList();
+    }
+
+    // Keep member picker selection synchronized
+    matched.forEach(item => {
+        if (!state.selectedPickerIds.includes(item.member.id)) {
+            state.selectedPickerIds.push(item.member.id);
+        }
+    });
+    updatePickerCount();
+    renderMemberPicker();
+
     if (errors.length > 0) {
         const errorLog = document.getElementById('btm-error-log');
         const errorList = document.getElementById('btm-error-list');
-        errorList.innerHTML = errors.map(e => `<li>${e}</li>`).join('');
-        errorLog.style.display = 'block';
-        showToast(`Tìm thấy ${addedCount} người, nhưng có ${errors.length} lỗi.`, 'warning');
+        if (errorLog && errorList) {
+            errorList.innerHTML = errors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
+            errorLog.style.display = 'block';
+        }
+        showToast(`Đã thêm ${matched.length} nhân sự! (Còn ${errors.length} dòng không khớp)`, 'warning');
     } else {
-        showToast(`Đã khớp và chọn thành công ${addedCount} nhân sự!`, 'success');
+        showToast(`Đã khớp & thêm thành công ${matched.length} nhân sự!`, 'success');
         closeModal('batch-team-member-modal');
+        closeModal('member-picker-modal');
         document.getElementById('btm-data').value = '';
         if (document.getElementById('btm-error-log')) {
             document.getElementById('btm-error-log').style.display = 'none';
         }
     }
-
-    renderMemberPicker();
 }
 
 // ==========================================
@@ -2672,6 +2889,9 @@ function getMemberProjectStats(mId) {
             const teammatesAvg = getAvg(peerScores);
             if (teammatesAvg !== null) categories.push(teammatesAvg);
 
+            const coLeaderAvg = getAvg(leaderOfTeamScores);
+            if (coLeaderAvg !== null) categories.push(coLeaderAvg);
+
             const plAvg = getAvg(plScores);
             if (plAvg !== null) categories.push(plAvg);
         } else {
@@ -3015,6 +3235,8 @@ function showScoreDetail(mId) {
         } else if (checkLeader(role)) {
             const teammatesAvg = getAvg(peerEvals.map(e => e.score));
             if (teammatesAvg !== null) categories.push(teammatesAvg);
+            const coLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
+            if (coLeaderAvg !== null) categories.push(coLeaderAvg);
             const plAvg = getAvg(plEvals.map(e => e.score));
             if (plAvg !== null) categories.push(plAvg);
         } else {
@@ -3086,7 +3308,7 @@ function showScoreDetail(mId) {
                     </div>` : '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--text-muted); font-style:italic;"><i class="fa-solid fa-circle-xmark" style="margin-right:4px;"></i>Chưa có tự đánh giá</div>'}
 
                     ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
-                    ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
+                    ${renderEvalRow(checkLeader(role) ? 'Leader cùng nhóm' : 'Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
                     ${checkPL(role) ? renderEvalRow('Leader khác', '#f97316', otherLeaderEvals) : ''}
                     ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
 
@@ -3390,6 +3612,7 @@ function showScoreDetail(mId) {
                     if (lAvg !== null) cats.push(lAvg);
                 } else if (checkLeader(role)) {
                     const pAvg = getA(peers); if (pAvg !== null) cats.push(pAvg);
+                    const clAvg = getA(myLeaders); if (clAvg !== null) cats.push(clAvg);
                     const plAvg = getA(pls);
                     if (plAvg !== null) cats.push(plAvg);
                 } else {
@@ -3515,6 +3738,8 @@ function showScoreDetail(mId) {
                 } else if (checkLeader(role)) {
                     const teammatesAvg = getAvg(peerEvals.map(e => e.score));
                     if (teammatesAvg !== null) categories.push(teammatesAvg);
+                    const coLeaderAvg = getAvg(leaderOfTeamEvals.map(e => e.score));
+                    if (coLeaderAvg !== null) categories.push(coLeaderAvg);
                     const plAvg = getAvg(plEvals.map(e => e.score));
                     if (plAvg !== null) categories.push(plAvg);
                 } else {
@@ -3573,7 +3798,7 @@ function showScoreDetail(mId) {
                             </div>` : '<div style="margin-bottom:12px; font-size:0.82rem; color:var(--text-muted); font-style:italic; padding: 0 12px;"><i class="fa-solid fa-circle-xmark" style="margin-right:4px;"></i>Thành viên này không tự đánh giá</div>'}
 
                             ${renderEvalRow('Đồng đội (Peer)', '#10b981', peerEvals)}
-                            ${renderEvalRow('Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
+                            ${renderEvalRow(checkLeader(role) ? 'Leader cùng nhóm' : 'Leader nhóm', '#f59e0b', leaderOfTeamEvals)}
                             ${checkPL(role) ? renderEvalRow('Leader khác', '#f97316', otherLeaderEvals) : ''}
                             ${renderEvalRow('Project Leader', '#ef4444', plEvals)}
 
@@ -7448,13 +7673,14 @@ function startCinematicEvaluation(prjId) {
             return isSelf || isAnyLeader || isCoPL;
         });
     } else if (checkLeader(raterRole)) {
-        // Leader: Self + Teammates (CTs in same team) + PL (không đánh giá leader team khác)
+        // Leader: Self + Teammates (CTs in same team) + PL + Co-Leaders (các leader khác trong cùng team)
         targets = participants.filter(pt => {
             if (['SP', 'SUPPORT', 'CHECKIN'].includes(pt.role)) return false;
             const isSelf = pt.memberId === raterId;
             const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
             const isMyPL = checkPL(pt.role);
-            return isSelf || isTeammate || isMyPL;
+            const isCoLeader = pt.teamName === raterTeam && checkLeader(pt.role) && pt.memberId !== raterId;
+            return isSelf || isTeammate || isMyPL || isCoLeader;
         });
     } else {
         // Core Team: Self + Leader of their team + Teammates (CTs in same team)
@@ -9709,7 +9935,8 @@ function getIncompleteEvalsData(targetPrjId = null) {
                 const isSelf = String(pt.memberId).trim() === rIdStr;
                 const isTeammate = pt.teamName === raterTeam && !checkLeader(pt.role) && !checkPL(pt.role);
                 const isMyPL = checkPL(pt.role);
-                return isSelf || isTeammate || isMyPL;
+                const isCoLeader = pt.teamName === raterTeam && checkLeader(pt.role) && String(pt.memberId).trim() !== rIdStr;
+                return isSelf || isTeammate || isMyPL || isCoLeader;
             });
         } else {
             targets = participants.filter(pt => {
